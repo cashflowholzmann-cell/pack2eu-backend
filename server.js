@@ -4,6 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { init } = require('./db');
 
+// Routes
 const authRoutes = require('./routes/auth');
 const countryRoutes = require('./routes/countries');
 const activationRoutes = require('./routes/activations');
@@ -14,23 +15,28 @@ const shopifyRoutes = require('./routes/shopify');
 const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
 
+// Datenbank initialisieren
 init();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS für ALLE Domains erlauben
+// CORS für ALLE erlauben – das ist die wichtigste Zeile!
 app.use(cors({ origin: '*' }));
 
+// JSON-Parser
 app.use(express.json({ limit: '500kb' }));
 
+// Rate Limiting
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/auth', authLimiter);
 
+// Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
 });
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/activations', activationRoutes);
@@ -41,7 +47,10 @@ app.use('/api/shopify', shopifyRoutes);
 app.use('/api/representatives', representativeRoutes);
 app.use('/api/billing', billingRoutes);
 
+// 404
 app.use((req, res) => res.status(404).json({ error: 'Endpunkt nicht gefunden.' }));
+
+// Error Handler
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Interner Serverfehler.' });
