@@ -4,6 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { init } = require('./db');
 
+// Routes
 const authRoutes = require('./routes/auth');
 const countryRoutes = require('./routes/countries');
 const activationRoutes = require('./routes/activations');
@@ -14,8 +15,8 @@ const shopifyRoutes = require('./routes/shopify');
 const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
 
-// Stripe Webhook Handler (direkt hier definiert, nicht aus billing importiert)
-const handleWebhook = async (req, res) => {
+// Webhook-Handler (direkt hier definiert)
+async function handleWebhook(req, res) {
   const sig = req.headers['stripe-signature'];
   let event;
   try {
@@ -54,20 +55,10 @@ const handleWebhook = async (req, res) => {
     }
   }
   res.json({ received: true });
-};
+}
 
-init();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-
-// Stripe Webhook (roher Body)
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), handleWebhook);
-
-// Shopify Webhook (roher Body) – direkt hier definiert
-app.post('/api/shopify/webhook/orders/create', express.raw({ type: 'application/json' }), async (req, res) => {
+// Shopify Webhook Handler
+async function handleShopifyWebhook(req, res) {
   try {
     const order = req.body;
     const shopDomain = req.headers['x-shopify-shop-domain'];
@@ -84,9 +75,7 @@ app.post('/api/shopify/webhook/orders/create', express.raw({ type: 'application/
     `).all(customer.id);
     
     const skuMap = {};
-    skus.forEach(s => {
-      if (s.shopify_product_id) skuMap[s.shopify_product_id] = s;
-    });
+    skus.forEach(s => { if (s.shopify_product_id) skuMap[s.shopify_product_id] = s; });
     
     let totalWeight = 0;
     const packagingMaterials = [];
@@ -128,13 +117,29 @@ app.post('/api/shopify/webhook/orders/create', express.raw({ type: 'application/
     console.error('Webhook Fehler:', err.message);
     res.status(500).send('Fehler');
   }
-});
+}
 
+// Datenbank initialisieren
+init();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// CORS
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+
+// Webhooks (roher Body)
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+app.post('/api/shopify/webhook/orders/create', express.raw({ type: 'application/json' }), handleShopifyWebhook);
+
+// JSON-Parser für alle anderen Routes
 app.use(express.json({ limit: '500kb' }));
 
+// Rate Limiting
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/auth', authLimiter);
 
+// Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
 });
@@ -150,7 +155,10 @@ app.use('/api/shopify', shopifyRoutes);
 app.use('/api/representatives', representativeRoutes);
 app.use('/api/billing', billingRoutes);
 
+// 404
 app.use((req, res) => res.status(404).json({ error: 'Endpunkt nicht gefunden.' }));
+
+// Error Handler
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Interner Serverfehler.' });
