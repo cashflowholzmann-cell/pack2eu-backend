@@ -315,53 +315,60 @@
                 <h2 class="text-3xl font-bold">Compliance, die zu deinem Shop passt.</h2>
                 <p class="text-[var(--text-dim)] mt-4">Keine versteckten Kosten – du zahlst nur das Paket, das du brauchst.</p>
             </div>
+<div class="pricing-grid">
+    <!-- S -->
+    <div class="pricing-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div class="tag mb-2">Starter</div>
+            <div class="price">15<span>€ / Monat</span></div>
+            <div class="text-sm text-[var(--text-dim)]">oder 119 € / Jahr</div>
+            <ul class="features" style="min-height: 240px;">
+                <li>Max. 2 EU-Länder</li>
+                <li>Bis 50 kg Verpackung/Jahr</li>
+                <li>Basis-Dashboard</li>
+                <li>Manuelle Eingabe</li>
+                <li>Bestehende Nummer importieren</li>
+            </ul>
+        </div>
+        <button onclick="selectPlan('S')" class="btn-outline w-full justify-center" style="margin-top: auto;">Starten</button>
+    </div>
 
-            <div class="pricing-grid">
-                <!-- S -->
-                <div class="pricing-card">
-                    <div class="tag mb-2">Starter</div>
-                    <div class="price">15<span>€ / Monat</span></div>
-                    <div class="text-sm text-[var(--text-dim)]">oder 119 € / Jahr</div>
-                    <ul class="features">
-                        <li>Max. 2 EU-Länder</li>
-                        <li>Bis 50 kg Verpackung/Jahr</li>
-                        <li>Basis-Dashboard</li>
-                        <li>Manuelle Eingabe</li>
-                        <li>Bestehende Nummer importieren</li>
-                    </ul>
-                    <button onclick="selectPlan('S')" class="btn-outline w-full justify-center">Starten</button>
-                </div>
-                <!-- M -->
-                <div class="pricing-card popular">
-                    <div class="tag mb-2" style="background:var(--primary); color:white;">Bestseller</div>
-                    <div class="price">49<span>€ / Monat</span></div>
-                    <div class="text-sm text-[var(--text-dim)]">oder 449 € / Jahr</div>
-                    <ul class="features">
-                        <li>Alle 27 EU-Länder</li>
-                        <li>Bis 1.000 kg Verpackung/Jahr</li>
-                        <li>Shop-Integration (Shopify/Etsy)</li>
-                        <li>Notar-Integration (Österreich)</li>
-                        <li>Bevollmächtigten-Netzwerk inkl.</li>
-                        <li>Bestehende Nummer importieren</li>
-                    </ul>
-                    <button onclick="selectPlan('M')" class="btn-primary w-full justify-center">Jetzt starten</button>
-                </div>
-                <!-- L -->
-                <div class="pricing-card">
-                    <div class="tag mb-2" style="color:var(--accent)">Enterprise</div>
-                    <div class="price">149<span>€ / Monat</span></div>
-                    <div class="text-sm text-[var(--text-dim)]">oder 1.299 € / Jahr</div>
-                    <ul class="features">
-                        <li>Alle 27 EU-Länder</li>
-                        <li>Unbegrenztes Gewicht</li>
-                        <li>Audit-Berichte (CSV/PDF)</li>
-                        <li>Dedizierter Support</li>
-                        <li>API-Zugang</li>
-                        <li>Bestehende Nummer importieren</li>
-                    </ul>
-                    <button onclick="selectPlan('L')" class="btn-outline w-full justify-center">Kontakt</button>
-                </div>
-            </div>
+    <!-- M -->
+    <div class="pricing-card popular" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div class="tag mb-2" style="background:var(--primary); color:white;">Bestseller</div>
+            <div class="price">49<span>€ / Monat</span></div>
+            <div class="text-sm text-[var(--text-dim)]">oder 449 € / Jahr</div>
+            <ul class="features" style="min-height: 240px;">
+                <li>Alle 27 EU-Länder</li>
+                <li>Bis 1.000 kg Verpackung/Jahr</li>
+                <li>Shop-Integration (Shopify/Etsy)</li>
+                <li>Notar-Integration (Österreich)</li>
+                <li>Bevollmächtigten-Netzwerk inkl.</li>
+                <li>Bestehende Nummer importieren</li>
+            </ul>
+        </div>
+        <button onclick="selectPlan('M')" class="btn-primary w-full justify-center" style="margin-top: auto;">Jetzt starten</button>
+    </div>
+
+    <!-- L -->
+    <div class="pricing-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div class="tag mb-2" style="color:var(--accent)">Enterprise</div>
+            <div class="price">149<span>€ / Monat</span></div>
+            <div class="text-sm text-[var(--text-dim)]">oder 1.299 € / Jahr</div>
+            <ul class="features" style="min-height: 240px;">
+                <li>Alle 27 EU-Länder</li>
+                <li>Unbegrenztes Gewicht</li>
+                <li>Audit-Berichte (CSV/PDF)</li>
+                <li>Dedizierter Support</li>
+                <li>API-Zugang</li>
+                <li>Bestehende Nummer importieren</li>
+            </ul>
+        </div>
+        <button onclick="selectPlan('L')" class="btn-outline w-full justify-center" style="margin-top: auto;">Kontakt</button>
+    </div>
+</div>
 
             <div class="text-center mt-8 text-sm text-[var(--text-dim)]">
                 💡 Die reinen Recycling-Gebühren (Öko-Steuer) werden 1:1 an die Behörden weitergegeben – kein Aufschlag durch Pack2EU.
