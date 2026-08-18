@@ -4,7 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { init } = require('./db');
 
-// Routes
+// Routes – Billing erstmal auskommentiert!
 const authRoutes = require('./routes/auth');
 const countryRoutes = require('./routes/countries');
 const activationRoutes = require('./routes/activations');
@@ -13,7 +13,7 @@ const exportRoutes = require('./routes/exports');
 const skusRoutes = require('./routes/skus');
 const shopifyRoutes = require('./routes/shopify');
 const representativeRoutes = require('./routes/representatives');
-const billingRoutes = require('./routes/billing');
+// const billingRoutes = require('./routes/billing'); // AUSKOMMENTIERT
 
 // Webhook-Handler (direkt hier definiert)
 async function handleWebhook(req, res) {
@@ -144,7 +144,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
 });
 
-// Routes
+// Routes – BILLING AUSKOMMENTIERT
 app.use('/api/auth', authRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/activations', activationRoutes);
@@ -153,7 +153,7 @@ app.use('/api/exports', exportRoutes);
 app.use('/api/skus', skusRoutes);
 app.use('/api/shopify', shopifyRoutes);
 app.use('/api/representatives', representativeRoutes);
-app.use('/api/billing', billingRoutes);
+// app.use('/api/billing', billingRoutes); // AUSKOMMENTIERT
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Endpunkt nicht gefunden.' }));
@@ -162,6 +162,10 @@ app.use((req, res) => res.status(404).json({ error: 'Endpunkt nicht gefunden.' }
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Interner Serverfehler.' });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${PORT}`);
 });
 
 app.listen(PORT, () => {
