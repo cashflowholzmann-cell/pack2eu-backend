@@ -41,4 +41,4 @@ router.get('/status', requireAuth, (req, res) => {
   res.json(customer || { plan: 'M', subscription_status: 'inactive' });
 });
 
-module.exports = { router };
+module.exports = router;
