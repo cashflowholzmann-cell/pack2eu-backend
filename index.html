@@ -399,19 +399,18 @@
     FOOTER
     ============================================================ -->
     <footer class="border-t border-[var(--border)] py-8 bg-white">
-        <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[var(--text-dim)]">
-            <div>© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops</div>
-            <div class="flex gap-6">
-                <a href="#" class="hover:text-[var(--text)] transition">AGB</a>
-                <a href="#" class="hover:text-[var(--text)] transition">Datenschutz</a>
-                <a href="#" class="hover:text-[var(--text)] transition">Impressum</a>
-                <button onclick="openRepresentativeLogin()" class="hover:text-[var(--text)] transition font-mono">🏛️ Für Beauftragte</button>
-            </div>
-            <div class="text-xs">
-                ⚠️ Hinweis: Pack2EU ist ein Dienstleister, kein Rechtsanwalt. Die Plattform ersetzt keine individuelle Rechtsberatung.
-            </div>
+    <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
+        <div>© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops</div>
+        <div class="flex gap-6">
+            <button onclick="openLegalPopup('agb')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer">AGB</button>
+            <button onclick="openLegalPopup('datenschutz')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer">Datenschutz</button>
+            <button onclick="openLegalPopup('impressum')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer">Impressum</button>
         </div>
-    </footer>
+        <div class="text-xs">
+            ⚠️ Hinweis: Pack2EU ist ein Dienstleister, kein Rechtsanwalt. Die Plattform ersetzt keine individuelle Rechtsberatung.
+        </div>
+    </div>
+</footer>
 
     <!-- ============================================================
     ONBOARDING MODAL
