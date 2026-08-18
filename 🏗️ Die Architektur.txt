@@ -1,0 +1,35 @@
+┌─────────────────────────────────────────────────────────────┐
+│                     PACK2EU BACKEND                        │
+│                  (Node.js + PostgreSQL)                    │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │
+│  │  /api/auth  │  │ /api/skus   │  │ /api/activations │   │
+│  │  Login/Reg  │  │ SKU-CRUD    │  │ Länder aktiv.   │   │
+│  └─────────────┘  └─────────────┘  └─────────────────┘   │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │
+│  │ /api/shopify│  │ /api/billing│  │ /api/repres... │   │
+│  │ Shopify-API │  │ Stripe      │  │ Beauftragten   │   │
+│  └─────────────┘  └─────────────┘  └─────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              PostgreSQL-Datenbank                   │   │
+│  │  customers | activations | product_packaging       │   │
+│  │  shopify_orders | submissions | representatives    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            ▲
+                            │ API-Calls (fetch)
+                            │
+        ┌───────────────────┼───────────────────┐
+        │                   │                   │
+        ▼                   ▼                   ▼
+┌───────────────┐ ┌───────────────┐ ┌───────────────────┐
+│  LANDINGPAGE  │ │   DASHBOARD   │ │ BEAUFTRAGTEN-PORTAL│
+│  index.html   │ │ dashboard.html│ │ (im Dashboard)    │
+│               │ │               │ │                   │
+│ • Verkaufen   │ │ • Länder      │ │ • Meldungen sehen │
+│ • Registrier. │ │ • SKUs        │ │ • Status ändern  │
+│ • Login       │ │ • Statistik   │ │ • CSV-Export     │
+│               │ │ • Bestellungen│ │                   │
+└───────────────┘ └───────────────┘ └───────────────────┘

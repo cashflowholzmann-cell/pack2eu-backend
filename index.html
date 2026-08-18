@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pack2EU — Verpackungs-Compliance für kleine Online-Shops</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0A2540;
+            --primary-light: #1A3A5C;
+            --accent: #0066FF;
+            --accent-light: #E8F0FE;
+            --success: #00B383;
+            --warning: #F5A623;
+            --danger: #E53E3E;
+            --bg: #F8FAFC;
+            --card: #FFFFFF;
+            --text: #0F172A;
+            --text-dim: #64748B;
+            --border: #E2E8F0;
+            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --radius: 16px;
+            --font: 'Inter', -apple-system, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
+        .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+        .btn-primary { background: var(--primary); color: white; font-weight: 600; padding: 14px 32px; border-radius: 10px; border: none; cursor: pointer; transition: all .15s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(10,37,64,0.25); }
+        .btn-outline { background: transparent; color: var(--text); font-weight: 500; padding: 14px 32px; border-radius: 10px; border: 1.5px solid var(--border); cursor: pointer; transition: all .15s ease; }
+        .btn-outline:hover { border-color: var(--text); background: var(--bg); }
+        .btn-accent { background: var(--accent); color: white; font-weight: 600; padding: 14px 32px; border-radius: 10px; border: none; cursor: pointer; transition: all .15s ease; }
+        .btn-accent:hover { background: #0052CC; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,102,255,0.3); }
+        .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); padding: 24px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: #D1FAE5; color: #065F46; }
+        .badge-warning { background: #FEF3C7; color: #92400E; }
+        .badge-accent { background: var(--accent-light); color: var(--accent); }
+        .badge-danger { background: #FEE2E2; color: var(--danger); }
+        .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 4px 12px; border: 1.5px solid var(--border); background: var(--bg); display: inline-block; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 32px; }
+        .pricing-card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 32px; text-align: center; transition: all .2s ease; position: relative; }
+        .pricing-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+        .pricing-card.popular { border-color: var(--primary); box-shadow: 0 8px 32px rgba(10,37,64,0.12); }
+        .pricing-card.popular::before { content: "BELIEBTESTE WAHL"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 2px 16px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; font-family: var(--mono); }
+        .pricing-card .price { font-size: 48px; font-weight: 700; margin: 16px 0 4px; }
+        .pricing-card .price span { font-size: 16px; font-weight: 400; color: var(--text-dim); }
+        .pricing-card .features { text-align: left; margin: 24px 0; list-style: none; padding: 0; }
+        .pricing-card .features li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .pricing-card .features li::before { content: "✓"; color: var(--success); font-weight: 700; }
+        .step-number { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; background: var(--accent); color: white; flex-shrink: 0; margin: 0 auto 12px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-dot.green { background: var(--success); }
+        .status-dot.yellow { background: var(--warning); }
+        .status-dot.red { background: var(--danger); }
+        .status-dot.gray { background: var(--border); }
+        .mesh { background: radial-gradient(circle at 15% 20%, rgba(0,102,255,.04), transparent 40%), radial-gradient(circle at 85% 10%, rgba(10,37,64,.06), transparent 45%); }
+        .fade-in { animation: fadeIn .4s ease both; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .step-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 32px; }
+        .step-card { text-align: center; padding: 20px 16px; background: white; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); transition: all .2s ease; }
+        .step-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        .step-card .step-number { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; background: var(--accent); color: white; margin: 0 auto 12px; }
+        .step-card .step-number.done { background: var(--success); }
+        .step-card h4 { font-weight: 700; margin-bottom: 4px; }
+        .step-card p { font-size: 14px; color: var(--text-dim); }
+        @media (max-width: 768px) {
+            .step-grid { grid-template-columns: 1fr 1fr; }
+            .pricing-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .step-grid { grid-template-columns: 1fr; }
+        }
+        .hero-price-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 999px; padding: 6px 16px; font-weight: 600; font-size: 14px; color: var(--accent); }
+        .hero-price-badge .price { font-size: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+    TOP BAR
+    ============================================================ -->
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[var(--border)]">
+        <div class="container py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center text-white font-bold text-lg">P</div>
+                <span class="text-xl font-bold tracking-tight">Pack2EU</span>
+                <span class="badge badge-success ml-2">Live</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#pricing" class="text-sm font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition">Preise</a>
+                <a href="#how-it-works" class="text-sm font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition hidden md:inline">So funktioniert's</a>
+                <button onclick="openOnboarding()" class="btn-primary text-sm py-2 px-5">Jetzt starten →</button>
+                <button onclick="openRepresentativeLogin()" class="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition font-mono border border-[var(--border)] px-3 py-1 rounded-lg">🏛️ Für Beauftragte</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+    HERO - mit "ab 15 €"
+    ============================================================ -->
+    <section class="mesh py-20 md:py-28">
+        <div class="container">
+            <div class="max-w-3xl">
+                <div class="flex items-center gap-3 flex-wrap mb-6">
+                    <span class="badge badge-accent">✔️ Für Shopify, Etsy & Co.</span>
+                    <span class="hero-price-badge">
+                        💳 <span class="price">ab 15 €</span> / Monat
+                    </span>
+                </div>
+                <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.08]">
+                    Du verkaufst nach Europa.<br>
+                    <span class="text-[var(--accent)]">Wir kümmern uns um den Verpackungs-Kram.</span>
+                </h1>
+                <p class="mt-6 text-xl max-w-2xl leading-relaxed text-[var(--text-dim)]">
+                    Neue Verpackungspflichten in jedem Land – unterschiedliche Regeln, Register und Behörden.
+                    <strong class="text-[var(--text)]">Pack2EU bündelt Registrierung, Bevollmächtigte, Verpackungsdaten und Meldungen in einer einzigen Plattform.</strong>
+                </p>
+                <div class="mt-8 flex flex-wrap gap-4">
+                    <button onclick="openOnboarding()" class="btn-primary text-lg px-8 py-4">Jetzt loslegen →</button>
+                    <button onclick="scrollToSection('how-it-works')" class="btn-outline text-lg px-8 py-4">So funktioniert's</button>
+                </div>
+                <div class="mt-8 flex items-center gap-6 text-sm text-[var(--text-dim)]">
+                    <span>✅ Keine versteckten Kosten</span>
+                    <span>✅ Monatlich kündbar</span>
+                    <span>✅ Für Kleinst- & Kleinunternehmen</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    PAIN POINT / PROBLEM
+    ============================================================ -->
+    <section class="py-16 bg-white border-y border-[var(--border)]">
+        <div class="container">
+            <div class="max-w-3xl mx-auto text-center">
+                <span class="tag mb-4">Das Problem</span>
+                <h2 class="text-3xl font-bold mb-6">EU-Verpackungsrecht ist kompliziert – und für kleine Shops kaum bezahlbar.</h2>
+                <p class="text-lg text-[var(--text-dim)] leading-relaxed">
+                    Frankreich funktioniert anders als Deutschland. Italien anders als Frankreich.
+                    Eine Kanzlei oder spezialisierte Beratung für jedes einzelne Land kann für einen kleinen Shop
+                    wirtschaftlich schlicht keinen Sinn ergeben.
+                </p>
+                <div class="grid md:grid-cols-3 gap-6 mt-10 text-left">
+                    <div class="card">
+                        <div class="text-3xl mb-3">📋</div>
+                        <h4 class="font-bold">Unterschiedliche Registrierungen</h4>
+                        <p class="text-sm text-[var(--text-dim)]">Jedes EU-Land hat sein eigenes Register und eigene Regeln.</p>
+                    </div>
+                    <div class="card">
+                        <div class="text-3xl mb-3">🏛️</div>
+                        <h4 class="font-bold">Bevollmächtigte vor Ort</h4>
+                        <p class="text-sm text-[var(--text-dim)]">Ohne lokalen Ansprechpartner keine Registrierung in den meisten Ländern.</p>
+                    </div>
+                    <div class="card">
+                        <div class="text-3xl mb-3">💶</div>
+                        <h4 class="font-bold">Hohe Einzelkosten</h4>
+                        <p class="text-sm text-[var(--text-dim)]">Kanzleien verlangen oft 300–800 € pro Land und Jahr.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    LÖSUNG / HOW IT WORKS (4 SCHRITTE IN EINER REIHE)
+    ============================================================ -->
+    <section id="how-it-works" class="py-20">
+        <div class="container">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <span class="tag mb-4">So funktioniert's</span>
+                <h2 class="text-3xl font-bold">Einmal erfassen. Pack2EU weiß, was daraus wird.</h2>
+                <p class="text-[var(--text-dim)] mt-4">Vom Produkt bis zur Meldung – ein durchgängiger Prozess.</p>
+            </div>
+
+            <!-- 4 Schritte in einer Reihe -->
+            <div class="step-grid">
+                <!-- Schritt 1 -->
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h4>Produkt & Verpackung hinterlegen</h4>
+                    <p>Karton, Kunststoff, Füllmaterial – einmal eingeben, immer verfügbar.</p>
+                </div>
+                <!-- Schritt 2 -->
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h4>Shop verbinden</h4>
+                    <p>Shopify, Etsy oder manuelle Eingabe – Bestellungen werden automatisch erfasst.</p>
+                </div>
+                <!-- Schritt 3 -->
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h4>Länderspezifische Anforderungen</h4>
+                    <p>Pack2EU prüft, was in Frankreich, Italien, Spanien & Co. benötigt wird.</p>
+                </div>
+                <!-- Schritt 4 -->
+                <div class="step-card">
+                    <div class="step-number done">✓</div>
+                    <h4 style="color:var(--success);">Erledigt</h4>
+                    <p>Registrierung, Bevollmächtigter, Meldung – alles im Griff.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    STATUS / DASHBOARD VORSCHAU
+    ============================================================ -->
+    <section class="py-16 bg-white border-y border-[var(--border)]">
+        <div class="container">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-10">
+                    <span class="tag mb-4">Dein Status</span>
+                    <h2 class="text-3xl font-bold">Was muss ich wo tun? <span class="text-[var(--accent)]">Auf einen Blick.</span></h2>
+                    <p class="text-[var(--text-dim)] mt-4">Pack2EU zeigt dir genau, in welchem Land was noch zu erledigen ist.</p>
+                </div>
+                <div class="card p-6 md:p-8">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
+                        <div>
+                            <div class="font-bold text-lg">🇩🇪 Deutschland</div>
+                            <div class="text-sm text-[var(--text-dim)]">LUCID / ZSVR</div>
+                            <div class="text-xs text-[var(--success)]">Nummer: DE123456789 ✓</div>
+                        </div>
+                        <div>
+                            <span class="status-dot green"></span>
+                            <span class="font-medium text-[var(--success)]">Erledigt ✓</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
+                        <div>
+                            <div class="font-bold text-lg">🇫🇷 Frankreich</div>
+                            <div class="text-sm text-[var(--text-dim)]">ADEME / CITEO</div>
+                            <div class="text-xs text-[var(--warning)]">In Bearbeitung</div>
+                        </div>
+                        <div>
+                            <span class="status-dot yellow"></span>
+                            <span class="font-medium text-[var(--warning)]">In Bearbeitung</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
+                        <div>
+                            <div class="font-bold text-lg">🇮🇹 Italien</div>
+                            <div class="text-sm text-[var(--text-dim)]">CONAI</div>
+                            <div class="text-xs text-[var(--danger)]">Handlung erforderlich</div>
+                        </div>
+                        <div>
+                            <span class="status-dot red"></span>
+                            <span class="font-medium text-[var(--danger)]">Handlung erforderlich</span>
+                            <button onclick="openOnboarding()" class="ml-4 text-sm text-[var(--accent)] font-medium hover:underline">Jetzt erledigen →</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-lg">🇪🇸 Spanien</div>
+                            <div class="text-sm text-[var(--text-dim)]">Ecoembes</div>
+                            <div class="text-xs text-[var(--text-dim)]">Noch nicht eingerichtet</div>
+                        </div>
+                        <div>
+                            <span class="status-dot gray"></span>
+                            <span class="font-medium text-[var(--text-dim)]">Noch nicht eingerichtet</span>
+                            <button onclick="openOnboarding()" class="ml-4 text-sm text-[var(--accent)] font-medium hover:underline">Jetzt erledigen →</button>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-[var(--border)] text-xs text-[var(--text-dim)]">
+                        💡 Hast du bereits eine EPR-Nummer? Du kannst sie bei der Aktivierung des Landes eintragen.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    BEVOLLMÄCHTIGTER
+    ============================================================ -->
+    <section class="py-16">
+        <div class="container">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <span class="tag mb-4">Bevollmächtigter</span>
+                    <h2 class="text-3xl font-bold mb-4">Sie brauchen einen Ansprechpartner vor Ort?</h2>
+                    <p class="text-lg text-[var(--text-dim)] leading-relaxed mb-6">
+                        Kein Problem. <strong>Pack2EU vermittelt Ihnen den erforderlichen Bevollmächtigten im jeweiligen Zielland</strong> und verwaltet die notwendigen Unterlagen zentral über Ihr Konto.
+                    </p>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3"><span class="text-[var(--success)]">✓</span> <span>🇫🇷 Frankreich – Bevollmächtigter aktiv</span></div>
+                        <div class="flex items-center gap-3"><span class="text-[var(--success)]">✓</span> <span>🇮🇹 Italien – Bevollmächtigter aktiv</span></div>
+                        <div class="flex items-center gap-3"><span class="text-[var(--text-dim)]">○</span> <span>🇪🇸 Spanien – noch nicht aktiviert</span></div>
+                    </div>
+                    <button onclick="openOnboarding()" class="btn-primary mt-6">Jetzt aktivieren →</button>
+                </div>
+                <div class="card p-8 bg-[var(--primary)] text-white">
+                    <div class="text-4xl mb-4">🏛️</div>
+                    <h3 class="text-xl font-bold mb-2">Was ist ein Bevollmächtigter?</h3>
+                    <p class="text-sm opacity-80 leading-relaxed">
+                        In den meisten EU-Ländern muss ein ausländischer Händler einen lokalen Ansprechpartner benennen,
+                        der für die Einhaltung der Verpackungsvorschriften haftet.
+                        Pack2EU organisiert diesen Partner für Sie – in jedem Land, in das Sie verkaufen.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    PREISE
+    ============================================================ -->
+    <section id="pricing" class="py-20 bg-white border-y border-[var(--border)]">
+        <div class="container">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <span class="tag mb-4">Preise</span>
+                <h2 class="text-3xl font-bold">Compliance, die zu deinem Shop passt.</h2>
+                <p class="text-[var(--text-dim)] mt-4">Keine versteckten Kosten – du zahlst nur das Paket, das du brauchst.</p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- S -->
+                <div class="pricing-card">
+                    <div class="tag mb-2">Starter</div>
+                    <div class="price">15<span>€ / Monat</span></div>
+                    <div class="text-sm text-[var(--text-dim)]">oder 119 € / Jahr</div>
+                    <ul class="features">
+                        <li>Max. 2 EU-Länder</li>
+                        <li>Bis 50 kg Verpackung/Jahr</li>
+                        <li>Basis-Dashboard</li>
+                        <li>Manuelle Eingabe</li>
+                        <li>Bestehende Nummer importieren</li>
+                    </ul>
+                    <button onclick="selectPlan('S')" class="btn-outline w-full justify-center">Starten</button>
+                </div>
+                <!-- M -->
+                <div class="pricing-card popular">
+                    <div class="tag mb-2" style="background:var(--primary); color:white;">Bestseller</div>
+                    <div class="price">49<span>€ / Monat</span></div>
+                    <div class="text-sm text-[var(--text-dim)]">oder 449 € / Jahr</div>
+                    <ul class="features">
+                        <li>Alle 27 EU-Länder</li>
+                        <li>Bis 1.000 kg Verpackung/Jahr</li>
+                        <li>Shop-Integration (Shopify/Etsy)</li>
+                        <li>Notar-Integration (Österreich)</li>
+                        <li>Bevollmächtigten-Netzwerk inkl.</li>
+                        <li>Bestehende Nummer importieren</li>
+                    </ul>
+                    <button onclick="selectPlan('M')" class="btn-primary w-full justify-center">Jetzt starten</button>
+                </div>
+                <!-- L -->
+                <div class="pricing-card">
+                    <div class="tag mb-2" style="color:var(--accent)">Enterprise</div>
+                    <div class="price">149<span>€ / Monat</span></div>
+                    <div class="text-sm text-[var(--text-dim)]">oder 1.299 € / Jahr</div>
+                    <ul class="features">
+                        <li>Alle 27 EU-Länder</li>
+                        <li>Unbegrenztes Gewicht</li>
+                        <li>Audit-Berichte (CSV/PDF)</li>
+                        <li>Dedizierter Support</li>
+                        <li>API-Zugang</li>
+                        <li>Bestehende Nummer importieren</li>
+                    </ul>
+                    <button onclick="selectPlan('L')" class="btn-outline w-full justify-center">Kontakt</button>
+                </div>
+            </div>
+
+            <div class="text-center mt-8 text-sm text-[var(--text-dim)]">
+                💡 Die reinen Recycling-Gebühren (Öko-Steuer) werden 1:1 an die Behörden weitergegeben – kein Aufschlag durch Pack2EU.
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    CTA / SCHLUSS
+    ============================================================ -->
+    <section class="py-20 mesh">
+        <div class="container text-center max-w-2xl mx-auto">
+            <span class="tag mb-4">Loslegen</span>
+            <h2 class="text-3xl font-bold mb-4">Pack2EU in 5 Minuten einrichten.</h2>
+            <p class="text-lg text-[var(--text-dim)] mb-8">
+                Keine Anmeldung, kein Vertrag – einfach starten, Shop verbinden, Länder auswählen.
+            </p>
+            <button onclick="openOnboarding()" class="btn-primary text-lg px-10 py-4">Jetzt loslegen →</button>
+            <div class="mt-6 flex justify-center gap-6 text-sm text-[var(--text-dim)]">
+                <span>💳 Keine versteckten Kosten</span>
+                <span>🔄 Monatlich kündbar</span>
+                <span>⚡ 5 Minuten Einrichtung</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+    FOOTER
+    ============================================================ -->
+    <footer class="border-t border-[var(--border)] py-8 bg-white">
+        <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[var(--text-dim)]">
+            <div>© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops</div>
+            <div class="flex gap-6">
+                <a href="#" class="hover:text-[var(--text)] transition">AGB</a>
+                <a href="#" class="hover:text-[var(--text)] transition">Datenschutz</a>
+                <a href="#" class="hover:text-[var(--text)] transition">Impressum</a>
+                <button onclick="openRepresentativeLogin()" class="hover:text-[var(--text)] transition font-mono">🏛️ Für Beauftragte</button>
+            </div>
+            <div class="text-xs">
+                ⚠️ Hinweis: Pack2EU ist ein Dienstleister, kein Rechtsanwalt. Die Plattform ersetzt keine individuelle Rechtsberatung.
+            </div>
+        </div>
+    </footer>
+
+    <!-- ============================================================
+    ONBOARDING MODAL
+    ============================================================ -->
+    <div id="onboarding-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold">Jetzt starten</h3>
+                <button onclick="closeOnboarding()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+            </div>
+
+            <div id="onb-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
+
+            <div id="onb-register-fields">
+                <label class="block font-medium text-sm mb-1">Firmenname *</label>
+                <input id="onb-company" type="text" placeholder="z. B. Little Acorn Baby Co." class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+
+                <label class="block font-medium text-sm mb-1">Herkunftsland *</label>
+                <select id="onb-country" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+                    <option value="DE">🇩🇪 Deutschland</option>
+                    <option value="AT">🇦🇹 Österreich</option>
+                    <option value="CH">🇨🇭 Schweiz</option>
+                    <option value="GB">🇬🇧 Großbritannien</option>
+                    <option value="US">🇺🇸 USA</option>
+                    <option value="CA">🇨🇦 Kanada</option>
+                    <option value="CN">🇨🇳 China</option>
+                    <option value="JP">🇯🇵 Japan</option>
+                    <option value="AU">🇦🇺 Australien</option>
+                    <option value="BR">🇧🇷 Brasilien</option>
+                    <option value="IN">🇮🇳 Indien</option>
+                    <option value="RU">🇷🇺 Russland</option>
+                    <option value="ZA">🇿🇦 Südafrika</option>
+                </select>
+
+                <label class="block font-medium text-sm mb-1">E-Mail *</label>
+                <input id="onb-email" type="email" placeholder="max@littleacorn.de" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+
+                <label class="block font-medium text-sm mb-1">Passwort *</label>
+                <input id="onb-password" type="password" placeholder="••••••••" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            </div>
+
+            <div class="flex items-center gap-3 mb-6">
+                <input type="checkbox" id="onb-agb" class="accent-[var(--primary)]" checked>
+                <label for="onb-agb" class="text-sm">Ich akzeptiere die <a href="#" class="text-[var(--accent)] underline">AGB</a> und <a href="#" class="text-[var(--accent)] underline">Datenschutzerklärung</a>.</label>
+            </div>
+
+            <button id="onb-submit-btn" onclick="onbSubmit()" class="btn-primary w-full justify-center py-3">Kostenlos starten →</button>
+
+            <div class="text-center mt-4">
+                <button onclick="onbToggleMode()" class="text-sm text-[var(--text-dim)] hover:text-[var(--text)] underline bg-transparent border-none cursor-pointer">
+                    Bereits Kunde? Einloggen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    BEAUFTRAGTEN-LOGIN MODAL
+    ============================================================ -->
+    <div id="representative-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold">🏛️ Für Beauftragte</h3>
+                <button onclick="closeRepresentativeLogin()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+            </div>
+            <div id="rep-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
+            <label>E-Mail *</label>
+            <input id="rep-email" type="email" placeholder="ihre@kanzlei.de" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            <label>Passwort *</label>
+            <input id="rep-password" type="password" placeholder="••••••••" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            <button onclick="representativeLogin()" class="btn-primary w-full justify-center py-3">Einloggen →</button>
+            <div class="text-center mt-4">
+                <button onclick="openRepresentativeRegister()" class="text-sm text-[var(--accent)] hover:underline bg-transparent border-none cursor-pointer">
+                    Noch kein Konto? Jetzt registrieren
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    BEAUFTRAGTEN-REGISTRIERUNG MODAL
+    ============================================================ -->
+    <div id="representative-register-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold">🏛️ Beauftragter werden</h3>
+                <button onclick="closeRepresentativeRegister()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+            </div>
+            <div id="rep-reg-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
+            <label>Name *</label>
+            <input id="rep-reg-name" placeholder="Max Mustermann" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            <label>Kanzlei / Unternehmen *</label>
+            <input id="rep-reg-company" placeholder="Mustermann Rechtsanwälte" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            <label>Land *</label>
+            <select id="rep-reg-country" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+                <option value="FR">🇫🇷 Frankreich</option>
+                <option value="DE">🇩🇪 Deutschland</option>
+                <option value="IT">🇮🇹 Italien</option>
+                <option value="ES">🇪🇸 Spanien</option>
+                <option value="AT">🇦🇹 Österreich</option>
+                <option value="BE">🇧🇪 Belgien</option>
+                <option value="NL">🇳🇱 Niederlande</option>
+                <option value="PL">🇵🇱 Polen</option>
+                <option value="SE">🇸🇪 Schweden</option>
+            </select>
+            <label>E-Mail *</label>
+            <input id="rep-reg-email" type="email" placeholder="ihre@kanzlei.de" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            <label>Passwort *</label>
+            <input id="rep-reg-password" type="password" placeholder="••••••••" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
+            <button onclick="representativeRegister()" class="btn-primary w-full justify-center py-3">Registrieren →</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // 1. API KONFIGURATION
+        // ============================================================
+        const API_BASE = window.PACK2EU_API_BASE || 'http://localhost:3000/api';
+
+        function getToken() { return localStorage.getItem('pack2eu_token'); }
+
+        function setToken(t) { localStorage.setItem('pack2eu_token', t); }
+
+        function clearToken() { localStorage.removeItem('pack2eu_token'); }
+
+        async function api(path, options = {}) {
+            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+            const token = getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const res = await fetch(API_BASE + path, { ...options, headers });
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) {
+                const message = (data && data.error) || `Fehler ${res.status}`;
+                throw new Error(message);
+            }
+            return data;
+        }
+
+        // ============================================================
+        // 2. ONBOARDING
+        // ============================================================
+        let selectedPlan = 'M';
+        let onbMode = 'register';
+
+        function openOnboarding() {
+            onbMode = 'register';
+            document.getElementById('onboarding-modal').style.display = 'flex';
+            document.getElementById('onb-error').classList.add('hidden');
+            applyOnbMode();
+        }
+
+        function closeOnboarding() {
+            document.getElementById('onboarding-modal').style.display = 'none';
+        }
+
+        function selectPlan(plan) {
+            selectedPlan = plan;
+            openOnboarding();
+        }
+
+        function onbToggleMode() {
+            onbMode = onbMode === 'register' ? 'login' : 'register';
+            applyOnbMode();
+        }
+
+        function applyOnbMode() {
+            const isLogin = onbMode === 'login';
+            document.getElementById('onb-register-fields').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('onb-submit-btn').textContent = isLogin ? 'Einloggen →' : 'Kostenlos starten →';
+        }
+
+        function showOnbError(msg) {
+            const el = document.getElementById('onb-error');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function onbSubmit() {
+            const email = document.getElementById('onb-email').value.trim();
+            const password = document.getElementById('onb-password').value;
+            const agb = document.getElementById('onb-agb').checked;
+            document.getElementById('onb-error').classList.add('hidden');
+
+            if (!email || !password) { showOnbError('Bitte E-Mail und Passwort ausfüllen.'); return; }
+            if (!agb) { showOnbError('Bitte akzeptieren Sie die AGBs.'); return; }
+
+            try {
+                if (onbMode === 'login') {
+                    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    setToken(data.token);
+                    closeOnboarding();
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
+
+                const companyName = document.getElementById('onb-company').value.trim() || 'Mein Shop';
+                const originCountry = document.getElementById('onb-country').value || 'DE';
+                const data = await api('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ companyName, originCountry, email, password, plan: selectedPlan }),
+                });
+                setToken(data.token);
+                closeOnboarding();
+                window.location.href = '/dashboard.html';
+            } catch (err) {
+                showOnbError(err.message);
+            }
+        }
+
+        // ============================================================
+        // 3. BEAUFTRAGTE
+        // ============================================================
+        function openRepresentativeLogin() {
+            document.getElementById('representative-modal').style.display = 'flex';
+            document.getElementById('rep-error').classList.add('hidden');
+        }
+
+        function closeRepresentativeLogin() {
+            document.getElementById('representative-modal').style.display = 'none';
+        }
+
+        async function representativeLogin() {
+            const email = document.getElementById('rep-email').value.trim();
+            const password = document.getElementById('rep-password').value;
+            const error = document.getElementById('rep-error');
+            error.classList.add('hidden');
+
+            if (!email || !password) {
+                error.textContent = 'Bitte E-Mail und Passwort ausfüllen.';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const data = await api('/representatives/login', { method: 'POST', body: JSON.stringify({ email,
+                        password }) });
+                setToken(data.token);
+                closeRepresentativeLogin();
+                window.location.href = '/dashboard.html?tab=representative';
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        function openRepresentativeRegister() {
+            closeRepresentativeLogin();
+            document.getElementById('representative-register-modal').style.display = 'flex';
+            document.getElementById('rep-reg-error').classList.add('hidden');
+        }
+
+        function closeRepresentativeRegister() {
+            document.getElementById('representative-register-modal').style.display = 'none';
+        }
+
+        async function representativeRegister() {
+            const name = document.getElementById('rep-reg-name').value.trim();
+            const company = document.getElementById('rep-reg-company').value.trim();
+            const country_code = document.getElementById('rep-reg-country').value;
+            const email = document.getElementById('rep-reg-email').value.trim();
+            const password = document.getElementById('rep-reg-password').value;
+            const error = document.getElementById('rep-reg-error');
+            error.classList.add('hidden');
+
+            if (!name || !company || !email || !password) {
+                error.textContent = 'Bitte alle Felder ausfüllen.';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                await api('/representatives/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, company, country_code, email, password })
+                });
+                closeRepresentativeRegister();
+                alert('✅ Registrierung erfolgreich! Bitte loggen Sie sich jetzt ein.');
+                openRepresentativeLogin();
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        // ============================================================
+        // 4. HELPER
+        // ============================================================
+        function scrollToSection(id) {
+            document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ============================================================
+        // 5. INIT
+        // ============================================================
+        console.log('🚀 Pack2EU geladen!');
+
+        if (getToken()) {
+            window.location.href = '/dashboard.html';
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pack2EU — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0A2540;
+            --primary-light: #1A3A5C;
+            --accent: #0066FF;
+            --accent-light: #E8F0FE;
+            --success: #00B383;
+            --warning: #F5A623;
+            --danger: #E53E3E;
+            --bg: #F8FAFC;
+            --card: #FFFFFF;
+            --text: #0F172A;
+            --text-dim: #64748B;
+            --border: #E2E8F0;
+            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --radius: 16px;
+            --font: 'Inter', -apple-system, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .btn-primary { background: var(--primary); color: white; font-weight: 600; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; transition: all .15s ease; }
+        .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(10,37,64,0.25); }
+        .btn-outline { background: transparent; color: var(--text); font-weight: 500; padding: 10px 20px; border-radius: 10px; border: 1.5px solid var(--border); cursor: pointer; transition: all .15s ease; }
+        .btn-outline:hover { border-color: var(--text); background: var(--bg); }
+        .btn-accent { background: var(--accent); color: white; font-weight: 600; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; transition: all .15s ease; }
+        .btn-accent:hover { background: #0052CC; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,102,255,0.3); }
+        .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); padding: 24px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: #D1FAE5; color: #065F46; }
+        .badge-warning { background: #FEF3C7; color: #92400E; }
+        .badge-accent { background: var(--accent-light); color: var(--accent); }
+        .badge-danger { background: #FEE2E2; color: var(--danger); }
+        .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 4px 12px; border: 1.5px solid var(--border); background: var(--bg); display: inline-block; }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal-content { background: white; border-radius: var(--radius); padding: 32px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .material-group { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .remove-btn { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 14px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-dot.green { background: var(--success); }
+        .status-dot.yellow { background: var(--warning); }
+        .status-dot.red { background: var(--danger); }
+        .status-dot.gray { background: var(--border); }
+        .mesh { background: radial-gradient(circle at 15% 20%, rgba(0,102,255,.04), transparent 40%), radial-gradient(circle at 85% 10%, rgba(10,37,64,.06), transparent 45%); }
+        input, select, textarea { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); font-size: 15px; transition: all .15s ease; font-family: var(--font); }
+        input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0,102,255,0.1); }
+        label { font-weight: 500; font-size: 14px; color: var(--text); margin-bottom: 4px; display: block; }
+        .fade-in { animation: fadeIn .4s ease both; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all .15s ease; background: transparent; border: none; }
+        .tab.active { background: var(--primary); color: white; }
+        .tab:not(.active) { color: var(--text-dim); }
+        .tab:not(.active):hover { background: var(--border); }
+        .lang-select { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .knowledge-card { background: var(--bg); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); }
+        .knowledge-card .flag { font-size: 2rem; }
+        .knowledge-card .country-name { font-weight: 700; font-size: 1.2rem; }
+        .knowledge-card .register { color: var(--text-dim); font-size: 0.9rem; }
+        .knowledge-card ul { list-style: disc; padding-left: 1.2rem; color: var(--text-dim); font-size: 0.9rem; }
+        .knowledge-card ul li { margin-bottom: 2px; }
+        .notary-warning { background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 12px; color: #991B1B; margin-top: 8px; }
+        .rep-warning { background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px; padding: 8px 12px; color: #92400E; font-size: 0.85rem; margin-top: 4px; }
+        .we-handle-box { background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+        .we-handle-box .title { font-weight: 700; color: var(--accent); }
+        @media (max-width: 768px) {
+            .knowledge-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+    TOP BAR
+    ============================================================ -->
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[var(--border)]">
+        <div class="container py-4 flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center text-white font-bold text-lg">P</div>
+                <span class="text-xl font-bold tracking-tight">Pack2EU</span>
+                <span class="badge badge-success ml-2" id="plan-badge" data-i18n="plan_badge">Business</span>
+            </div>
+            <div class="flex items-center gap-4 flex-wrap">
+                <select id="lang-select" onchange="setLang(this.value)" class="lang-select">
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="it">🇮🇹 Italiano</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
+                <span class="text-sm text-[var(--text-dim)]" id="company-name" data-i18n="company_name">Mein Shop</span>
+                <button onclick="logout()" class="btn-outline text-sm py-1 px-4" data-i18n="logout">Abmelden</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+    TABS
+    ============================================================ -->
+    <div class="container py-4">
+        <div class="flex gap-2 border-b border-[var(--border)] pb-2 flex-wrap">
+            <button onclick="switchTab('merchant')" id="tab-merchant" class="tab active" data-i18n="tab_merchant">📦 Händler-Dashboard</button>
+            <button onclick="switchTab('representative')" id="tab-representative" class="tab" data-i18n="tab_representative">🏛️ Beauftragten-Portal</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    HÄNDLER-DASHBOARD
+    ============================================================ -->
+    <div id="merchant-tab" class="container py-4">
+
+        <!-- Status-Übersicht -->
+        <div class="grid md:grid-cols-4 gap-4 mb-8">
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="countries-active">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_countries">Aktive Länder</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="skus-count">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_skus">Produkte mit Verpackung</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="orders-count">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_orders">Bestellungen verarbeitet</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="submissions-count">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_submissions">Meldungen übermittelt</div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        LÄNDER-CHECK / WISSENSDATENBANK
+        ============================================================ -->
+        <div class="card mb-8">
+            <h2 class="text-xl font-bold mb-4" data-i18n="country_knowledge_title">📚 Länder-Check – Was muss ich wo tun?</h2>
+            <p class="text-sm text-[var(--text-dim)] mb-4" data-i18n="country_knowledge_sub">Wähle ein Land aus und erfahre sofort, welche Schritte, Kennzeichnungen und Kosten auf dich zukommen.</p>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <label data-i18n="country_select">Land auswählen</label>
+                    <select id="knowledge-country-select" onchange="showCountryKnowledge()" class="w-full">
+                        <option value="">— Bitte wählen —</option>
+                        <option value="DE">🇩🇪 Deutschland</option>
+                        <option value="AT">🇦🇹 Österreich</option>
+                        <option value="FR">🇫🇷 Frankreich</option>
+                        <option value="IT">🇮🇹 Italien</option>
+                        <option value="ES">🇪🇸 Spanien</option>
+                        <option value="BE">🇧🇪 Belgien</option>
+                        <option value="NL">🇳🇱 Niederlande</option>
+                        <option value="PL">🇵🇱 Polen</option>
+                        <option value="SE">🇸🇪 Schweden</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <div id="knowledge-display" class="knowledge-card min-h-[100px]">
+                        <div class="text-sm text-[var(--text-dim)]" data-i18n="knowledge_select_hint">Wähle ein Land aus, um die Anforderungen zu sehen.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        LÄNDER
+        ============================================================ -->
+        <div class="card mb-8">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-xl font-bold" data-i18n="countries_title">🌍 Meine Länder</h2>
+                <button onclick="openCountryModal()" class="btn-primary text-sm" data-i18n="countries_add">+ Land aktivieren</button>
+            </div>
+            <div id="country-list" class="space-y-3">
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="loading">Lade Länder...</div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        PRODUKTE & VERPACKUNGEN (SKUs)
+        ============================================================ -->
+        <div class="card mb-8">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-xl font-bold" data-i18n="skus_title">📦 Produkte & Verpackungen</h2>
+                <button onclick="openSkuModal()" class="btn-primary text-sm" data-i18n="skus_add">+ Neues Produkt</button>
+            </div>
+            <div id="sku-list" class="space-y-3">
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="skus_empty">Noch keine Produkte hinterlegt.</div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        VERPACKUNGSSTATISTIK
+        ============================================================ -->
+        <div class="card mb-8">
+            <h2 class="text-xl font-bold mb-4" data-i18n="stats_title">📊 Verpackungsstatistik</h2>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="card bg-[var(--bg)]">
+                    <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_total">Gesamtgewicht</div>
+                    <div class="text-2xl font-bold" id="total-weight">0 kg</div>
+                </div>
+                <div class="card bg-[var(--bg)]">
+                    <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_cardboard">Karton / Pappe</div>
+                    <div class="text-2xl font-bold" id="total-cardboard">0 kg</div>
+                </div>
+                <div class="card bg-[var(--bg)]">
+                    <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_plastic">Kunststoff</div>
+                    <div class="text-2xl font-bold" id="total-plastic">0 kg</div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h4 class="font-semibold mb-2" data-i18n="stats_by_country">📦 Pro Land</h4>
+                <div id="country-stats" class="space-y-2">
+                    <div class="text-sm text-[var(--text-dim)]" data-i18n="loading">Lade Statistik...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        BESTELLUNGEN
+        ============================================================ -->
+        <div class="card mb-8">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-xl font-bold" data-i18n="orders_title">📋 Bestellungen</h2>
+                <button onclick="connectShopify()" class="btn-accent text-sm" id="shopify-btn" data-i18n="shopify_connect">🔗 Shopify verbinden</button>
+            </div>
+            <div id="orders-list" class="space-y-3">
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="orders_empty">Noch keine Bestellungen.</div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+        MELDUNGEN
+        ============================================================ -->
+        <div class="card">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-xl font-bold" data-i18n="submissions_title">📨 Meine Meldungen</h2>
+                <button onclick="createReport()" class="btn-primary text-sm" data-i18n="submissions_add">+ Neue Meldung</button>
+            </div>
+            <div id="submissions-list" class="space-y-3">
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="submissions_empty">Noch keine Meldungen erstellt.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    BEAUFTRAGTEN-PORTAL
+    ============================================================ -->
+    <div id="representative-tab" class="container py-4 hidden">
+        <div class="grid md:grid-cols-3 gap-4 mb-8">
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="rep-total-submissions">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_total_submissions">Eingehende Meldungen</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="rep-pending-submissions">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_pending_submissions">Offen / In Bearbeitung</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-2xl font-bold" id="rep-completed-submissions">0</div>
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_completed_submissions">Erledigt</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 class="text-xl font-bold" data-i18n="rep_incoming_title">📨 Eingehende Meldungen</h2>
+                <button onclick="exportRepCSV()" class="btn-primary text-sm" data-i18n="rep_export">📊 CSV-Export</button>
+            </div>
+            <div id="rep-submissions-list" class="space-y-3">
+                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_incoming_empty">Noch keine eingehenden Meldungen.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    COUNTRY MODAL
+    ============================================================ -->
+    <div id="country-modal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold" data-i18n="country_modal_title">🌍 Land aktivieren</h3>
+                <button onclick="closeCountryModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+            </div>
+            <div id="country-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
+            <label data-i18n="country_select">Zielland *</label>
+            <select id="country-select">
+                <option value="FR">🇫🇷 Frankreich</option>
+                <option value="DE">🇩🇪 Deutschland</option>
+                <option value="IT">🇮🇹 Italien</option>
+                <option value="ES">🇪🇸 Spanien</option>
+                <option value="AT">🇦🇹 Österreich</option>
+                <option value="BE">🇧🇪 Belgien</option>
+                <option value="NL">🇳🇱 Niederlande</option>
+                <option value="PL">🇵🇱 Polen</option>
+                <option value="SE">🇸🇪 Schweden</option>
+            </select>
+            <label class="mt-4" data-i18n="country_existing">Hast du bereits eine EPR-Nummer für dieses Land?</label>
+            <input id="existing-number" type="text" placeholder="z.B. FR123456789 (optional)">
+            <div class="flex justify-between mt-6 pt-4 border-t border-[var(--border)]">
+                <button onclick="closeCountryModal()" class="btn-outline text-sm" data-i18n="cancel">Abbrechen</button>
+                <button onclick="activateCountry()" class="btn-primary text-sm" data-i18n="activate">Aktivieren</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    SKU MODAL
+    ============================================================ -->
+    <div id="sku-modal" class="modal-backdrop">
+        <div class="modal-content" style="max-width:640px;">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold" data-i18n="sku_modal_title">📦 Produkt & Verpackung</h3>
+                <button onclick="closeSkuModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+            </div>
+            <div id="sku-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
+            <label data-i18n="sku_name">Produktname *</label>
+            <input id="sku-name" placeholder="z.B. Hoodie">
+            <label class="mt-4" data-i18n="sku_shopify">Shopify-Produkt-ID (optional)</label>
+            <input id="sku-shopify-id" placeholder="z.B. 1234567890">
+            <label class="mt-4 font-bold" data-i18n="sku_materials">Verpackungsmaterialien</label>
+            <div id="sku-materials" class="space-y-2 mt-2">
+                <div class="material-group">
+                    <div class="grid grid-cols-12 gap-2 items-end">
+                        <div class="col-span-5">
+                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]" data-i18n="sku_material">Material</label>
+                            <select class="material-type">
+                                <option value="karton" data-i18n="material_karton">Karton/Pappe</option>
+                                <option value="kunststoff" data-i18n="material_plastic">Kunststoff</option>
+                                <option value="papier" data-i18n="material_paper">Papier</option>
+                                <option value="glas" data-i18n="material_glass">Glas</option>
+                                <option value="metall" data-i18n="material_metal">Metall</option>
+                                <option value="holz" data-i18n="material_wood">Holz</option>
+                                <option value="sonstige" data-i18n="material_other">Sonstige</option>
+                            </select>
+                        </div>
+                        <div class="col-span-3">
+                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]" data-i18n="sku_weight">Gewicht (g)</label>
+                            <input type="number" class="material-weight" placeholder="245" value="245">
+                        </div>
+                        <div class="col-span-3">
+                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]" data-i18n="sku_recyclable">Recycelbar?</label>
+                            <select class="material-recyclable">
+                                <option value="1" data-i18n="yes">Ja</option>
+                                <option value="0" data-i18n="no">Nein</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <button onclick="removeMaterialRow(this)" class="remove-btn">✕</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button onclick="addMaterialRow()" class="btn-outline text-sm w-full mt-2" data-i18n="sku_add_material">+ Material hinzufügen</button>
+            <div class="flex justify-between mt-6 pt-4 border-t border-[var(--border)]">
+                <button onclick="closeSkuModal()" class="btn-outline text-sm" data-i18n="cancel">Abbrechen</button>
+                <button onclick="saveSku()" class="btn-primary text-sm" data-i18n="save">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // 0. LÄNDER-WISSENSDATENBANK (ALLE 9 LÄNDER, 5 SPRACHEN)
+        // ============================================================
+        const countryKnowledge = {
+            DE: {
+                name: { de: 'Deutschland', en: 'Germany', fr: 'Allemagne', it: 'Germania', es: 'Alemania' },
+                flag: '🇩🇪',
+                register: { de: 'LUCID / ZSVR', en: 'LUCID / ZSVR', fr: 'LUCID / ZSVR', it: 'LUCID / ZSVR', es: 'LUCID / ZSVR' },
+                registration_url: 'https://lucid.verpackungsregister.org',
+                requirements: {
+                    de: ['Registrierung im LUCID-Verpackungsregister (kostenlos)', 'Systembeteiligung bei einem dualen System (z.B. Grüner Punkt)', 'Jährliche Mengenmeldung'],
+                    en: ['Registration in LUCID packaging register (free)', 'System participation with a dual system (e.g. Green Dot)', 'Annual quantity reporting'],
+                    fr: ['Inscription au registre des emballages LUCID (gratuit)', 'Participation à un système dual (ex. Point Vert)', 'Déclaration annuelle des quantités'],
+                    it: ['Registrazione nel registro imballaggi LUCID (gratuita)', 'Partecipazione a un sistema duale (es. Punto Verde)', 'Dichiarazione annuale delle quantità'],
+                    es: ['Registro en el registro de envases LUCID (gratuito)', 'Participación en un sistema dual (ej. Punto Verde)', 'Declaración anual de cantidades']
+                },
+                labeling: {
+                    de: ['Grüner Punkt (optional)', 'Materialkennzeichnung (z.B. PAP 21)'],
+                    en: ['Green Dot (optional)', 'Material labeling (e.g. PAP 21)'],
+                    fr: ['Point Vert (optionnel)', 'Étiquetage des matériaux (ex. PAP 21)'],
+                    it: ['Punto Verde (opzionale)', 'Etichettatura dei materiali (es. PAP 21)'],
+                    es: ['Punto Verde (opcional)', 'Etiquetado de materiales (ej. PAP 21)']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,85 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.85/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,85 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,85 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,85 €/kg de cartón)'
+                },
+                representative_required: false,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die LUCID-Registrierung für dich', '✅ Wir schließen den Vertrag mit dem dualen System ab', '✅ Wir melden deine Verpackungsmengen jährlich'],
+                    en: ['✅ We apply for LUCID registration for you', '✅ We sign the contract with the dual system', '✅ We report your packaging quantities annually'],
+                    fr: ['✅ Nous demandons l\'inscription LUCID pour vous', '✅ Nous signons le contrat avec le système dual', '✅ Nous déclarons vos quantités d\'emballage annuellement'],
+                    it: ['✅ Richiediamo la registrazione LUCID per te', '✅ Firmiamo il contratto con il sistema duale', '✅ Dichiaramo le tue quantità di imballaggio annualmente'],
+                    es: ['✅ Solicitamos el registro LUCID por ti', '✅ Firmamos el contrato con el sistema dual', '✅ Declaramos tus cantidades de envases anualmente']
+                }
+            },
+            AT: {
+                name: { de: 'Österreich', en: 'Austria', fr: 'Autriche', it: 'Austria', es: 'Austria' },
+                flag: '🇦🇹',
+                register: { de: 'EDM-Portal / ARA', en: 'EDM Portal / ARA', fr: 'Portail EDM / ARA', it: 'Portale EDM / ARA',
+                    es: 'Portal EDM / ARA' },
+                registration_url: 'https://www.ara.at',
+                requirements: {
+                    de: ['Registrierung im EDM-Portal (kostenlos)', 'Verpackungslizenzierung bei ARA oder Reclay', 'NOTARIELLE BEGLAUBIGUNG der Vollmacht!',
+                        'Jährliche Mengenmeldung'
+                    ],
+                    en: ['Registration in the EDM portal (free)', 'Packaging licensing with ARA or Reclay',
+                        'NOTARIAL CERTIFICATION of the power of attorney!', 'Annual quantity reporting'
+                    ],
+                    fr: ['Inscription sur le portail EDM (gratuit)', 'Licence d\'emballage auprès d\'ARA ou Reclay',
+                        'CERTIFICATION NOTARIALE de la procuration!', 'Déclaration annuelle des quantités'
+                    ],
+                    it: ['Registrazione nel portale EDM (gratuita)', 'Licenza di imballaggio presso ARA o Reclay',
+                        'CERTIFICAZIONE NOTARILE della procura!', 'Dichiarazione annuale delle quantità'
+                    ],
+                    es: ['Registro en el portal EDM (gratuito)', 'Licencia de embalaje con ARA o Reclay',
+                        '¡CERTIFICACIÓN NOTARIAL del poder!', 'Declaración anual de cantidades'
+                    ]
+                },
+                labeling: {
+                    de: ['Keine spezielle Kennzeichnungspflicht', 'Materialkennzeichnung empfohlen'],
+                    en: ['No specific labeling requirement', 'Material labeling recommended'],
+                    fr: ['Pas d\'exigence d\'étiquetage spécifique', 'Étiquetage des matériaux recommandé'],
+                    it: ['Nessun obbligo di etichettatura specifico', 'Etichettatura dei materiali consigliata'],
+                    es: ['No hay requisito de etiquetado específico', 'Etiquetado de materiales recomendado']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,80 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.80/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,80 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,80 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,80 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: true,
+                notary_cost: { de: 'ca. 45 € (digital)', en: 'approx. €45 (digital)', fr: 'env. 45 € (numérique)',
+                    it: 'circa 45 € (digitale)', es: 'aprox. 45 € (digital)' },
+                steps: {
+                    de: ['✅ Wir beantragen die EDM-Registrierung für dich', '✅ Wir kümmern uns um die NOTARIELLE BEGLAUBIGUNG',
+                        '✅ Wir schließen den ARA-Lizenzvertrag ab', '✅ Wir melden deine Mengen jährlich'
+                    ],
+                    en: ['✅ We apply for EDM registration for you', '✅ We take care of the NOTARIAL CERTIFICATION',
+                        '✅ We sign the ARA license contract', '✅ We report your quantities annually'
+                    ],
+                    fr: ['✅ Nous demandons l\'inscription EDM pour vous',
+                        '✅ Nous nous occupons de la CERTIFICATION NOTARIALE',
+                        '✅ Nous signons le contrat de licence ARA', '✅ Nous déclarons vos quantités annuellement'
+                    ],
+                    it: ['✅ Richiediamo la registrazione EDM per te', '✅ Ci occupiamo della CERTIFICAZIONE NOTARILE',
+                        '✅ Firmiamo il contratto di licenza ARA', '✅ Dichiaramo le tue quantità annualmente'
+                    ],
+                    es: ['✅ Solicitamos el registro EDM por ti', '✅ Nos encargamos de la CERTIFICACIÓN NOTARIAL',
+                        '✅ Firmamos el contrato de licencia ARA', '✅ Declaramos tus cantidades anualmente'
+                    ]
+                }
+            },
+            FR: {
+                name: { de: 'Frankreich', en: 'France', fr: 'France', it: 'Francia', es: 'Francia' },
+                flag: '🇫🇷',
+                register: { de: 'ADEME / CITEO', en: 'ADEME / CITEO', fr: 'ADEME / CITEO', it: 'ADEME / CITEO',
+                    es: 'ADEME / CITEO' },
+                registration_url: 'https://www.citeo.com',
+                requirements: {
+                    de: ['Registrierung bei CITEO oder LEKO', 'Triman-Logo auf Verpackung oder Beipackzettel',
+                        'Sortieranweisung (Consigne de tri) angeben', 'Jährliche Mengenmeldung an CITEO'
+                    ],
+                    en: ['Registration with CITEO or LEKO', 'Triman logo on packaging or insert',
+                        'Sorting instructions (Consigne de tri)', 'Annual quantity reporting to CITEO'
+                    ],
+                    fr: ['Inscription auprès de CITEO ou LEKO', 'Logo Triman sur l\'emballage ou la notice',
+                        'Instructions de tri (Consigne de tri)', 'Déclaration annuelle des quantités à CITEO'
+                    ],
+                    it: ['Registrazione presso CITEO o LEKO', 'Logo Triman su imballaggio o foglietto',
+                        'Istruzioni di smaltimento (Consigne de tri)', 'Dichiarazione annuale delle quantità a CITEO'
+                    ],
+                    es: ['Registro en CITEO o LEKO', 'Logo Triman en el embalaje o folleto',
+                        'Instrucciones de clasificación (Consigne de tri)', 'Declaración anual de cantidades a CITEO'
+                    ]
+                },
+                labeling: {
+                    de: ['Triman-Logo', 'Sortieranweisung (Consigne de tri)', 'Materialkennzeichnung'],
+                    en: ['Triman logo', 'Sorting instructions (Consigne de tri)', 'Material labeling'],
+                    fr: ['Logo Triman', 'Instructions de tri (Consigne de tri)', 'Étiquetage des matériaux'],
+                    it: ['Logo Triman', 'Istruzioni di smaltimento (Consigne de tri)', 'Etichettatura dei materiali'],
+                    es: ['Logo Triman', 'Instrucciones de clasificación (Consigne de tri)', 'Etiquetado de materiales']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 1,20 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €1.20/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 1,20 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 1,20 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 1,20 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir schließen den CITEO-Vertrag für dich ab', '✅ Wir kümmern uns um das Triman-Logo',
+                        '✅ Wir melden deine Mengen jährlich an CITEO'
+                    ],
+                    en: ['✅ We sign the CITEO contract for you', '✅ We take care of the Triman logo',
+                        '✅ We report your quantities to CITEO annually'
+                    ],
+                    fr: ['✅ Nous signons le contrat CITEO pour vous', '✅ Nous nous occupons du logo Triman',
+                        '✅ Nous déclarons vos quantités à CITEO annuellement'
+                    ],
+                    it: ['✅ Firmiamo il contratto CITEO per te', '✅ Ci occupiamo del logo Triman',
+                        '✅ Dichiaramo le tue quantità a CITEO annualmente'
+                    ],
+                    es: ['✅ Firmamos el contrato CITEO por ti', '✅ Nos encargamos del logo Triman',
+                        '✅ Declaramos tus cantidades a CITEO anualmente'
+                    ]
+                }
+            },
+            IT: {
+                name: { de: 'Italien', en: 'Italy', fr: 'Italie', it: 'Italia', es: 'Italia' },
+                flag: '🇮🇹',
+                register: { de: 'CONAI', en: 'CONAI', fr: 'CONAI', it: 'CONAI', es: 'CONAI' },
+                registration_url: 'https://www.conai.org',
+                requirements: {
+                    de: ['Registrierung bei CONAI', 'CONAI-Materialcode angeben (z.B. C/PAP 21)',
+                        'Getrennte Materialkennzeichnung pro Fraktion', 'Jährliche Mengenmeldung'
+                    ],
+                    en: ['Registration with CONAI', 'CONAI material code required (e.g. C/PAP 21)',
+                        'Separate material labeling per fraction', 'Annual quantity reporting'
+                    ],
+                    fr: ['Inscription auprès de CONAI', 'Code matériau CONAI requis (ex. C/PAP 21)',
+                        'Étiquetage séparé des matériaux par fraction', 'Déclaration annuelle des quantités'
+                    ],
+                    it: ['Registrazione presso CONAI', 'Codice materiale CONAI richiesto (es. C/PAP 21)',
+                        'Etichettatura separata dei materiali per frazione', 'Dichiarazione annuale delle quantità'
+                    ],
+                    es: ['Registro en CONAI', 'Código de material CONAI requerido (ej. C/PAP 21)',
+                        'Etiquetado separado de materiales por fracción', 'Declaración anual de cantidades'
+                    ]
+                },
+                labeling: {
+                    de: ['CONAI-Materialcode (z.B. C/PAP 21)', 'Materialkennzeichnung pro Fraktion'],
+                    en: ['CONAI material code (e.g. C/PAP 21)', 'Material labeling per fraction'],
+                    fr: ['Code matériau CONAI (ex. C/PAP 21)', 'Étiquetage des matériaux par fraction'],
+                    it: ['Codice materiale CONAI (es. C/PAP 21)', 'Etichettatura dei materiali per frazione'],
+                    es: ['Código de material CONAI (ej. C/PAP 21)', 'Etiquetado de materiales por fracción']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,95 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.95/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,95 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,95 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,95 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die CONAI-Registrierung für dich', '✅ Wir kümmern uns um die Materialcodes',
+                        '✅ Wir melden deine Mengen jährlich'
+                    ],
+                    en: ['✅ We apply for CONAI registration for you', '✅ We take care of the material codes',
+                        '✅ We report your quantities annually'
+                    ],
+                    fr: ['✅ Nous demandons l\'inscription CONAI pour vous', '✅ Nous nous occupons des codes matériaux',
+                        '✅ Nous déclarons vos quantités annuellement'
+                    ],
+                    it: ['✅ Richiediamo la registrazione CONAI per te', '✅ Ci occupiamo dei codici materiale',
+                        '✅ Dichiaramo le tue quantità annualmente'
+                    ],
+                    es: ['✅ Solicitamos el registro CONAI por ti', '✅ Nos encargamos de los códigos de material',
+                        '✅ Declaramos tus cantidades anualmente'
+                    ]
+                }
+            },
+            ES: {
+                name: { de: 'Spanien', en: 'Spain', fr: 'Espagne', it: 'Spagna', es: 'España' },
+                flag: '🇪🇸',
+                register: { de: 'Ecoembes / MITERD', en: 'Ecoembes / MITERD', fr: 'Ecoembes / MITERD',
+                    it: 'Ecoembes / MITERD', es: 'Ecoembes / MITERD' },
+                registration_url: 'https://www.ecoembes.com',
+                requirements: {
+                    de: ['Registrierung im staatlichen Register (MITERD)', 'Vertrag mit Ecoembes',
+                        'Punto Verde-Symbol empfohlen', 'Materialcode bei kompostierbaren Anteilen'
+                    ],
+                    en: ['Registration in the state register (MITERD)', 'Contract with Ecoembes',
+                        'Punto Verde symbol recommended', 'Material code for compostable parts'
+                    ],
+                    fr: ['Inscription au registre national (MITERD)', 'Contrat avec Ecoembes',
+                        'Symbole Punto Verde recommandé', 'Code matériau pour les parties compostables'
+                    ],
+                    it: ['Registrazione nel registro statale (MITERD)', 'Contratto con Ecoembes',
+                        'Simbolo Punto Verde consigliato', 'Codice materiale per parti compostabili'
+                    ],
+                    es: ['Registro en el registro estatal (MITERD)', 'Contrato con Ecoembes',
+                        'Símbolo Punto Verde recomendado', 'Código de material para partes compostables'
+                    ]
+                },
+                labeling: {
+                    de: ['Punto Verde-Symbol (empfohlen)', 'Materialcode bei kompostierbaren Anteilen'],
+                    en: ['Punto Verde symbol (recommended)', 'Material code for compostable parts'],
+                    fr: ['Symbole Punto Verde (recommandé)', 'Code matériau pour les parties compostables'],
+                    it: ['Simbolo Punto Verde (consigliato)', 'Codice materiale per parti compostabili'],
+                    es: ['Símbolo Punto Verde (recomendado)', 'Código de material para partes compostables']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,75 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.75/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,75 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,75 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,75 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die MITERD-Registrierung für dich', '✅ Wir schließen den Ecoembes-Vertrag ab',
+                        '✅ Wir melden deine Mengen jährlich'
+                    ],
+                    en: ['✅ We apply for MITERD registration for you', '✅ We sign the Ecoembes contract',
+                        '✅ We report your quantities annually'
+                    ],
+                    fr: ['✅ Nous demandons l\'inscription MITERD pour vous', '✅ Nous signons le contrat Ecoembes',
+                        '✅ Nous déclarons vos quantités annuellement'
+                    ],
+                    it: ['✅ Richiediamo la registrazione MITERD per te', '✅ Firmiamo il contratto Ecoembes',
+                        '✅ Dichiaramo le tue quantità annualmente'
+                    ],
+                    es: ['✅ Solicitamos el registro MITERD por ti', '✅ Firmamos el contrato Ecoembes',
+                        '✅ Declaramos tus cantidades anualmente'
+                    ]
+                }
+            },
+            BE: {
+                name: { de: 'Belgien', en: 'Belgium', fr: 'Belgique', it: 'Belgio', es: 'Bélgica' },
+                flag: '🇧🇪',
+                register: { de: 'FPS Health', en: 'FPS Health', fr: 'FPS Health', it: 'FPS Health', es: 'FPS Health' },
+                registration_url: 'https://www.health.belgium.be',
+                requirements: {
+                    de: ['Registrierung bei FPS Health', 'Nur 11 Pflichtfelder (einfachstes System)',
+                        'Jährliche Mengenmeldung'
+                    ],
+                    en: ['Registration with FPS Health', 'Only 11 required fields (simplest system)',
+                        'Annual quantity reporting'
+                    ],
+                    fr: ['Inscription auprès de FPS Health', 'Seulement 11 champs obligatoires (système le plus simple)',
+                        'Déclaration annuelle des quantités'
+                    ],
+                    it: ['Registrazione presso FPS Health', 'Solo 11 campi obbligatori (sistema più semplice)',
+                        'Dichiarazione annuale delle quantità'
+                    ],
+                    es: ['Registro en FPS Health', 'Solo 11 campos obligatorios (sistema más simple)',
+                        'Declaración anual de cantidades'
+                    ]
+                },
+                labeling: {
+                    de: ['Keine spezielle Kennzeichnungspflicht'],
+                    en: ['No specific labeling requirement'],
+                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+                    it: ['Nessun obbligo di etichettatura specifico'],
+                    es: ['No hay requisito de etiquetado específico']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,90 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.90/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,90 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,90 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,90 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die FPS Health-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+                    en: ['✅ We apply for FPS Health registration for you', '✅ We report your quantities annually'],
+                    fr: ['✅ Nous demandons l\'inscription FPS Health pour vous', '✅ Nous déclarons vos quantités annuellement'],
+                    it: ['✅ Richiediamo la registrazione FPS Health per te', '✅ Dichiaramo le tue quantità annualmente'],
+                    es: ['✅ Solicitamos el registro FPS Health por ti', '✅ Declaramos tus cantidades anualmente']
+                }
+            },
+            NL: {
+                name: { de: 'Niederlande', en: 'Netherlands', fr: 'Pays-Bas', it: 'Paesi Bassi', es: 'Países Bajos' },
+                flag: '🇳🇱',
+                register: { de: 'Eigenes System', en: 'Own System', fr: 'Système propre', it: 'Sistema proprio',
+                    es: 'Sistema propio' },
+                registration_url: 'https://www.verpakkingen.nl',
+                requirements: {
+                    de: ['Registrierung im niederländischen System', 'Bagatellgrenze 50t bis Ende 2026',
+                        'Jährliche Mengenmeldung'
+                    ],
+                    en: ['Registration in the Dutch system', 'Bagatelle limit 50t until end of 2026',
+                        'Annual quantity reporting'
+                    ],
+                    fr: ['Inscription dans le système néerlandais', 'Limite de 50t jusqu\'à fin 2026',
+                        'Déclaration annuelle des quantités'
+                    ],
+                    it: ['Registrazione nel sistema olandese', 'Limite di 50t fino a fine 2026',
+                        'Dichiarazione annuale delle quantità'
+                    ],
+                    es: ['Registro en el sistema holandés', 'Límite de 50t hasta finales de 2026',
+                        'Declaración anual de cantidades'
+                    ]
+                },
+                labeling: {
+                    de: ['Keine spezielle Kennzeichnungspflicht'],
+                    en: ['No specific labeling requirement'],
+                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+                    it: ['Nessun obbligo di etichettatura specifico'],
+                    es: ['No hay requisito de etiquetado específico']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,85 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.85/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,85 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,85 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,85 €/kg de cartón)'
+                },
+                representative_required: false,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die niederländische Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+                    en: ['✅ We apply for Dutch registration for you', '✅ We report your quantities annually'],
+                    fr: ['✅ Nous demandons l\'inscription néerlandaise pour vous', '✅ Nous déclarons vos quantités annuellement'],
+                    it: ['✅ Richiediamo la registrazione olandese per te', '✅ Dichiaramo le tue quantità annualmente'],
+                    es: ['✅ Solicitamos el registro holandés por ti', '✅ Declaramos tus cantidades anualmente']
+                }
+            },
+            PL: {
+                name: { de: 'Polen', en: 'Poland', fr: 'Pologne', it: 'Polonia', es: 'Polonia' },
+                flag: '🇵🇱',
+                register: { de: 'BDO', en: 'BDO', fr: 'BDO', it: 'BDO', es: 'BDO' },
+                registration_url: 'https://bdo.mos.gov.pl',
+                requirements: {
+                    de: ['Registrierung im BDO-System', 'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'],
+                    en: ['Registration in the BDO system', 'National e-Identity required', 'Annual quantity reporting'],
+                    fr: ['Inscription dans le système BDO', 'Identité électronique nationale requise',
+                        'Déclaration annuelle des quantités'
+                    ],
+                    it: ['Registrazione nel sistema BDO', 'e-Identity nazionale richiesta',
+                        'Dichiarazione annuale delle quantità'
+                    ],
+                    es: ['Registro en el sistema BDO', 'e-Identity nacional requerida', 'Declaración anual de cantidades']
+                },
+                labeling: {
+                    de: ['Keine spezielle Kennzeichnungspflicht'],
+                    en: ['No specific labeling requirement'],
+                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+                    it: ['Nessun obbligo di etichettatura specifico'],
+                    es: ['No hay requisito de etiquetado específico']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,65 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.65/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,65 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,65 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,65 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die BDO-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+                    en: ['✅ We apply for BDO registration for you', '✅ We report your quantities annually'],
+                    fr: ['✅ Nous demandons l\'inscription BDO pour vous', '✅ Nous déclarons vos quantités annuellement'],
+                    it: ['✅ Richiediamo la registrazione BDO per te', '✅ Dichiaramo le tue quantità annualmente'],
+                    es: ['✅ Solicitamos el registro BDO por ti', '✅ Declaramos tus cantidades anualmente']
+                }
+            },
+            SE: {
+                name: { de: 'Schweden', en: 'Sweden', fr: 'Suède', it: 'Svezia', es: 'Suecia' },
+                flag: '🇸🇪',
+                register: { de: 'Naturvårdsverket', en: 'Naturvårdsverket', fr: 'Naturvårdsverket',
+                    it: 'Naturvårdsverket', es: 'Naturvårdsverket' },
+                registration_url: 'https://www.naturvardsverket.se',
+                requirements: {
+                    de: ['Registrierung bei Naturvårdsverket', '21 Pflichtfelder (die meisten!)',
+                        'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'
+                    ],
+                    en: ['Registration with Naturvårdsverket', '21 required fields (the most!)',
+                        'National e-Identity required', 'Annual quantity reporting'
+                    ],
+                    fr: ['Inscription auprès de Naturvårdsverket', '21 champs obligatoires (le plus!)',
+                        'Identité électronique nationale requise', 'Déclaration annuelle des quantités'
+                    ],
+                    it: ['Registrazione presso Naturvårdsverket', '21 campi obbligatori (il maggior numero!)',
+                        'e-Identity nazionale richiesta', 'Dichiarazione annuale delle quantità'
+                    ],
+                    es: ['Registro en Naturvårdsverket', '21 campos obligatorios (¡la mayoría!)',
+                        'e-Identity nacional requerida', 'Declaración anual de cantidades'
+                    ]
+                },
+                labeling: {
+                    de: ['Keine spezielle Kennzeichnungspflicht'],
+                    en: ['No specific labeling requirement'],
+                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+                    it: ['Nessun obbligo di etichettatura specifico'],
+                    es: ['No hay requisito de etiquetado específico']
+                },
+                eco_fee: {
+                    de: 'Abhängig von Menge und Material (ca. 0,95 €/kg Pappe)',
+                    en: 'Depending on quantity and material (approx. €0.95/kg cardboard)',
+                    fr: 'Selon la quantité et le matériau (env. 0,95 €/kg de carton)',
+                    it: 'In base alla quantità e al materiale (circa 0,95 €/kg di cartone)',
+                    es: 'Dependiendo de la cantidad y el material (aprox. 0,95 €/kg de cartón)'
+                },
+                representative_required: true,
+                notary_required: false,
+                steps: {
+                    de: ['✅ Wir beantragen die Naturvårdsverket-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+                    en: ['✅ We apply for Naturvårdsverket registration for you', '✅ We report your quantities annually'],
+                    fr: ['✅ Nous demandons l\'inscription Naturvårdsverket pour vous',
+                        '✅ Nous déclarons vos quantités annuellement'
+                    ],
+                    it: ['✅ Richiediamo la registrazione Naturvårdsverket per te',
+                        '✅ Dichiaramo le tue quantità annualmente'
+                    ],
+                    es: ['✅ Solicitamos el registro Naturvårdsverket por ti', '✅ Declaramos tus cantidades anualmente']
+                }
+            }
+        };
+
+        // ============================================================
+        // 1. I18N - KOMPLETTE ÜBERSETZUNGEN (Alle 5 Sprachen)
+        // ============================================================
+        const i18n = {
+            de: {
+                plan_badge: "Business",
+                logout: "Abmelden",
+                company_name: "Mein Shop",
+                loading: "Lade Daten...",
+                cancel: "Abbrechen",
+                save: "Speichern",
+                activate: "Aktivieren",
+                sign: "Signieren",
+                pdf: "PDF",
+                processed: "Verarbeitet",
+                yes: "Ja",
+                no: "Nein",
+                tab_merchant: "📦 Händler-Dashboard",
+                tab_representative: "🏛️ Beauftragten-Portal",
+                stats_countries: "Aktive Länder",
+                stats_skus: "Produkte mit Verpackung",
+                stats_orders: "Bestellungen verarbeitet",
+                stats_submissions: "Meldungen übermittelt",
+                countries_title: "🌍 Meine Länder",
+                countries_add: "+ Land aktivieren",
+                status_active: "Aktiv",
+                status_signed: "Signiert",
+                status_pending: "Ausstehend",
+                status_inactive: "Inaktiv",
+                skus_title: "📦 Produkte & Verpackungen",
+                skus_add: "+ Neues Produkt",
+                skus_empty: "Noch keine Produkte hinterlegt.",
+                sku_modal_title: "📦 Produkt & Verpackung",
+                sku_name: "Produktname *",
+                sku_shopify: "Shopify-Produkt-ID (optional)",
+                sku_materials: "Verpackungsmaterialien",
+                sku_material: "Material",
+                sku_weight: "Gewicht (g)",
+                sku_recyclable: "Recycelbar?",
+                sku_add_material: "+ Material hinzufügen",
+                material_karton: "Karton/Pappe",
+                material_plastic: "Kunststoff",
+                material_paper: "Papier",
+                material_glass: "Glas",
+                material_metal: "Metall",
+                material_wood: "Holz",
+                material_other: "Sonstige",
+                stats_title: "📊 Verpackungsstatistik",
+                stats_total: "Gesamtgewicht",
+                stats_cardboard: "Karton / Pappe",
+                stats_plastic: "Kunststoff",
+                stats_by_country: "📦 Pro Land",
+                orders_title: "📋 Bestellungen",
+                orders_empty: "Noch keine Bestellungen.",
+                shopify_connect: "🔗 Shopify verbinden",
+                submissions_title: "📨 Meine Meldungen",
+                submissions_add: "+ Neue Meldung",
+                submissions_empty: "Noch keine Meldungen erstellt.",
+                rep_total_submissions: "Eingehende Meldungen",
+                rep_pending_submissions: "Offen / In Bearbeitung",
+                rep_completed_submissions: "Erledigt",
+                rep_incoming_title: "📨 Eingehende Meldungen",
+                rep_export: "📊 CSV-Export",
+                rep_incoming_empty: "Noch keine eingehenden Meldungen.",
+                country_knowledge_title: "📚 Länder-Check – Was muss ich wo tun?",
+                country_knowledge_sub: "Wähle ein Land aus und erfahre sofort, welche Schritte, Kennzeichnungen und Kosten auf dich zukommen.",
+                country_select: "Land auswählen",
+                knowledge_select_hint: "Wähle ein Land aus, um die Anforderungen zu sehen.",
+                country_modal_title: "🌍 Land aktivieren",
+                country_existing: "Hast du bereits eine EPR-Nummer für dieses Land?",
+                to_register: 'Zum Register',
+                we_handle: '✅ Wir kümmern uns um die Abwicklung!',
+                we_handle_desc: 'Du musst dich um keine der folgenden Pflichten selbst kümmern – wir übernehmen die gesamte Registrierung, Kommunikation und Meldung für dich.',
+                requirements_label: '📋 Pflichten & Anforderungen',
+                labeling_label: '🏷️ Kennzeichnung',
+                eco_fee_label: '💰 Öko-Gebühr',
+                what_we_do: '🎯 Was Pack2EU für dich erledigt',
+                why_us: '💡 Warum selbst machen? Wir übernehmen den kompletten bürokratischen Aufwand – du kannst dich auf dein Geschäft konzentrieren.',
+                notary_warning: '⚠️ Für dieses Land ist eine NOTARIELLE BEGLAUBIGUNG der Vollmacht erforderlich!',
+                notary_cost: '(Kosten: ca. 45 €)',
+                rep_warning: '🏛️ Bevollmächtigter vor Ort erforderlich (wird von Pack2EU organisiert).',
+            },
+            en: {
+                plan_badge: "Business",
+                logout: "Logout",
+                company_name: "My Shop",
+                loading: "Loading...",
+                cancel: "Cancel",
+                save: "Save",
+                activate: "Activate",
+                sign: "Sign",
+                pdf: "PDF",
+                processed: "Processed",
+                yes: "Yes",
+                no: "No",
+                tab_merchant: "📦 Merchant Dashboard",
+                tab_representative: "🏛️ Representative Portal",
+                stats_countries: "Active Countries",
+                stats_skus: "Products with Packaging",
+                stats_orders: "Orders Processed",
+                stats_submissions: "Submissions Sent",
+                countries_title: "🌍 My Countries",
+                countries_add: "+ Activate Country",
+                status_active: "Active",
+                status_signed: "Signed",
+                status_pending: "Pending",
+                status_inactive: "Inactive",
+                skus_title: "📦 Products & Packaging",
+                skus_add: "+ New Product",
+                skus_empty: "No products added yet.",
+                sku_modal_title: "📦 Product & Packaging",
+                sku_name: "Product Name *",
+                sku_shopify: "Shopify Product ID (optional)",
+                sku_materials: "Packaging Materials",
+                sku_material: "Material",
+                sku_weight: "Weight (g)",
+                sku_recyclable: "Recyclable?",
+                sku_add_material: "+ Add Material",
+                material_karton: "Cardboard/Paper",
+                material_plastic: "Plastic",
+                material_paper: "Paper",
+                material_glass: "Glass",
+                material_metal: "Metal",
+                material_wood: "Wood",
+                material_other: "Other",
+                stats_title: "📊 Packaging Statistics",
+                stats_total: "Total Weight",
+                stats_cardboard: "Cardboard / Paper",
+                stats_plastic: "Plastic",
+                stats_by_country: "📦 By Country",
+                orders_title: "📋 Orders",
+                orders_empty: "No orders yet.",
+                shopify_connect: "🔗 Connect Shopify",
+                submissions_title: "📨 My Submissions",
+                submissions_add: "+ New Submission",
+                submissions_empty: "No submissions yet.",
+                rep_total_submissions: "Incoming Submissions",
+                rep_pending_submissions: "Open / In Progress",
+                rep_completed_submissions: "Completed",
+                rep_incoming_title: "📨 Incoming Submissions",
+                rep_export: "📊 CSV Export",
+                rep_incoming_empty: "No incoming submissions yet.",
+                country_knowledge_title: "📚 Country Check – What do I need to do where?",
+                country_knowledge_sub: "Select a country and immediately see which steps, labeling, and costs apply.",
+                country_select: "Select Country",
+                knowledge_select_hint: "Select a country to see the requirements.",
+                country_modal_title: "🌍 Activate Country",
+                country_existing: "Do you already have an EPR number for this country?",
+                to_register: 'To Register',
+                we_handle: '✅ We handle it for you!',
+                we_handle_desc: "You don't have to deal with any of the following obligations yourself – we take care of the entire registration, communication and reporting for you.",
+                requirements_label: '📋 Obligations & Requirements',
+                labeling_label: '🏷️ Labeling',
+                eco_fee_label: '💰 Eco Fee',
+                what_we_do: '🎯 What Pack2EU does for you',
+                why_us: '💡 Why do it yourself? We take care of the entire bureaucratic effort – so you can focus on your business.',
+                notary_warning: '⚠️ This country requires a NOTARIAL CERTIFICATION of the power of attorney!',
+                notary_cost: '(Cost: approx. €45)',
+                rep_warning: '🏛️ Local authorized representative required (organized by Pack2EU).',
+            },
+            fr: {
+                plan_badge: "Entreprise",
+                logout: "Déconnexion",
+                company_name: "Ma boutique",
+                loading: "Chargement...",
+                cancel: "Annuler",
+                save: "Enregistrer",
+                activate: "Activer",
+                sign: "Signer",
+                pdf: "PDF",
+                processed: "Traité",
+                yes: "Oui",
+                no: "Non",
+                tab_merchant: "📦 Tableau de bord commerçant",
+                tab_representative: "🏛️ Portail du mandataire",
+                stats_countries: "Pays actifs",
+                stats_skus: "Produits avec emballage",
+                stats_orders: "Commandes traitées",
+                stats_submissions: "Déclarations soumises",
+                countries_title: "🌍 Mes pays",
+                countries_add: "+ Activer un pays",
+                status_active: "Actif",
+                status_signed: "Signé",
+                status_pending: "En attente",
+                status_inactive: "Inactif",
+                skus_title: "📦 Produits et emballages",
+                skus_add: "+ Nouveau produit",
+                skus_empty: "Aucun produit enregistré.",
+                sku_modal_title: "📦 Produit et emballage",
+                sku_name: "Nom du produit *",
+                sku_shopify: "ID produit Shopify (optionnel)",
+                sku_materials: "Matériaux d'emballage",
+                sku_material: "Matériau",
+                sku_weight: "Poids (g)",
+                sku_recyclable: "Recyclable ?",
+                sku_add_material: "+ Ajouter un matériau",
+                material_karton: "Carton/Papier",
+                material_plastic: "Plastique",
+                material_paper: "Papier",
+                material_glass: "Verre",
+                material_metal: "Métal",
+                material_wood: "Bois",
+                material_other: "Autre",
+                stats_title: "📊 Statistiques d'emballage",
+                stats_total: "Poids total",
+                stats_cardboard: "Carton / Papier",
+                stats_plastic: "Plastique",
+                stats_by_country: "📦 Par pays",
+                orders_title: "📋 Commandes",
+                orders_empty: "Aucune commande.",
+                shopify_connect: "🔗 Connecter Shopify",
+                submissions_title: "📨 Mes déclarations",
+                submissions_add: "+ Nouvelle déclaration",
+                submissions_empty: "Aucune déclaration créée.",
+                rep_total_submissions: "Déclarations entrantes",
+                rep_pending_submissions: "Ouvert / En cours",
+                rep_completed_submissions: "Terminé",
+                rep_incoming_title: "📨 Déclarations entrantes",
+                rep_export: "📊 Export CSV",
+                rep_incoming_empty: "Aucune déclaration entrante.",
+                country_knowledge_title: "📚 Vérification pays – Que dois-je faire où ?",
+                country_knowledge_sub: "Sélectionnez un pays pour voir les étapes, les étiquetages et les coûts applicables.",
+                country_select: "Sélectionner un pays",
+                knowledge_select_hint: "Sélectionnez un pays pour voir les exigences.",
+                country_modal_title: "🌍 Activer un pays",
+                country_existing: "Avez-vous déjà un numéro EPR pour ce pays ?",
+                to_register: 'Vers le registre',
+                we_handle: '✅ Nous nous occupons de tout !',
+                we_handle_desc: "Vous n'avez pas à vous occuper des obligations suivantes – nous gérons toute l'inscription, la communication et les déclarations pour vous.",
+                requirements_label: '📋 Obligations et exigences',
+                labeling_label: '🏷️ Étiquetage',
+                eco_fee_label: '💰 Éco-contribution',
+                what_we_do: '🎯 Ce que Pack2EU fait pour vous',
+                why_us: '💡 Pourquoi le faire soi-même ? Nous prenons en charge tout l\'effort bureaucratique – vous pouvez vous concentrer sur votre activité.',
+                notary_warning: '⚠️ Ce pays exige une CERTIFICATION NOTARIALE de la procuration !',
+                notary_cost: '(Coût : env. 45 €)',
+                rep_warning: '🏛️ Mandataire local requis (organisé par Pack2EU).',
+            },
+            it: {
+                plan_badge: "Business",
+                logout: "Disconnettersi",
+                company_name: "Il mio negozio",
+                loading: "Caricamento...",
+                cancel: "Annulla",
+                save: "Salva",
+                activate: "Attiva",
+                sign: "Firma",
+                pdf: "PDF",
+                processed: "Elaborato",
+                yes: "Sì",
+                no: "No",
+                tab_merchant: "📦 Dashboard commerciante",
+                tab_representative: "🏛️ Portale del mandatario",
+                stats_countries: "Paesi attivi",
+                stats_skus: "Prodotti con imballaggio",
+                stats_orders: "Ordini elaborati",
+                stats_submissions: "Segnalazioni inviate",
+                countries_title: "🌍 I miei paesi",
+                countries_add: "+ Attiva paese",
+                status_active: "Attivo",
+                status_signed: "Firmato",
+                status_pending: "In sospeso",
+                status_inactive: "Inattivo",
+                skus_title: "📦 Prodotti e imballaggi",
+                skus_add: "+ Nuovo prodotto",
+                skus_empty: "Nessun prodotto registrato.",
+                sku_modal_title: "📦 Prodotto e imballaggio",
+                sku_name: "Nome prodotto *",
+                sku_shopify: "ID prodotto Shopify (opzionale)",
+                sku_materials: "Materiali di imballaggio",
+                sku_material: "Materiale",
+                sku_weight: "Peso (g)",
+                sku_recyclable: "Riciclabile?",
+                sku_add_material: "+ Aggiungi materiale",
+                material_karton: "Cartone/Carta",
+                material_plastic: "Plastica",
+                material_paper: "Carta",
+                material_glass: "Vetro",
+                material_metal: "Metallo",
+                material_wood: "Legno",
+                material_other: "Altro",
+                stats_title: "📊 Statistiche imballaggi",
+                stats_total: "Peso totale",
+                stats_cardboard: "Cartone / Carta",
+                stats_plastic: "Plastica",
+                stats_by_country: "📦 Per paese",
+                orders_title: "📋 Ordini",
+                orders_empty: "Nessun ordine.",
+                shopify_connect: "🔗 Connetti Shopify",
+                submissions_title: "📨 Le mie segnalazioni",
+                submissions_add: "+ Nuova segnalazione",
+                submissions_empty: "Nessuna segnalazione creata.",
+                rep_total_submissions: "Segnalazioni in arrivo",
+                rep_pending_submissions: "Aperto / In corso",
+                rep_completed_submissions: "Completato",
+                rep_incoming_title: "📨 Segnalazioni in arrivo",
+                rep_export: "📊 Esporta CSV",
+                rep_incoming_empty: "Nessuna segnalazione in arrivo.",
+                country_knowledge_title: "📚 Controllo paese – Cosa devo fare dove?",
+                country_knowledge_sub: "Seleziona un paese per vedere i passaggi, le etichettature e i costi applicabili.",
+                country_select: "Seleziona paese",
+                knowledge_select_hint: "Seleziona un paese per vedere i requisiti.",
+                country_modal_title: "🌍 Attiva paese",
+                country_existing: "Hai già un numero EPR per questo paese?",
+                to_register: 'Vai al registro',
+                we_handle: '✅ Ci occupiamo noi di tutto!',
+                we_handle_desc: 'Non devi occuparti tu di nessuno dei seguenti obblighi – ci occupiamo noi dell\'intera registrazione, comunicazione e dichiarazione per te.',
+                requirements_label: '📋 Obblighi e requisiti',
+                labeling_label: '🏷️ Etichettatura',
+                eco_fee_label: '💰 Eco-contributo',
+                what_we_do: '🎯 Cosa fa Pack2EU per te',
+                why_us: '💡 Perché farlo da soli? Ci occupiamo noi di tutto l\'onere burocratico – così puoi concentrarti sul tuo business.',
+                notary_warning: '⚠️ Questo paese richiede una CERTIFICAZIONE NOTARILE della procura!',
+                notary_cost: '(Costo: circa 45 €)',
+                rep_warning: '🏛️ Mandatario locale richiesto (organizzato da Pack2EU).',
+            },
+            es: {
+                plan_badge: "Negocio",
+                logout: "Cerrar sesión",
+                company_name: "Mi tienda",
+                loading: "Cargando...",
+                cancel: "Cancelar",
+                save: "Guardar",
+                activate: "Activar",
+                sign: "Firmar",
+                pdf: "PDF",
+                processed: "Procesado",
+                yes: "Sí",
+                no: "No",
+                tab_merchant: "📦 Panel de comerciante",
+                tab_representative: "🏛️ Portal del representante",
+                stats_countries: "Países activos",
+                stats_skus: "Productos con embalaje",
+                stats_orders: "Pedidos procesados",
+                stats_submissions: "Declaraciones enviadas",
+                countries_title: "🌍 Mis países",
+                countries_add: "+ Activar país",
+                status_active: "Activo",
+                status_signed: "Firmado",
+                status_pending: "Pendiente",
+                status_inactive: "Inactivo",
+                skus_title: "📦 Productos y embalajes",
+                skus_add: "+ Nuevo producto",
+                skus_empty: "No hay productos registrados.",
+                sku_modal_title: "📦 Producto y embalaje",
+                sku_name: "Nombre del producto *",
+                sku_shopify: "ID de producto Shopify (opcional)",
+                sku_materials: "Materiales de embalaje",
+                sku_material: "Material",
+                sku_weight: "Peso (g)",
+                sku_recyclable: "¿Reciclable?",
+                sku_add_material: "+ Añadir material",
+                material_karton: "Cartón/Papel",
+                material_plastic: "Plástico",
+                material_paper: "Papel",
+                material_glass: "Vidrio",
+                material_metal: "Metal",
+                material_wood: "Madera",
+                material_other: "Otro",
+                stats_title: "📊 Estadísticas de embalaje",
+                stats_total: "Peso total",
+                stats_cardboard: "Cartón / Papel",
+                stats_plastic: "Plástico",
+                stats_by_country: "📦 Por país",
+                orders_title: "📋 Pedidos",
+                orders_empty: "No hay pedidos.",
+                shopify_connect: "🔗 Conectar Shopify",
+                submissions_title: "📨 Mis declaraciones",
+                submissions_add: "+ Nueva declaración",
+                submissions_empty: "No hay declaraciones creadas.",
+                rep_total_submissions: "Declaraciones entrantes",
+                rep_pending_submissions: "Abierto / En curso",
+                rep_completed_submissions: "Completado",
+                rep_incoming_title: "📨 Declaraciones entrantes",
+                rep_export: "📊 Exportar CSV",
+                rep_incoming_empty: "No hay declaraciones entrantes.",
+                country_knowledge_title: "📚 Verificación de país – ¿Qué debo hacer y dónde?",
+                country_knowledge_sub: "Selecciona un país para ver los pasos, etiquetados y costos aplicables.",
+                country_select: "Seleccionar país",
+                knowledge_select_hint: "Selecciona un país para ver los requisitos.",
+                country_modal_title: "🌍 Activar país",
+                country_existing: "¿Ya tienes un número EPR para este país?",
+                to_register: 'Ir al registro',
+                we_handle: '✅ ¡Nosotros lo gestionamos por ti!',
+                we_handle_desc: 'No tienes que ocuparte de ninguna de las siguientes obligaciones – nos encargamos de todo el registro, la comunicación y la declaración por ti.',
+                requirements_label: '📋 Obligaciones y requisitos',
+                labeling_label: '🏷️ Etiquetado',
+                eco_fee_label: '💰 Eco-tasa',
+                what_we_do: '🎯 Lo que Pack2EU hace por ti',
+                why_us: '💡 ¿Por qué hacerlo tú mismo? Nosotros nos encargamos de todo el esfuerzo burocrático – así puedes concentrarte en tu negocio.',
+                notary_warning: '⚠️ ¡Este país requiere una CERTIFICACIÓN NOTARIAL del poder!',
+                notary_cost: '(Coste: aprox. 45 €)',
+                rep_warning: '🏛️ Representante local requerido (organizado por Pack2EU).',
+            }
+        };
+
+        let currentLang = 'de';
+
+        function t(key) {
+            return i18n[currentLang]?.[key] ?? i18n.de[key] ?? key;
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+            // Länder-Check neu rendern, falls bereits ein Land ausgewählt ist
+            const selectedCountry = document.getElementById('knowledge-country-select')?.value;
+            if (selectedCountry) {
+                showCountryKnowledge();
+            }
+            // Select-Optionen übersetzen
+            document.querySelectorAll('select [data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+        }
+
+        // ============================================================
+        // 2. LÄNDER-CHECK / WISSENSDATENBANK
+        // ============================================================
+        function showCountryKnowledge() {
+            const countryCode = document.getElementById('knowledge-country-select').value;
+            const display = document.getElementById('knowledge-display');
+            const lang = currentLang;
+
+            if (!countryCode || !countryKnowledge[countryCode]) {
+                display.innerHTML =
+                    `<div class="text-sm text-[var(--text-dim)]">${t('knowledge_select_hint')}</div>`;
+                return;
+            }
+
+            const c = countryKnowledge[countryCode];
+
+            // Sprachabhängige Werte
+            const countryName = c.name?.[lang] || c.name?.de || 'Unbekannt';
+            const register = c.register?.[lang] || c.register?.de || '';
+            const requirements = c.requirements?.[lang] || c.requirements?.de || [];
+            const labeling = c.labeling?.[lang] || c.labeling?.de || [];
+            const ecoFee = c.eco_fee?.[lang] || c.eco_fee?.de || '';
+            const steps = c.steps?.[lang] || c.steps?.de || [];
+            const notaryCost = c.notary_cost?.[lang] || c.notary_cost?.de || 'ca. 45 €';
+
+            const notaryWarning = c.notary_required ?
+                `<div class="notary-warning">${t('notary_warning')} (${notaryCost})</div>` :
+                '';
+            const repWarning = c.representative_required ?
+                `<div class="rep-warning">${t('rep_warning')}</div>` :
+                '';
+
+            display.innerHTML = `
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                    <span class="text-2xl">${c.flag}</span>
+                    <span class="font-bold text-lg">${countryName}</span>
+                    <span class="text-sm text-[var(--text-dim)]">${register}</span>
+                    ${c.registration_url ? `<a href="${c.registration_url}" target="_blank" class="text-xs text-[var(--accent)] hover:underline">🔗 ${t('to_register')}</a>` : ''}
+                </div>
+
+                <div class="we-handle-box">
+                    <div class="title">${t('we_handle')}</div>
+                    <p class="text-sm text-[var(--text-dim)]">${t('we_handle_desc')}</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4 mt-2">
+                    <div>
+                        <div class="font-semibold text-sm">${t('requirements_label')}</div>
+                        <ul>
+                            ${requirements.map(r => `<li>${r}</li>`).join('')}
+                        </ul>
+                        ${repWarning}
+                    </div>
+                    <div>
+                        <div class="font-semibold text-sm">${t('labeling_label')}</div>
+                        <ul>
+                            ${labeling.map(l => `<li>${l}</li>`).join('')}
+                        </ul>
+                        <div class="mt-2 text-sm">
+                            <span class="font-semibold">${t('eco_fee_label')}:</span>
+                            <span class="text-[var(--text-dim)]">${ecoFee}</span>
+                        </div>
+                        ${notaryWarning}
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-3 border-t border-[var(--border)]">
+                    <div class="font-semibold text-sm">${t('what_we_do')}</div>
+                    <div class="text-sm text-[var(--text-dim)] space-y-0.5">
+                        ${steps.map(s => `<div>${s}</div>`).join('')}
+                    </div>
+                    <div class="mt-2 text-xs text-[var(--text-dim)]">
+                        ${t('why_us')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // 3. API KONFIGURATION
+        // ============================================================
+        const API_BASE = window.PACK2EU_API_BASE || 'http://localhost:3000/api';
+
+        function getToken() { return localStorage.getItem('pack2eu_token'); }
+
+        function setToken(t) { localStorage.setItem('pack2eu_token', t); }
+
+        function clearToken() { localStorage.removeItem('pack2eu_token'); }
+
+        async function api(path, options = {}) {
+            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+            const token = getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const res = await fetch(API_BASE + path, { ...options, headers });
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) {
+                const message = (data && data.error) || `Fehler ${res.status}`;
+                throw new Error(message);
+            }
+            return data;
+        }
+
+        // ============================================================
+        // 4. AUTH
+        // ============================================================
+        function logout() {
+            clearToken();
+            window.location.href = '/index.html';
+        }
+
+        // ============================================================
+        // 5. TABS
+        // ============================================================
+        let currentTab = 'merchant';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('merchant-tab').classList.toggle('hidden', tab !== 'merchant');
+            document.getElementById('representative-tab').classList.toggle('hidden', tab !== 'representative');
+            document.getElementById('tab-merchant').classList.toggle('active', tab === 'merchant');
+            document.getElementById('tab-representative').classList.toggle('active', tab === 'representative');
+            if (tab === 'representative') loadRepresentativeDashboard();
+        }
+
+        // ============================================================
+        // 6. DASHBOARD LOAD
+        // ============================================================
+        async function loadDashboard() {
+            try {
+                const customer = await api('/auth/me');
+                document.getElementById('company-name').textContent = customer.company_name || 'Mein Shop';
+
+                const countries = await api('/activations');
+                renderCountries(countries);
+
+                const skus = await api('/skus');
+                renderSkus(skus);
+
+                const orders = await api('/shopify/orders');
+                renderOrders(orders);
+
+                const submissions = await api('/submissions/me');
+                renderSubmissions(submissions);
+
+                document.getElementById('countries-active').textContent = countries.filter(c => c.status === 'active' || c
+                    .status === 'signed').length;
+                document.getElementById('skus-count').textContent = skus.length;
+                document.getElementById('orders-count').textContent = orders.length;
+                document.getElementById('submissions-count').textContent = submissions.length;
+
+                await loadPackagingStats();
+
+            } catch (err) {
+                console.error('Dashboard Fehler:', err);
+                if (err.message.includes('401') || err.message.includes('Token')) {
+                    logout();
+                }
+            }
+        }
+
+        // ============================================================
+        // 7. LÄNDER
+        // ============================================================
+        function renderCountries(countries) {
+            const container = document.getElementById('country-list');
+            if (!countries || countries.length === 0) {
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('skus_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = countries.map(c => {
+                const statusMap = {
+                    'active': { label: t('status_active'), dot: 'green' },
+                    'signed': { label: t('status_signed'), dot: 'green' },
+                    'pending': { label: t('status_pending'), dot: 'yellow' },
+                    'inactive': { label: t('status_inactive'), dot: 'gray' }
+                };
+                const s = statusMap[c.status] || statusMap.inactive;
+                return `
+                    <div class="flex items-center justify-between p-3 border-b border-[var(--border)]">
+                        <div>
+                            <span class="font-bold">${c.name}</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
+                            ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
+                        </div>
+                        <div>
+                            <span class="status-dot ${s.dot}"></span>
+                            <span class="text-sm">${s.label}</span>
+                            ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
+                            ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCountryModal() {
+            document.getElementById('country-modal').style.display = 'flex';
+            document.getElementById('country-error').classList.add('hidden');
+        }
+
+        function closeCountryModal() {
+            document.getElementById('country-modal').style.display = 'none';
+        }
+
+        async function activateCountry() {
+            const code = document.getElementById('country-select').value;
+            const existing_number = document.getElementById('existing-number').value.trim();
+            const error = document.getElementById('country-error');
+            error.classList.add('hidden');
+
+            try {
+                await api('/activations/' + code, { method: 'POST', body: JSON.stringify({ existing_number }) });
+                closeCountryModal();
+                loadDashboard();
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        async function signActivation(code) {
+            try {
+                await api('/activations/' + code + '/sign', { method: 'POST' });
+                loadDashboard();
+            } catch (err) {
+                alert('Signatur fehlgeschlagen: ' + err.message);
+            }
+        }
+
+        function downloadPoa(code) {
+            alert('PDF-Download für ' + code + ' wird vorbereitet.');
+        }
+
+        // ============================================================
+        // 8. SKUS
+        // ============================================================
+        function renderSkus(skus) {
+            const container = document.getElementById('sku-list');
+            if (!skus || skus.length === 0) {
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('skus_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = skus.map(s => {
+                const materials = JSON.parse(s.materials_json || '[]');
+                const materialText = materials.map(m => `${m.material} ${m.weight_grams}g`).join(', ');
+                return `
+                    <div class="flex items-center justify-between p-3 border-b border-[var(--border)]">
+                        <div>
+                            <span class="font-bold">${s.sku_name}</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${s.total_weight_grams}g</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${materialText}</span>
+                        </div>
+                        <div>
+                            <button onclick="editSku('${s.id}')" class="btn-outline text-xs py-1 px-2">✏️</button>
+                            <button onclick="deleteSku('${s.id}')" class="btn-outline text-xs py-1 px-2 text-red-500">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        let editingSkuId = null;
+
+        function openSkuModal(skuData) {
+            document.getElementById('sku-modal').style.display = 'flex';
+            document.getElementById('sku-error').classList.add('hidden');
+
+            if (skuData) {
+                editingSkuId = skuData.id;
+                document.getElementById('sku-name').value = skuData.sku_name;
+                document.getElementById('sku-shopify-id').value = skuData.shopify_product_id || '';
+                const materials = JSON.parse(skuData.materials_json || '[]');
+                document.getElementById('sku-materials').innerHTML = '';
+                materials.forEach(m => {
+                    addMaterialRow(m.material, m.weight_grams, m.is_recyclable);
+                });
+            } else {
+                editingSkuId = null;
+                document.getElementById('sku-name').value = '';
+                document.getElementById('sku-shopify-id').value = '';
+                document.getElementById('sku-materials').innerHTML = '';
+                addMaterialRow();
+            }
+        }
+
+        function closeSkuModal() {
+            document.getElementById('sku-modal').style.display = 'none';
+        }
+
+        function addMaterialRow(material = 'karton', weight = 245, recyclable = 1) {
+            const container = document.getElementById('sku-materials');
+            const row = document.createElement('div');
+            row.className = 'material-group';
+            row.innerHTML = `
+                <div class="grid grid-cols-12 gap-2 items-end">
+                    <div class="col-span-5">
+                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">${t('sku_material')}</label>
+                        <select class="material-type">
+                            <option value="karton" ${material === 'karton' ? 'selected' : ''}>${t('material_karton')}</option>
+                            <option value="kunststoff" ${material === 'kunststoff' ? 'selected' : ''}>${t('material_plastic')}</option>
+                            <option value="papier" ${material === 'papier' ? 'selected' : ''}>${t('material_paper')}</option>
+                            <option value="glas" ${material === 'glas' ? 'selected' : ''}>${t('material_glass')}</option>
+                            <option value="metall" ${material === 'metall' ? 'selected' : ''}>${t('material_metal')}</option>
+                            <option value="holz" ${material === 'holz' ? 'selected' : ''}>${t('material_wood')}</option>
+                            <option value="sonstige" ${material === 'sonstige' ? 'selected' : ''}>${t('material_other')}</option>
+                        </select>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">${t('sku_weight')}</label>
+                        <input type="number" class="material-weight" placeholder="245" value="${weight}">
+                    </div>
+                    <div class="col-span-3">
+                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">${t('sku_recyclable')}</label>
+                        <select class="material-recyclable">
+                            <option value="1" ${recyclable == 1 ? 'selected' : ''}>${t('yes')}</option>
+                            <option value="0" ${recyclable == 0 ? 'selected' : ''}>${t('no')}</option>
+                        </select>
+                    </div>
+                    <div class="col-span-1">
+                        <button onclick="removeMaterialRow(this)" class="remove-btn">✕</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeMaterialRow(btn) {
+            const group = btn.closest('.material-group');
+            if (document.querySelectorAll('.material-group').length > 1) {
+                group.remove();
+            }
+        }
+
+        function getMaterialsFromUI() {
+            const rows = document.querySelectorAll('.material-group');
+            return Array.from(rows).map(row => ({
+                material: row.querySelector('.material-type').value,
+                weight_grams: parseInt(row.querySelector('.material-weight').value) || 0,
+                is_recyclable: parseInt(row.querySelector('.material-recyclable').value) === 1
+            })).filter(m => m.weight_grams > 0);
+        }
+
+        async function saveSku() {
+            const sku_name = document.getElementById('sku-name').value.trim();
+            const shopify_product_id = document.getElementById('sku-shopify-id').value.trim();
+            const materials = getMaterialsFromUI();
+            const error = document.getElementById('sku-error');
+            error.classList.add('hidden');
+
+            if (!sku_name) {
+                error.textContent = 'Bitte gib einen Produktnamen ein.';
+                error.classList.remove('hidden');
+                return;
+            }
+            if (materials.length === 0) {
+                error.textContent = 'Bitte füge mindestens ein Material hinzu.';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const payload = { sku_name, shopify_product_id, materials };
+                if (editingSkuId) {
+                    await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
+                } else {
+                    await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
+                }
+                closeSkuModal();
+                loadDashboard();
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        async function deleteSku(id) {
+            if (!confirm('Möchtest du dieses Produkt wirklich löschen?')) return;
+            try {
+                await api('/skus/' + id, { method: 'DELETE' });
+                loadDashboard();
+            } catch (err) {
+                alert('Löschen fehlgeschlagen: ' + err.message);
+            }
+        }
+
+        // ============================================================
+        // 9. VERPACKUNGSSTATISTIK
+        // ============================================================
+        async function loadPackagingStats() {
+            try {
+                const orders = await api('/shopify/orders');
+                const skus = await api('/skus');
+
+                let totalWeight = 0;
+                let totalCardboard = 0;
+                let totalPlastic = 0;
+                let countryStats = {};
+
+                orders.forEach(order => {
+                    const packagingData = JSON.parse(order.packaging_data || '[]');
+                    const country = order.destination_country || 'Unbekannt';
+
+                    if (!countryStats[country]) countryStats[country] = { cardboard: 0, plastic: 0, total: 0 };
+
+                    packagingData.forEach(m => {
+                        const weightKg = m.weight_grams / 1000;
+                        totalWeight += weightKg;
+                        countryStats[country].total += weightKg;
+
+                        if (m.material === 'karton' || m.material === 'papier') {
+                            totalCardboard += weightKg;
+                            countryStats[country].cardboard += weightKg;
+                        } else if (m.material === 'kunststoff' || m.material === 'folie') {
+                            totalPlastic += weightKg;
+                            countryStats[country].plastic += weightKg;
+                        }
+                    });
+                });
+
+                document.getElementById('total-weight').textContent = totalWeight.toFixed(1) + ' kg';
+                document.getElementById('total-cardboard').textContent = totalCardboard.toFixed(1) + ' kg';
+                document.getElementById('total-plastic').textContent = totalPlastic.toFixed(1) + ' kg';
+
+                const container = document.getElementById('country-stats');
+                const countryEntries = Object.entries(countryStats);
+                if (countryEntries.length === 0) {
+                    container.innerHTML =
+                        `<div class="text-sm text-[var(--text-dim)]">${t('stats_by_country')}</div>`;
+                    return;
+                }
+                container.innerHTML = countryEntries.map(([country, stats]) => `
+                    <div class="flex items-center justify-between p-2 border-b border-[var(--border)]">
+                        <span class="font-medium">${country}</span>
+                        <span class="text-sm text-[var(--text-dim)]">
+                            ${stats.total.toFixed(1)} kg 
+                            (📦 ${stats.cardboard.toFixed(1)} kg · 🧪 ${stats.plastic.toFixed(1)} kg)
+                        </span>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error('Statistik Fehler:', err);
+            }
+        }
+
+        // ============================================================
+        // 10. BESTELLUNGEN
+        // ============================================================
+        function renderOrders(orders) {
+            const container = document.getElementById('orders-list');
+            if (!orders || orders.length === 0) {
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('orders_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = orders.map(o => `
+                <div class="flex items-center justify-between p-3 border-b border-[var(--border)]">
+                    <div>
+                        <span class="font-bold">#${o.shopify_order_id}</span>
+                        <span class="text-xs text-[var(--text-dim)] ml-2">${o.destination_country}</span>
+                        <span class="text-xs text-[var(--text-dim)] ml-2">${o.total_weight_grams}g</span>
+                    </div>
+                    <div>
+                        <span class="badge badge-success">${t('processed')}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function connectShopify() {
+            alert('Shopify-Verbindung wird in Kürze verfügbar sein.\nDu wirst zu Shopify weitergeleitet.');
+        }
+
+        // ============================================================
+        // 11. MELDUNGEN
+        // ============================================================
+        function renderSubmissions(submissions) {
+            const container = document.getElementById('submissions-list');
+            if (!submissions || submissions.length === 0) {
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('submissions_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = submissions.map(s => `
+                <div class="flex items-center justify-between p-3 border-b border-[var(--border)]">
+                    <div>
+                        <span class="font-bold">${s.destination}</span>
+                        <span class="text-xs text-[var(--text-dim)] ml-2">${s.total_weight_kg} kg</span>
+                        <span class="text-xs text-[var(--text-dim)] ml-2">${new Date(s.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div>
+                        <span class="badge ${s.status === 'submitted' ? 'badge-success' : 'badge-warning'}">${s.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function createReport() {
+            alert('Neue Meldung wird in Kürze verfügbar sein.');
+        }
+
+        // ============================================================
+        // 12. BEAUFTRAGTEN-PORTAL
+        // ============================================================
+        async function loadRepresentativeDashboard() {
+            try {
+                const submissions = await api('/representatives/submissions');
+                renderRepresentativeSubmissions(submissions);
+
+                const total = submissions.length;
+                const pending = submissions.filter(s => s.status === 'pending' || s.status === 'received').length;
+                const completed = submissions.filter(s => s.status === 'submitted' || s.status === 'exported').length;
+
+                document.getElementById('rep-total-submissions').textContent = total;
+                document.getElementById('rep-pending-submissions').textContent = pending;
+                document.getElementById('rep-completed-submissions').textContent = completed;
+
+            } catch (err) {
+                console.error('Beauftragten-Dashboard Fehler:', err);
+                if (err.message.includes('403')) {
+                    alert('Sie haben keine Berechtigung für das Beauftragten-Portal.');
+                    switchTab('merchant');
+                }
+            }
+        }
+
+        function renderRepresentativeSubmissions(submissions) {
+            const container = document.getElementById('rep-submissions-list');
+            if (!submissions || submissions.length === 0) {
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('rep_incoming_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = submissions.map(s => {
+                const materials = JSON.parse(s.materials_json || '[]');
+                const materialText = materials.map(m => `${m.material} ${m.weight_kg}kg×${m.qty}`).join(', ');
+                return `
+                    <div class="flex items-center justify-between p-3 border-b border-[var(--border)] flex-wrap gap-2">
+                        <div>
+                            <span class="font-bold">${s.customer_number || 'Unbekannt'}</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${s.company_name}</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${s.destination}</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${s.length_cm}×${s.width_cm}×${s.height_cm} cm</span>
+                            <span class="text-xs text-[var(--text-dim)] ml-2">${materialText}</span>
+                        </div>
+                        <div>
+                            <span class="badge ${s.status === 'submitted' ? 'badge-success' : 'badge-warning'}">${s.status}</span>
+                            <button onclick="markSubmissionExported('${s.id}')" class="btn-primary text-xs py-1 px-2 ml-2">📤 Als erledigt markieren</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function markSubmissionExported(id) {
+            try {
+                await api('/submissions/' + id + '/export', { method: 'POST' });
+                loadRepresentativeDashboard();
+            } catch (err) {
+                alert('Fehler: ' + err.message);
+            }
+        }
+
+        function exportRepCSV() {
+            alert('CSV-Export wird in Kürze verfügbar sein.');
+        }
+
+        // ============================================================
+        // 13. INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/index.html';
+                return;
+            }
+            setLang('de');
+            loadDashboard();
+            document.getElementById('knowledge-display').innerHTML =
+                `<div class="text-sm text-[var(--text-dim)]">${t('knowledge_select_hint')}</div>`;
+        });
+    </script>
+
+</body>
+</html>
