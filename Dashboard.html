@@ -369,460 +369,386 @@
     ============================================================ -->
     <script>
         // ============================================================
-        // 0. LÄNDER-WISSENSDATENBANK (ALLE 9 LÄNDER, 5 SPRACHEN)
-        // ============================================================
-        const countryKnowledge = {
-            DE: {
-                name: { de: 'Deutschland', en: 'Germany', fr: 'Allemagne', it: 'Germania', es: 'Alemania' },
-                flag: '🇩🇪',
-                register: { de: 'LUCID / ZSVR', en: 'LUCID / ZSVR', fr: 'LUCID / ZSVR', it: 'LUCID / ZSVR', es: 'LUCID / ZSVR' },
-                registration_url: 'https://lucid.verpackungsregister.org',
-                requirements: {
-                    de: ['Registrierung im LUCID-Verpackungsregister (kostenlos)', 'Systembeteiligung bei einem dualen System (z.B. Grüner Punkt)', 'Jährliche Mengenmeldung'],
-                    en: ['Registration in LUCID packaging register (free)', 'System participation with a dual system (e.g. Green Dot)', 'Annual quantity reporting'],
-                    fr: ['Inscription au registre des emballages LUCID (gratuit)', 'Participation à un système dual (ex. Point Vert)', 'Déclaration annuelle des quantités'],
-                    it: ['Registrazione nel registro imballaggi LUCID (gratuita)', 'Partecipazione a un sistema duale (es. Punto Verde)', 'Dichiarazione annuale delle quantità'],
-                    es: ['Registro en el registro de envases LUCID (gratuito)', 'Participación en un sistema dual (ej. Punto Verde)', 'Declaración anual de cantidades']
-                },
-                labeling: {
-                    de: ['Grüner Punkt (optional)', 'Materialkennzeichnung (z.B. PAP 21)'],
-                    en: ['Green Dot (optional)', 'Material labeling (e.g. PAP 21)'],
-                    fr: ['Point Vert (optionnel)', 'Étiquetage des matériaux (ex. PAP 21)'],
-                    it: ['Punto Verde (opzionale)', 'Etichettatura dei materiali (es. PAP 21)'],
-                    es: ['Punto Verde (opcional)', 'Etiquetado de materiales (ej. PAP 21)']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,85 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.85/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,85 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,85 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,85 €/kg de cartón)'
-                },
-                representative_required: false,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die LUCID-Registrierung für dich', '✅ Wir schließen den Vertrag mit dem dualen System ab', '✅ Wir melden deine Verpackungsmengen jährlich'],
-                    en: ['✅ We apply for LUCID registration for you', '✅ We sign the contract with the dual system', '✅ We report your packaging quantities annually'],
-                    fr: ['✅ Nous demandons l\'inscription LUCID pour vous', '✅ Nous signons le contrat avec le système dual', '✅ Nous déclarons vos quantités d\'emballage annuellement'],
-                    it: ['✅ Richiediamo la registrazione LUCID per te', '✅ Firmiamo il contratto con il sistema duale', '✅ Dichiaramo le tue quantità di imballaggio annualmente'],
-                    es: ['✅ Solicitamos el registro LUCID por ti', '✅ Firmamos el contrato con el sistema dual', '✅ Declaramos tus cantidades de envases anualmente']
-                }
-            },
-            AT: {
-                name: { de: 'Österreich', en: 'Austria', fr: 'Autriche', it: 'Austria', es: 'Austria' },
-                flag: '🇦🇹',
-                register: { de: 'EDM-Portal / ARA', en: 'EDM Portal / ARA', fr: 'Portail EDM / ARA', it: 'Portale EDM / ARA',
-                    es: 'Portal EDM / ARA' },
-                registration_url: 'https://www.ara.at',
-                requirements: {
-                    de: ['Registrierung im EDM-Portal (kostenlos)', 'Verpackungslizenzierung bei ARA oder Reclay', 'NOTARIELLE BEGLAUBIGUNG der Vollmacht!',
-                        'Jährliche Mengenmeldung'
-                    ],
-                    en: ['Registration in the EDM portal (free)', 'Packaging licensing with ARA or Reclay',
-                        'NOTARIAL CERTIFICATION of the power of attorney!', 'Annual quantity reporting'
-                    ],
-                    fr: ['Inscription sur le portail EDM (gratuit)', 'Licence d\'emballage auprès d\'ARA ou Reclay',
-                        'CERTIFICATION NOTARIALE de la procuration!', 'Déclaration annuelle des quantités'
-                    ],
-                    it: ['Registrazione nel portale EDM (gratuita)', 'Licenza di imballaggio presso ARA o Reclay',
-                        'CERTIFICAZIONE NOTARILE della procura!', 'Dichiarazione annuale delle quantità'
-                    ],
-                    es: ['Registro en el portal EDM (gratuito)', 'Licencia de embalaje con ARA o Reclay',
-                        '¡CERTIFICACIÓN NOTARIAL del poder!', 'Declaración anual de cantidades'
-                    ]
-                },
-                labeling: {
-                    de: ['Keine spezielle Kennzeichnungspflicht', 'Materialkennzeichnung empfohlen'],
-                    en: ['No specific labeling requirement', 'Material labeling recommended'],
-                    fr: ['Pas d\'exigence d\'étiquetage spécifique', 'Étiquetage des matériaux recommandé'],
-                    it: ['Nessun obbligo di etichettatura specifico', 'Etichettatura dei materiali consigliata'],
-                    es: ['No hay requisito de etiquetado específico', 'Etiquetado de materiales recomendado']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,80 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.80/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,80 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,80 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,80 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: true,
-                notary_cost: { de: 'ca. 45 € (digital)', en: 'approx. €45 (digital)', fr: 'env. 45 € (numérique)',
-                    it: 'circa 45 € (digitale)', es: 'aprox. 45 € (digital)' },
-                steps: {
-                    de: ['✅ Wir beantragen die EDM-Registrierung für dich', '✅ Wir kümmern uns um die NOTARIELLE BEGLAUBIGUNG',
-                        '✅ Wir schließen den ARA-Lizenzvertrag ab', '✅ Wir melden deine Mengen jährlich'
-                    ],
-                    en: ['✅ We apply for EDM registration for you', '✅ We take care of the NOTARIAL CERTIFICATION',
-                        '✅ We sign the ARA license contract', '✅ We report your quantities annually'
-                    ],
-                    fr: ['✅ Nous demandons l\'inscription EDM pour vous',
-                        '✅ Nous nous occupons de la CERTIFICATION NOTARIALE',
-                        '✅ Nous signons le contrat de licence ARA', '✅ Nous déclarons vos quantités annuellement'
-                    ],
-                    it: ['✅ Richiediamo la registrazione EDM per te', '✅ Ci occupiamo della CERTIFICAZIONE NOTARILE',
-                        '✅ Firmiamo il contratto di licenza ARA', '✅ Dichiaramo le tue quantità annualmente'
-                    ],
-                    es: ['✅ Solicitamos el registro EDM por ti', '✅ Nos encargamos de la CERTIFICACIÓN NOTARIAL',
-                        '✅ Firmamos el contrato de licencia ARA', '✅ Declaramos tus cantidades anualmente'
-                    ]
-                }
-            },
-            FR: {
-                name: { de: 'Frankreich', en: 'France', fr: 'France', it: 'Francia', es: 'Francia' },
-                flag: '🇫🇷',
-                register: { de: 'ADEME / CITEO', en: 'ADEME / CITEO', fr: 'ADEME / CITEO', it: 'ADEME / CITEO',
-                    es: 'ADEME / CITEO' },
-                registration_url: 'https://www.citeo.com',
-                requirements: {
-                    de: ['Registrierung bei CITEO oder LEKO', 'Triman-Logo auf Verpackung oder Beipackzettel',
-                        'Sortieranweisung (Consigne de tri) angeben', 'Jährliche Mengenmeldung an CITEO'
-                    ],
-                    en: ['Registration with CITEO or LEKO', 'Triman logo on packaging or insert',
-                        'Sorting instructions (Consigne de tri)', 'Annual quantity reporting to CITEO'
-                    ],
-                    fr: ['Inscription auprès de CITEO ou LEKO', 'Logo Triman sur l\'emballage ou la notice',
-                        'Instructions de tri (Consigne de tri)', 'Déclaration annuelle des quantités à CITEO'
-                    ],
-                    it: ['Registrazione presso CITEO o LEKO', 'Logo Triman su imballaggio o foglietto',
-                        'Istruzioni di smaltimento (Consigne de tri)', 'Dichiarazione annuale delle quantità a CITEO'
-                    ],
-                    es: ['Registro en CITEO o LEKO', 'Logo Triman en el embalaje o folleto',
-                        'Instrucciones de clasificación (Consigne de tri)', 'Declaración anual de cantidades a CITEO'
-                    ]
-                },
-                labeling: {
-                    de: ['Triman-Logo', 'Sortieranweisung (Consigne de tri)', 'Materialkennzeichnung'],
-                    en: ['Triman logo', 'Sorting instructions (Consigne de tri)', 'Material labeling'],
-                    fr: ['Logo Triman', 'Instructions de tri (Consigne de tri)', 'Étiquetage des matériaux'],
-                    it: ['Logo Triman', 'Istruzioni di smaltimento (Consigne de tri)', 'Etichettatura dei materiali'],
-                    es: ['Logo Triman', 'Instrucciones de clasificación (Consigne de tri)', 'Etiquetado de materiales']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 1,20 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €1.20/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 1,20 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 1,20 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 1,20 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir schließen den CITEO-Vertrag für dich ab', '✅ Wir kümmern uns um das Triman-Logo',
-                        '✅ Wir melden deine Mengen jährlich an CITEO'
-                    ],
-                    en: ['✅ We sign the CITEO contract for you', '✅ We take care of the Triman logo',
-                        '✅ We report your quantities to CITEO annually'
-                    ],
-                    fr: ['✅ Nous signons le contrat CITEO pour vous', '✅ Nous nous occupons du logo Triman',
-                        '✅ Nous déclarons vos quantités à CITEO annuellement'
-                    ],
-                    it: ['✅ Firmiamo il contratto CITEO per te', '✅ Ci occupiamo del logo Triman',
-                        '✅ Dichiaramo le tue quantità a CITEO annualmente'
-                    ],
-                    es: ['✅ Firmamos el contrato CITEO por ti', '✅ Nos encargamos del logo Triman',
-                        '✅ Declaramos tus cantidades a CITEO anualmente'
-                    ]
-                }
-            },
-            IT: {
-                name: { de: 'Italien', en: 'Italy', fr: 'Italie', it: 'Italia', es: 'Italia' },
-                flag: '🇮🇹',
-                register: { de: 'CONAI', en: 'CONAI', fr: 'CONAI', it: 'CONAI', es: 'CONAI' },
-                registration_url: 'https://www.conai.org',
-                requirements: {
-                    de: ['Registrierung bei CONAI', 'CONAI-Materialcode angeben (z.B. C/PAP 21)',
-                        'Getrennte Materialkennzeichnung pro Fraktion', 'Jährliche Mengenmeldung'
-                    ],
-                    en: ['Registration with CONAI', 'CONAI material code required (e.g. C/PAP 21)',
-                        'Separate material labeling per fraction', 'Annual quantity reporting'
-                    ],
-                    fr: ['Inscription auprès de CONAI', 'Code matériau CONAI requis (ex. C/PAP 21)',
-                        'Étiquetage séparé des matériaux par fraction', 'Déclaration annuelle des quantités'
-                    ],
-                    it: ['Registrazione presso CONAI', 'Codice materiale CONAI richiesto (es. C/PAP 21)',
-                        'Etichettatura separata dei materiali per frazione', 'Dichiarazione annuale delle quantità'
-                    ],
-                    es: ['Registro en CONAI', 'Código de material CONAI requerido (ej. C/PAP 21)',
-                        'Etiquetado separado de materiales por fracción', 'Declaración anual de cantidades'
-                    ]
-                },
-                labeling: {
-                    de: ['CONAI-Materialcode (z.B. C/PAP 21)', 'Materialkennzeichnung pro Fraktion'],
-                    en: ['CONAI material code (e.g. C/PAP 21)', 'Material labeling per fraction'],
-                    fr: ['Code matériau CONAI (ex. C/PAP 21)', 'Étiquetage des matériaux par fraction'],
-                    it: ['Codice materiale CONAI (es. C/PAP 21)', 'Etichettatura dei materiali per frazione'],
-                    es: ['Código de material CONAI (ej. C/PAP 21)', 'Etiquetado de materiales por fracción']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,95 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.95/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,95 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,95 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,95 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die CONAI-Registrierung für dich', '✅ Wir kümmern uns um die Materialcodes',
-                        '✅ Wir melden deine Mengen jährlich'
-                    ],
-                    en: ['✅ We apply for CONAI registration for you', '✅ We take care of the material codes',
-                        '✅ We report your quantities annually'
-                    ],
-                    fr: ['✅ Nous demandons l\'inscription CONAI pour vous', '✅ Nous nous occupons des codes matériaux',
-                        '✅ Nous déclarons vos quantités annuellement'
-                    ],
-                    it: ['✅ Richiediamo la registrazione CONAI per te', '✅ Ci occupiamo dei codici materiale',
-                        '✅ Dichiaramo le tue quantità annualmente'
-                    ],
-                    es: ['✅ Solicitamos el registro CONAI por ti', '✅ Nos encargamos de los códigos de material',
-                        '✅ Declaramos tus cantidades anualmente'
-                    ]
-                }
-            },
-            ES: {
-                name: { de: 'Spanien', en: 'Spain', fr: 'Espagne', it: 'Spagna', es: 'España' },
-                flag: '🇪🇸',
-                register: { de: 'Ecoembes / MITERD', en: 'Ecoembes / MITERD', fr: 'Ecoembes / MITERD',
-                    it: 'Ecoembes / MITERD', es: 'Ecoembes / MITERD' },
-                registration_url: 'https://www.ecoembes.com',
-                requirements: {
-                    de: ['Registrierung im staatlichen Register (MITERD)', 'Vertrag mit Ecoembes',
-                        'Punto Verde-Symbol empfohlen', 'Materialcode bei kompostierbaren Anteilen'
-                    ],
-                    en: ['Registration in the state register (MITERD)', 'Contract with Ecoembes',
-                        'Punto Verde symbol recommended', 'Material code for compostable parts'
-                    ],
-                    fr: ['Inscription au registre national (MITERD)', 'Contrat avec Ecoembes',
-                        'Symbole Punto Verde recommandé', 'Code matériau pour les parties compostables'
-                    ],
-                    it: ['Registrazione nel registro statale (MITERD)', 'Contratto con Ecoembes',
-                        'Simbolo Punto Verde consigliato', 'Codice materiale per parti compostabili'
-                    ],
-                    es: ['Registro en el registro estatal (MITERD)', 'Contrato con Ecoembes',
-                        'Símbolo Punto Verde recomendado', 'Código de material para partes compostables'
-                    ]
-                },
-                labeling: {
-                    de: ['Punto Verde-Symbol (empfohlen)', 'Materialcode bei kompostierbaren Anteilen'],
-                    en: ['Punto Verde symbol (recommended)', 'Material code for compostable parts'],
-                    fr: ['Symbole Punto Verde (recommandé)', 'Code matériau pour les parties compostables'],
-                    it: ['Simbolo Punto Verde (consigliato)', 'Codice materiale per parti compostabili'],
-                    es: ['Símbolo Punto Verde (recomendado)', 'Código de material para partes compostables']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,75 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.75/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,75 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,75 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,75 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die MITERD-Registrierung für dich', '✅ Wir schließen den Ecoembes-Vertrag ab',
-                        '✅ Wir melden deine Mengen jährlich'
-                    ],
-                    en: ['✅ We apply for MITERD registration for you', '✅ We sign the Ecoembes contract',
-                        '✅ We report your quantities annually'
-                    ],
-                    fr: ['✅ Nous demandons l\'inscription MITERD pour vous', '✅ Nous signons le contrat Ecoembes',
-                        '✅ Nous déclarons vos quantités annuellement'
-                    ],
-                    it: ['✅ Richiediamo la registrazione MITERD per te', '✅ Firmiamo il contratto Ecoembes',
-                        '✅ Dichiaramo le tue quantità annualmente'
-                    ],
-                    es: ['✅ Solicitamos el registro MITERD por ti', '✅ Firmamos el contrato Ecoembes',
-                        '✅ Declaramos tus cantidades anualmente'
-                    ]
-                }
-            },
-            BE: {
-                name: { de: 'Belgien', en: 'Belgium', fr: 'Belgique', it: 'Belgio', es: 'Bélgica' },
-                flag: '🇧🇪',
-                register: { de: 'FPS Health', en: 'FPS Health', fr: 'FPS Health', it: 'FPS Health', es: 'FPS Health' },
-                registration_url: 'https://www.health.belgium.be',
-                requirements: {
-                    de: ['Registrierung bei FPS Health', 'Nur 11 Pflichtfelder (einfachstes System)',
-                        'Jährliche Mengenmeldung'
-                    ],
-                    en: ['Registration with FPS Health', 'Only 11 required fields (simplest system)',
-                        'Annual quantity reporting'
-                    ],
-                    fr: ['Inscription auprès de FPS Health', 'Seulement 11 champs obligatoires (système le plus simple)',
-                        'Déclaration annuelle des quantités'
-                    ],
-                    it: ['Registrazione presso FPS Health', 'Solo 11 campi obbligatori (sistema più semplice)',
-                        'Dichiarazione annuale delle quantità'
-                    ],
-                    es: ['Registro en FPS Health', 'Solo 11 campos obligatorios (sistema más simple)',
-                        'Declaración anual de cantidades'
-                    ]
-                },
-                labeling: {
-                    de: ['Keine spezielle Kennzeichnungspflicht'],
-                    en: ['No specific labeling requirement'],
-                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
-                    it: ['Nessun obbligo di etichettatura specifico'],
-                    es: ['No hay requisito de etiquetado específico']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,90 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.90/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,90 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,90 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,90 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die FPS Health-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
-                    en: ['✅ We apply for FPS Health registration for you', '✅ We report your quantities annually'],
-                    fr: ['✅ Nous demandons l\'inscription FPS Health pour vous', '✅ Nous déclarons vos quantités annuellement'],
-                    it: ['✅ Richiediamo la registrazione FPS Health per te', '✅ Dichiaramo le tue quantità annualmente'],
-                    es: ['✅ Solicitamos el registro FPS Health por ti', '✅ Declaramos tus cantidades anualmente']
-                }
-            },
-            NL: {
-                name: { de: 'Niederlande', en: 'Netherlands', fr: 'Pays-Bas', it: 'Paesi Bassi', es: 'Países Bajos' },
-                flag: '🇳🇱',
-                register: { de: 'Eigenes System', en: 'Own System', fr: 'Système propre', it: 'Sistema proprio',
-                    es: 'Sistema propio' },
-                registration_url: 'https://www.verpakkingen.nl',
-                requirements: {
-                    de: ['Registrierung im niederländischen System', 'Bagatellgrenze 50t bis Ende 2026',
-                        'Jährliche Mengenmeldung'
-                    ],
-                    en: ['Registration in the Dutch system', 'Bagatelle limit 50t until end of 2026',
-                        'Annual quantity reporting'
-                    ],
-                    fr: ['Inscription dans le système néerlandais', 'Limite de 50t jusqu\'à fin 2026',
-                        'Déclaration annuelle des quantités'
-                    ],
-                    it: ['Registrazione nel sistema olandese', 'Limite di 50t fino a fine 2026',
-                        'Dichiarazione annuale delle quantità'
-                    ],
-                    es: ['Registro en el sistema holandés', 'Límite de 50t hasta finales de 2026',
-                        'Declaración anual de cantidades'
-                    ]
-                },
-                labeling: {
-                    de: ['Keine spezielle Kennzeichnungspflicht'],
-                    en: ['No specific labeling requirement'],
-                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
-                    it: ['Nessun obbligo di etichettatura specifico'],
-                    es: ['No hay requisito de etiquetado específico']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,85 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.85/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,85 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,85 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,85 €/kg de cartón)'
-                },
-                representative_required: false,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die niederländische Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
-                    en: ['✅ We apply for Dutch registration for you', '✅ We report your quantities annually'],
-                    fr: ['✅ Nous demandons l\'inscription néerlandaise pour vous', '✅ Nous déclarons vos quantités annuellement'],
-                    it: ['✅ Richiediamo la registrazione olandese per te', '✅ Dichiaramo le tue quantità annualmente'],
-                    es: ['✅ Solicitamos el registro holandés por ti', '✅ Declaramos tus cantidades anualmente']
-                }
-            },
-            PL: {
-                name: { de: 'Polen', en: 'Poland', fr: 'Pologne', it: 'Polonia', es: 'Polonia' },
-                flag: '🇵🇱',
-                register: { de: 'BDO', en: 'BDO', fr: 'BDO', it: 'BDO', es: 'BDO' },
-                registration_url: 'https://bdo.mos.gov.pl',
-                requirements: {
-                    de: ['Registrierung im BDO-System', 'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'],
-                    en: ['Registration in the BDO system', 'National e-Identity required', 'Annual quantity reporting'],
-                    fr: ['Inscription dans le système BDO', 'Identité électronique nationale requise',
-                        'Déclaration annuelle des quantités'
-                    ],
-                    it: ['Registrazione nel sistema BDO', 'e-Identity nazionale richiesta',
-                        'Dichiarazione annuale delle quantità'
-                    ],
-                    es: ['Registro en el sistema BDO', 'e-Identity nacional requerida', 'Declaración anual de cantidades']
-                },
-                labeling: {
-                    de: ['Keine spezielle Kennzeichnungspflicht'],
-                    en: ['No specific labeling requirement'],
-                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
-                    it: ['Nessun obbligo di etichettatura specifico'],
-                    es: ['No hay requisito de etiquetado específico']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,65 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.65/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,65 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,65 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,65 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die BDO-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
-                    en: ['✅ We apply for BDO registration for you', '✅ We report your quantities annually'],
-                    fr: ['✅ Nous demandons l\'inscription BDO pour vous', '✅ Nous déclarons vos quantités annuellement'],
-                    it: ['✅ Richiediamo la registrazione BDO per te', '✅ Dichiaramo le tue quantità annualmente'],
-                    es: ['✅ Solicitamos el registro BDO por ti', '✅ Declaramos tus cantidades anualmente']
-                }
-            },
-            SE: {
-                name: { de: 'Schweden', en: 'Sweden', fr: 'Suède', it: 'Svezia', es: 'Suecia' },
-                flag: '🇸🇪',
-                register: { de: 'Naturvårdsverket', en: 'Naturvårdsverket', fr: 'Naturvårdsverket',
-                    it: 'Naturvårdsverket', es: 'Naturvårdsverket' },
-                registration_url: 'https://www.naturvardsverket.se',
-                requirements: {
-                    de: ['Registrierung bei Naturvårdsverket', '21 Pflichtfelder (die meisten!)',
-                        'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'
-                    ],
-                    en: ['Registration with Naturvårdsverket', '21 required fields (the most!)',
-                        'National e-Identity required', 'Annual quantity reporting'
-                    ],
-                    fr: ['Inscription auprès de Naturvårdsverket', '21 champs obligatoires (le plus!)',
-                        'Identité électronique nationale requise', 'Déclaration annuelle des quantités'
-                    ],
-                    it: ['Registrazione presso Naturvårdsverket', '21 campi obbligatori (il maggior numero!)',
-                        'e-Identity nazionale richiesta', 'Dichiarazione annuale delle quantità'
-                    ],
-                    es: ['Registro en Naturvårdsverket', '21 campos obligatorios (¡la mayoría!)',
-                        'e-Identity nacional requerida', 'Declaración anual de cantidades'
-                    ]
-                },
-                labeling: {
-                    de: ['Keine spezielle Kennzeichnungspflicht'],
-                    en: ['No specific labeling requirement'],
-                    fr: ['Pas d\'exigence d\'étiquetage spécifique'],
-                    it: ['Nessun obbligo di etichettatura specifico'],
-                    es: ['No hay requisito de etiquetado específico']
-                },
-                eco_fee: {
-                    de: 'Abhängig von Menge und Material (ca. 0,95 €/kg Pappe)',
-                    en: 'Depending on quantity and material (approx. €0.95/kg cardboard)',
-                    fr: 'Selon la quantité et le matériau (env. 0,95 €/kg de carton)',
-                    it: 'In base alla quantità e al materiale (circa 0,95 €/kg di cartone)',
-                    es: 'Dependiendo de la cantidad y el material (aprox. 0,95 €/kg de cartón)'
-                },
-                representative_required: true,
-                notary_required: false,
-                steps: {
-                    de: ['✅ Wir beantragen die Naturvårdsverket-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
-                    en: ['✅ We apply for Naturvårdsverket registration for you', '✅ We report your quantities annually'],
-                    fr: ['✅ Nous demandons l\'inscription Naturvårdsverket pour vous',
-                        '✅ Nous déclarons vos quantités annuellement'
-                    ],
-                    it: ['✅ Richiediamo la registrazione Naturvårdsverket per te',
-                        '✅ Dichiaramo le tue quantità annualmente'
-                    ],
-                    es: ['✅ Solicitamos el registro Naturvårdsverket por ti', '✅ Declaramos tus cantidades anualmente']
-                }
-            }
-        };
+// 0. LÄNDER-WISSENSDATENBANK (ALLE 10 LÄNDER, 5 SPRACHEN)
+// ============================================================
+const countryKnowledge = {
+    DE: {
+        name: { de: 'Deutschland', en: 'Germany', fr: 'Allemagne', it: 'Germania', es: 'Alemania' },
+        flag: '🇩🇪',
+        register: { de: 'LUCID / ZSVR', en: 'LUCID / ZSVR', fr: 'LUCID / ZSVR', it: 'LUCID / ZSVR', es: 'LUCID / ZSVR' },
+        registration_url: 'https://lucid.verpackungsregister.org',
+        representative_required: false, // ✅ Lokale Händler brauchen keinen, ausländische schon
+        notary_required: false,
+        representative_note: {
+            de: 'In Deutschland ist kein externer Bevollmächtigter erforderlich, wenn Sie selbst in Deutschland ansässig sind. Für ausländische Händler ist ein Bevollmächtigter seit 12.08.2026 Pflicht.',
+            en: 'In Germany, no external representative is required if you are based in Germany. For foreign merchants, a representative has been mandatory since 12.08.2026.',
+            fr: 'En Allemagne, aucun représentant externe n\'est requis si vous êtes basé en Allemagne. Pour les commerçants étrangers, un représentant est obligatoire depuis le 12.08.2026.',
+            it: 'In Germania, non è richiesto un rappresentante esterno se si è residenti in Germania. Per i commercianti stranieri, un rappresentante è obbligatorio dal 12.08.2026.',
+            es: 'En Alemania, no se requiere un representante externo si tiene su sede en Alemania. Para comerciantes extranjeros, un representante es obligatorio desde el 12.08.2026.'
+        },
+        requirements: {
+            de: ['Registrierung im LUCID-Verpackungsregister (kostenlos)', 'Systembeteiligung bei einem dualen System (z.B. Grüner Punkt)', 'Jährliche Mengenmeldung'],
+            en: ['Registration in LUCID packaging register (free)', 'System participation with a dual system (e.g. Green Dot)', 'Annual quantity reporting'],
+            fr: ['Inscription au registre des emballages LUCID (gratuit)', 'Participation à un système dual (ex. Point Vert)', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione nel registro imballaggi LUCID (gratuita)', 'Partecipazione a un sistema duale (es. Punto Verde)', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en el registro de envases LUCID (gratuito)', 'Participación en un sistema dual (ej. Punto Verde)', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['Grüner Punkt (optional)', 'Materialkennzeichnung (z.B. PAP 21)'],
+            en: ['Green Dot (optional)', 'Material labeling (e.g. PAP 21)'],
+            fr: ['Point Vert (optionnel)', 'Étiquetage des matériaux (ex. PAP 21)'],
+            it: ['Punto Verde (opzionale)', 'Etichettatura dei materiali (es. PAP 21)'],
+            es: ['Punto Verde (opcional)', 'Etiquetado de materiales (ej. PAP 21)']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,85 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.85/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,85 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,85 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,85 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die LUCID-Registrierung für dich', '✅ Wir schließen den Vertrag mit dem dualen System ab', '✅ Wir melden deine Verpackungsmengen jährlich'],
+            en: ['✅ We apply for LUCID registration for you', '✅ We sign the contract with the dual system', '✅ We report your packaging quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription LUCID pour vous', '✅ Nous signons le contrat avec le système dual', '✅ Nous déclarons vos quantités d\'emballage annuellement'],
+            it: ['✅ Richiediamo la registrazione LUCID per te', '✅ Firmiamo il contratto con il sistema duale', '✅ Dichiaramo le tue quantità di imballaggio annualmente'],
+            es: ['✅ Solicitamos el registro LUCID por ti', '✅ Firmamos el contrato con el sistema dual', '✅ Declaramos tus cantidades de envases anualmente']
+        }
+    },
+    AT: {
+        name: { de: 'Österreich', en: 'Austria', fr: 'Autriche', it: 'Austria', es: 'Austria' },
+        flag: '🇦🇹',
+        register: { de: 'EDM-Portal / ARA', en: 'EDM Portal / ARA', fr: 'Portail EDM / ARA', it: 'Portale EDM / ARA', es: 'Portal EDM / ARA' },
+        registration_url: 'https://www.ara.at',
+        representative_required: true, // ✅ Österreich braucht immer einen Bevollmächtigten
+        notary_required: true, // ✅ NOTARIELLE BEGLAUBIGUNG erforderlich!
+        notary_cost: { de: 'ca. 45 € (digital)', en: 'approx. €45 (digital)', fr: 'env. 45 € (numérique)', it: 'circa 45 € (digitale)', es: 'aprox. 45 € (digital)' },
+        requirements: {
+            de: ['Registrierung im EDM-Portal (kostenlos)', 'Verpackungslizenzierung bei ARA oder Reclay', 'NOTARIELLE BEGLAUBIGUNG der Vollmacht!', 'Jährliche Mengenmeldung'],
+            en: ['Registration in the EDM portal (free)', 'Packaging licensing with ARA or Reclay', 'NOTARIAL CERTIFICATION of the power of attorney!', 'Annual quantity reporting'],
+            fr: ['Inscription sur le portail EDM (gratuit)', 'Licence d\'emballage auprès d\'ARA ou Reclay', 'CERTIFICATION NOTARIALE de la procuration!', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione nel portale EDM (gratuita)', 'Licenza di imballaggio presso ARA o Reclay', 'CERTIFICAZIONE NOTARILE della procura!', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en el portal EDM (gratuito)', 'Licencia de embalaje con ARA o Reclay', '¡CERTIFICACIÓN NOTARIAL del poder!', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['Keine spezielle Kennzeichnungspflicht', 'Materialkennzeichnung empfohlen'],
+            en: ['No specific labeling requirement', 'Material labeling recommended'],
+            fr: ['Pas d\'exigence d\'étiquetage spécifique', 'Étiquetage des matériaux recommandé'],
+            it: ['Nessun obbligo di etichettatura specifico', 'Etichettatura dei materiali consigliata'],
+            es: ['No hay requisito de etiquetado específico', 'Etiquetado de materiales recomendado']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,80 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.80/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,80 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,80 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,80 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die EDM-Registrierung für dich', '✅ Wir kümmern uns um die NOTARIELLE BEGLAUBIGUNG', '✅ Wir schließen den ARA-Lizenzvertrag ab', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for EDM registration for you', '✅ We take care of the NOTARIAL CERTIFICATION', '✅ We sign the ARA license contract', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription EDM pour vous', '✅ Nous nous occupons de la CERTIFICATION NOTARIALE', '✅ Nous signons le contrat de licence ARA', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione EDM per te', '✅ Ci occupiamo della CERTIFICAZIONE NOTARILE', '✅ Firmiamo il contratto di licenza ARA', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro EDM por ti', '✅ Nos encargamos de la CERTIFICACIÓN NOTARIAL', '✅ Firmamos el contrato de licencia ARA', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    FR: {
+        name: { de: 'Frankreich', en: 'France', fr: 'France', it: 'Francia', es: 'Francia' },
+        flag: '🇫🇷',
+        register: { de: 'ADEME / CITEO', en: 'ADEME / CITEO', fr: 'ADEME / CITEO', it: 'ADEME / CITEO', es: 'ADEME / CITEO' },
+        registration_url: 'https://www.citeo.com',
+        representative_required: true, // ✅ Frankreich braucht immer einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung bei CITEO oder LEKO', 'Triman-Logo auf Verpackung oder Beipackzettel', 'Sortieranweisung (Consigne de tri) angeben', 'Jährliche Mengenmeldung an CITEO'],
+            en: ['Registration with CITEO or LEKO', 'Triman logo on packaging or insert', 'Sorting instructions (Consigne de tri)', 'Annual quantity reporting to CITEO'],
+            fr: ['Inscription auprès de CITEO ou LEKO', 'Logo Triman sur l\'emballage ou la notice', 'Instructions de tri (Consigne de tri)', 'Déclaration annuelle des quantités à CITEO'],
+            it: ['Registrazione presso CITEO o LEKO', 'Logo Triman su imballaggio o foglietto', 'Istruzioni di smaltimento (Consigne de tri)', 'Dichiarazione annuale delle quantità a CITEO'],
+            es: ['Registro en CITEO o LEKO', 'Logo Triman en el embalaje o folleto', 'Instrucciones de clasificación (Consigne de tri)', 'Declaración anual de cantidades a CITEO']
+        },
+        labeling: {
+            de: ['Triman-Logo', 'Sortieranweisung (Consigne de tri)', 'Materialkennzeichnung'],
+            en: ['Triman logo', 'Sorting instructions (Consigne de tri)', 'Material labeling'],
+            fr: ['Logo Triman', 'Instructions de tri (Consigne de tri)', 'Étiquetage des matériaux'],
+            it: ['Logo Triman', 'Istruzioni di smaltimento (Consigne de tri)', 'Etichettatura dei materiali'],
+            es: ['Logo Triman', 'Instrucciones de clasificación (Consigne de tri)', 'Etiquetado de materiales']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 1,20 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €1.20/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 1,20 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 1,20 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 1,20 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir schließen den CITEO-Vertrag für dich ab', '✅ Wir kümmern uns um das Triman-Logo', '✅ Wir melden deine Mengen jährlich an CITEO'],
+            en: ['✅ We sign the CITEO contract for you', '✅ We take care of the Triman logo', '✅ We report your quantities to CITEO annually'],
+            fr: ['✅ Nous signons le contrat CITEO pour vous', '✅ Nous nous occupons du logo Triman', '✅ Nous déclarons vos quantités à CITEO annuellement'],
+            it: ['✅ Firmiamo il contratto CITEO per te', '✅ Ci occupiamo del logo Triman', '✅ Dichiaramo le tue quantità a CITEO annualmente'],
+            es: ['✅ Firmamos el contrato CITEO por ti', '✅ Nos encargamos del logo Triman', '✅ Declaramos tus cantidades a CITEO anualmente']
+        }
+    },
+    IT: {
+        name: { de: 'Italien', en: 'Italy', fr: 'Italie', it: 'Italia', es: 'Italia' },
+        flag: '🇮🇹',
+        register: { de: 'CONAI', en: 'CONAI', fr: 'CONAI', it: 'CONAI', es: 'CONAI' },
+        registration_url: 'https://www.conai.org',
+        representative_required: true, // ✅ Italien braucht immer einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung bei CONAI', 'CONAI-Materialcode angeben (z.B. C/PAP 21)', 'Getrennte Materialkennzeichnung pro Fraktion', 'Jährliche Mengenmeldung'],
+            en: ['Registration with CONAI', 'CONAI material code required (e.g. C/PAP 21)', 'Separate material labeling per fraction', 'Annual quantity reporting'],
+            fr: ['Inscription auprès de CONAI', 'Code matériau CONAI requis (ex. C/PAP 21)', 'Étiquetage séparé des matériaux par fraction', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione presso CONAI', 'Codice materiale CONAI richiesto (es. C/PAP 21)', 'Etichettatura separata dei materiali per frazione', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en CONAI', 'Código de material CONAI requerido (ej. C/PAP 21)', 'Etiquetado separado de materiales por fracción', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['CONAI-Materialcode (z.B. C/PAP 21)', 'Materialkennzeichnung pro Fraktion'],
+            en: ['CONAI material code (e.g. C/PAP 21)', 'Material labeling per fraction'],
+            fr: ['Code matériau CONAI (ex. C/PAP 21)', 'Étiquetage des matériaux par fraction'],
+            it: ['Codice materiale CONAI (es. C/PAP 21)', 'Etichettatura dei materiali per frazione'],
+            es: ['Código de material CONAI (ej. C/PAP 21)', 'Etiquetado de materiales por fracción']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,95 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.95/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,95 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,95 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,95 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die CONAI-Registrierung für dich', '✅ Wir kümmern uns um die Materialcodes', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for CONAI registration for you', '✅ We take care of the material codes', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription CONAI pour vous', '✅ Nous nous occupons des codes matériaux', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione CONAI per te', '✅ Ci occupiamo dei codici materiale', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro CONAI por ti', '✅ Nos encargamos de los códigos de material', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    ES: {
+        name: { de: 'Spanien', en: 'Spain', fr: 'Espagne', it: 'Spagna', es: 'España' },
+        flag: '🇪🇸',
+        register: { de: 'Ecoembes / MITERD', en: 'Ecoembes / MITERD', fr: 'Ecoembes / MITERD', it: 'Ecoembes / MITERD', es: 'Ecoembes / MITERD' },
+        registration_url: 'https://www.ecoembes.com',
+        representative_required: true, // ✅ Spanien braucht immer einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung im staatlichen Register (MITERD)', 'Vertrag mit Ecoembes', 'Punto Verde-Symbol empfohlen', 'Materialcode bei kompostierbaren Anteilen'],
+            en: ['Registration in the state register (MITERD)', 'Contract with Ecoembes', 'Punto Verde symbol recommended', 'Material code for compostable parts'],
+            fr: ['Inscription au registre national (MITERD)', 'Contrat avec Ecoembes', 'Symbole Punto Verde recommandé', 'Code matériau pour les parties compostables'],
+            it: ['Registrazione nel registro statale (MITERD)', 'Contratto con Ecoembes', 'Simbolo Punto Verde consigliato', 'Codice materiale per parti compostabili'],
+            es: ['Registro en el registro estatal (MITERD)', 'Contrato con Ecoembes', 'Símbolo Punto Verde recomendado', 'Código de material para partes compostables']
+        },
+        labeling: {
+            de: ['Punto Verde-Symbol (empfohlen)', 'Materialcode bei kompostierbaren Anteilen'],
+            en: ['Punto Verde symbol (recommended)', 'Material code for compostable parts'],
+            fr: ['Symbole Punto Verde (recommandé)', 'Code matériau pour les parties compostables'],
+            it: ['Simbolo Punto Verde (consigliato)', 'Codice materiale per parti compostabili'],
+            es: ['Símbolo Punto Verde (recomendado)', 'Código de material para partes compostables']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,75 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.75/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,75 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,75 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,75 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die MITERD-Registrierung für dich', '✅ Wir schließen den Ecoembes-Vertrag ab', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for MITERD registration for you', '✅ We sign the Ecoembes contract', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription MITERD pour vous', '✅ Nous signons le contrat Ecoembes', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione MITERD per te', '✅ Firmiamo il contratto Ecoembes', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro MITERD por ti', '✅ Firmamos el contrato Ecoembes', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    BE: {
+        name: { de: 'Belgien', en: 'Belgium', fr: 'Belgique', it: 'Belgio', es: 'Bélgica' },
+        flag: '🇧🇪',
+        register: { de: 'FPS Health', en: 'FPS Health', fr: 'FPS Health', it: 'FPS Health', es: 'FPS Health' },
+        registration_url: 'https://www.health.belgium.be',
+        representative_required: true, // ✅ Belgien braucht einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung bei FPS Health', 'Nur 11 Pflichtfelder (einfachstes System)', 'Jährliche Mengenmeldung'],
+            en: ['Registration with FPS Health', 'Only 11 required fields (simplest system)', 'Annual quantity reporting'],
+            fr: ['Inscription auprès de FPS Health', 'Seulement 11 champs obligatoires (système le plus simple)', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione presso FPS Health', 'Solo 11 campi obbligatori (sistema più semplice)', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en FPS Health', 'Solo 11 campos obligatorios (sistema más simple)', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['Keine spezielle Kennzeichnungspflicht'],
+            en: ['No specific labeling requirement'],
+            fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+            it: ['Nessun obbligo di etichettatura specifico'],
+            es: ['No hay requisito de etiquetado específico']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,90 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.90/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,90 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,90 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,90 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die FPS Health-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for FPS Health registration for you', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription FPS Health pour vous', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione FPS Health per te', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro FPS Health por ti', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    NL: {
+        name: { de: 'Niederlande', en: 'Netherlands', fr: 'Pays-Bas', it: 'Paesi Bassi', es: 'Países Bajos' },
+        flag: '🇳🇱',
+        register: { de: 'Eigenes System', en: 'Own System', fr: 'Système propre', it: 'Sistema proprio', es: 'Sistema propio' },
+        registration_url: 'https://www.verpakkingen.nl',
+        representative_required: false, // ✅ Niederlande: Bagatellgrenze bis Ende 2026
+        notary_required: false,
+        representative_note: {
+            de: 'Die Niederlande haben eine Bagatellgrenze von 50t bis Ende 2026 – vorerst ist kein Bevollmächtigter erforderlich.',
+            en: 'The Netherlands have a bagatelle limit of 50t until the end of 2026 – no representative is required for now.',
+            fr: 'Les Pays-Bas ont une limite de 50t jusqu\'à fin 2026 – aucun représentant n\'est requis pour l\'instant.',
+            it: 'I Paesi Bassi hanno un limite di 50t fino a fine 2026 – per ora non è richiesto un rappresentante.',
+            es: 'Los Países Bajos tienen un límite de 50t hasta finales de 2026 – por ahora no se requiere representante.'
+        },
+        requirements: {
+            de: ['Registrierung im niederländischen System', 'Bagatellgrenze 50t bis Ende 2026', 'Jährliche Mengenmeldung'],
+            en: ['Registration in the Dutch system', 'Bagatelle limit 50t until end of 2026', 'Annual quantity reporting'],
+            fr: ['Inscription dans le système néerlandais', 'Limite de 50t jusqu\'à fin 2026', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione nel sistema olandese', 'Limite di 50t fino a fine 2026', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en el sistema holandés', 'Límite de 50t hasta finales de 2026', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['Keine spezielle Kennzeichnungspflicht'],
+            en: ['No specific labeling requirement'],
+            fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+            it: ['Nessun obbligo di etichettatura specifico'],
+            es: ['No hay requisito de etiquetado específico']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,85 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.85/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,85 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,85 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,85 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die niederländische Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for Dutch registration for you', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription néerlandaise pour vous', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione olandese per te', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro holandés por ti', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    PL: {
+        name: { de: 'Polen', en: 'Poland', fr: 'Pologne', it: 'Polonia', es: 'Polonia' },
+        flag: '🇵🇱',
+        register: { de: 'BDO', en: 'BDO', fr: 'BDO', it: 'BDO', es: 'BDO' },
+        registration_url: 'https://bdo.mos.gov.pl',
+        representative_required: true, // ✅ Polen braucht einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung im BDO-System', 'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'],
+            en: ['Registration in the BDO system', 'National e-Identity required', 'Annual quantity reporting'],
+            fr: ['Inscription dans le système BDO', 'Identité électronique nationale requise', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione nel sistema BDO', 'e-Identity nazionale richiesta', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en el sistema BDO', 'e-Identity nacional requerida', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['Keine spezielle Kennzeichnungspflicht'],
+            en: ['No specific labeling requirement'],
+            fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+            it: ['Nessun obbligo di etichettatura specifico'],
+            es: ['No hay requisito de etiquetado específico']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,65 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.65/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,65 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,65 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,65 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die BDO-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for BDO registration for you', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription BDO pour vous', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione BDO per te', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro BDO por ti', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    SE: {
+        name: { de: 'Schweden', en: 'Sweden', fr: 'Suède', it: 'Svezia', es: 'Suecia' },
+        flag: '🇸🇪',
+        register: { de: 'Naturvårdsverket', en: 'Naturvårdsverket', fr: 'Naturvårdsverket', it: 'Naturvårdsverket', es: 'Naturvårdsverket' },
+        registration_url: 'https://www.naturvardsverket.se',
+        representative_required: true, // ✅ Schweden braucht einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung bei Naturvårdsverket', '21 Pflichtfelder (die meisten!)', 'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'],
+            en: ['Registration with Naturvårdsverket', '21 required fields (the most!)', 'National e-Identity required', 'Annual quantity reporting'],
+            fr: ['Inscription auprès de Naturvårdsverket', '21 champs obligatoires (le plus!)', 'Identité électronique nationale requise', 'Déclaration annuelle des quantités'],
+            it: ['Registrazione presso Naturvårdsverket', '21 campi obbligatori (il maggior numero!)', 'e-Identity nazionale richiesta', 'Dichiarazione annuale delle quantità'],
+            es: ['Registro en Naturvårdsverket', '21 campos obligatorios (¡la mayoría!)', 'e-Identity nacional requerida', 'Declaración anual de cantidades']
+        },
+        labeling: {
+            de: ['Keine spezielle Kennzeichnungspflicht'],
+            en: ['No specific labeling requirement'],
+            fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+            it: ['Nessun obbligo di etichettatura specifico'],
+            es: ['No hay requisito de etiquetado específico']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,95 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.95/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,95 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,95 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,95 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die Naturvårdsverket-Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for Naturvårdsverket registration for you', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription Naturvårdsverket pour vous', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione Naturvårdsverket per te', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro Naturvårdsverket por ti', '✅ Declaramos tus cantidades anualmente']
+        }
+    },
+    // 🇩🇰 Dänemark – NEU!
+    DK: {
+        name: { de: 'Dänemark', en: 'Denmark', fr: 'Danemark', it: 'Danimarca', es: 'Dinamarca' },
+        flag: '🇩🇰',
+        register: { de: 'Dansk Producentansvar', en: 'Danish Producer Responsibility', fr: 'Responsabilité du producteur danois', it: 'Responsabilità del produttore danese', es: 'Responsabilidad del productor danés' },
+        registration_url: 'https://www.dpa-system.dk',
+        representative_required: true, // ✅ Dänemark braucht einen Bevollmächtigten
+        notary_required: false,
+        requirements: {
+            de: ['Registrierung im dänischen System', 'Jährliche Mengenmeldung', 'Dänische Steuernummer erforderlich'],
+            en: ['Registration in the Danish system', 'Annual quantity reporting', 'Danish tax number required'],
+            fr: ['Inscription dans le système danois', 'Déclaration annuelle des quantités', 'Numéro fiscal danois requis'],
+            it: ['Registrazione nel sistema danese', 'Dichiarazione annuale delle quantità', 'Numero fiscale danese richiesto'],
+            es: ['Registro en el sistema danés', 'Declaración anual de cantidades', 'Número fiscal danés requerido']
+        },
+        labeling: {
+            de: ['Keine spezielle Kennzeichnungspflicht'],
+            en: ['No specific labeling requirement'],
+            fr: ['Pas d\'exigence d\'étiquetage spécifique'],
+            it: ['Nessun obbligo di etichettatura specifico'],
+            es: ['No hay requisito de etiquetado específico']
+        },
+        eco_fee: {
+            de: 'Abhängig von Menge und Material (ca. 0,70 €/kg Pappe)',
+            en: 'Depending on quantity and material (approx. €0.70/kg cardboard)',
+            fr: 'Selon la quantité et le matériau (env. 0,70 €/kg de carton)',
+            it: 'In base alla quantità e al materiale (circa 0,70 €/kg di cartone)',
+            es: 'Dependiendo de la cantidad y el material (aprox. 0,70 €/kg de cartón)'
+        },
+        steps: {
+            de: ['✅ Wir beantragen die dänische Registrierung für dich', '✅ Wir melden deine Mengen jährlich'],
+            en: ['✅ We apply for Danish registration for you', '✅ We report your quantities annually'],
+            fr: ['✅ Nous demandons l\'inscription danoise pour vous', '✅ Nous déclarons vos quantités annuellement'],
+            it: ['✅ Richiediamo la registrazione danese per te', '✅ Dichiaramo le tue quantità annualmente'],
+            es: ['✅ Solicitamos el registro danés por ti', '✅ Declaramos tus cantidades anualmente']
+        }
+    }
+};
 
         // ============================================================
         // 1. I18N - KOMPLETTE ÜBERSETZUNGEN (Alle 5 Sprachen)
