@@ -168,6 +168,19 @@ app.listen(PORT, () => {
   console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${PORT}`);
 });
 
-app.listen(PORT, () => {
+// Dynamischer Port – falls der Port belegt ist, wird der nächste freie verwendet
+const server = app.listen(PORT, () => {
   console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`⚠️ Port ${PORT} ist belegt, versuche Port ${PORT + 1}...`);
+    const newPort = PORT + 1;
+    app.listen(newPort, () => {
+      console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${newPort}`);
+    });
+  } else {
+    throw err;
+  }
 });
