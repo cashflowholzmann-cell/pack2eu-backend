@@ -168,19 +168,9 @@ app.listen(PORT, () => {
   console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${PORT}`);
 });
 
-// Dynamischer Port – falls der Port belegt ist, wird der nächste freie verwendet
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${PORT}`);
-});
+// Port von Render automatisch vergeben lassen – oder Fallback auf 3000
+const PORT = process.env.PORT || 3000;
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.log(`⚠️ Port ${PORT} ist belegt, versuche Port ${PORT + 1}...`);
-    const newPort = PORT + 1;
-    app.listen(newPort, () => {
-      console.log(`🚀 Pack2EU Backend läuft auf http://localhost:${newPort}`);
-    });
-  } else {
-    throw err;
-  }
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Pack2EU Backend läuft auf Port ${PORT}`);
 });
