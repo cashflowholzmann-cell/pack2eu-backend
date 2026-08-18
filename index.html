@@ -836,6 +836,77 @@ RECHTLICHE POP-UPS (Überlagerung)
         <div id="legal-content"></div>
     </div>
 </div>
+        <!-- ============================================================
+    ALLES ANDERE (deine bestehenden Sachen)
+    ============================================================ -->
+    <!-- Ende des bestehenden Inhalts -->
+
+
+    <!-- ============================================================
+    RECHTLICHE TEXTE (AGB, Datenschutz, Impressum)
+    ============================================================ -->
+    <div id="agb-content" style="display:none;">
+        ... AGB-Text ...
+    </div>
+    <div id="datenschutz-content" style="display:none;">
+        ... Datenschutz-Text ...
+    </div>
+    <div id="impressum-content" style="display:none;">
+        ... Impressum-Text ...
+    </div>
+
+
+    <!-- ============================================================
+    RECHTLICHE POP-UPS (Überlagerung)
+    ============================================================ -->
+    <div id="legal-overlay" style="display:none; ...">
+        <div style="background:white; ...">
+            <button onclick="closeLegalPopup()" ...>✕</button>
+            <div id="legal-content"></div>
+        </div>
+    </div>
+
+
+    <!-- ============================================================
+    JAVASCRIPT – ALLE FUNKTIONEN
+    ============================================================ -->
+    <script>
+        // ... deine bestehenden Funktionen ...
+
+        // ============================================================
+        // RECHTLICHE POP-UPS
+        // ============================================================
+        function openLegalPopup(type) {
+            const overlay = document.getElementById('legal-overlay');
+            const content = document.getElementById('legal-content');
+            
+            const contents = {
+                'agb': document.getElementById('agb-content').innerHTML,
+                'datenschutz': document.getElementById('datenschutz-content').innerHTML,
+                'impressum': document.getElementById('impressum-content').innerHTML
+            };
+            
+            content.innerHTML = contents[type] || 'Inhalt nicht gefunden.';
+            overlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLegalPopup() {
+            document.getElementById('legal-overlay').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        document.getElementById('legal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeLegalPopup();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeLegalPopup();
+        });
+    </script>
+
+</body>
+</html>
 
 </body>
 </html>
