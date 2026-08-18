@@ -21,17 +21,14 @@ init();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS für ALLE erlauben – das ist die wichtigste Zeile!
+// CORS – für ALLE erlaubt (das ist wichtig für Netlify!)
 app.use(cors({ origin: '*' }));
 
-// JSON-Parser
 app.use(express.json({ limit: '500kb' }));
 
-// Rate Limiting
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/auth', authLimiter);
 
-// Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
 });
