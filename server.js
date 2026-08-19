@@ -14,6 +14,7 @@ const skusRoutes = require('./routes/skus');
 const shopifyRoutes = require('./routes/shopify');
 const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
+const lappaRoutes = require('./routes/lappa'); // ⭐ NEU
 
 // Datenbank initialisieren
 init();
@@ -43,6 +44,7 @@ app.use('/api/skus', skusRoutes);
 app.use('/api/shopify', shopifyRoutes);
 app.use('/api/representatives', representativeRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/lappa', lappaRoutes); // ⭐ NEU
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Endpunkt nicht gefunden.' }));
