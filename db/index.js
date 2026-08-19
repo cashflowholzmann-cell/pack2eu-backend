@@ -8,23 +8,21 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 function init() {
-  // 1. Schema ausführen (erstellt/aktualisiert Tabellen)
+  // 1. Schema ausführen
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
 
-  // 2. ⭐⭐⭐ NEU: LAPPA-SPALTEN NACHTRÄGLICH HINZUFÜGEN
-  // (Funktionieren nur, wenn die Spalten noch nicht existieren)
+  // 2. Lappa-Spalten nachträglich hinzufügen
   try {
     db.exec(`ALTER TABLE activations ADD COLUMN lappa_epr_number TEXT`);
     db.exec(`ALTER TABLE activations ADD COLUMN lappa_status TEXT DEFAULT 'pending'`);
     db.exec(`ALTER TABLE activations ADD COLUMN lappa_data TEXT`);
     console.log('✅ Lappa-Spalten zu activations hinzugefügt');
   } catch (err) {
-    // Spalten existieren bereits – das ist OK
     console.log('ℹ️ Lappa-Spalten existieren bereits');
   }
 
-  // 3. Prüfen, ob Länder vorhanden sind, sonst seeden
+  // 3. Länder seeden
   const count = db.prepare('SELECT COUNT(*) AS n FROM countries').get().n;
   if (count === 0) {
     const insert = db.prepare(`
@@ -49,4 +47,7 @@ function init() {
   }
 }
 
-module.exports = { db, init };
+// ⭐⭐⭐ DAS IST DER WICHTIGE TEIL:
+// Exportiere die Datenbank-Instanz direkt, nicht als Objekt!
+module.exports = db;          // <-- DAS IST DIE ÄNDERUNG!
+module.exports.init = init;   // <-- init als separate Funktion
