@@ -377,7 +377,7 @@ const countryKnowledge = {
         flag: '🇩🇪',
         register: { de: 'LUCID / ZSVR', en: 'LUCID / ZSVR', fr: 'LUCID / ZSVR', it: 'LUCID / ZSVR', es: 'LUCID / ZSVR' },
         registration_url: 'https://lucid.verpackungsregister.org',
-        representative_required: false, // ✅ Lokale Händler brauchen keinen, ausländische schon
+        representative_required: false,
         notary_required: false,
         representative_note: {
             de: 'In Deutschland ist kein externer Bevollmächtigter erforderlich, wenn Sie selbst in Deutschland ansässig sind. Für ausländische Händler ist ein Bevollmächtigter seit 12.08.2026 Pflicht.',
@@ -420,8 +420,8 @@ const countryKnowledge = {
         flag: '🇦🇹',
         register: { de: 'EDM-Portal / ARA', en: 'EDM Portal / ARA', fr: 'Portail EDM / ARA', it: 'Portale EDM / ARA', es: 'Portal EDM / ARA' },
         registration_url: 'https://www.ara.at',
-        representative_required: true, // ✅ Österreich braucht immer einen Bevollmächtigten
-        notary_required: true, // ✅ NOTARIELLE BEGLAUBIGUNG erforderlich!
+        representative_required: true,
+        notary_required: true,
         notary_cost: { de: 'ca. 45 € (digital)', en: 'approx. €45 (digital)', fr: 'env. 45 € (numérique)', it: 'circa 45 € (digitale)', es: 'aprox. 45 € (digital)' },
         requirements: {
             de: ['Registrierung im EDM-Portal (kostenlos)', 'Verpackungslizenzierung bei ARA oder Reclay', 'NOTARIELLE BEGLAUBIGUNG der Vollmacht!', 'Jährliche Mengenmeldung'],
@@ -457,7 +457,7 @@ const countryKnowledge = {
         flag: '🇫🇷',
         register: { de: 'ADEME / CITEO', en: 'ADEME / CITEO', fr: 'ADEME / CITEO', it: 'ADEME / CITEO', es: 'ADEME / CITEO' },
         registration_url: 'https://www.citeo.com',
-        representative_required: true, // ✅ Frankreich braucht immer einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung bei CITEO oder LEKO', 'Triman-Logo auf Verpackung oder Beipackzettel', 'Sortieranweisung (Consigne de tri) angeben', 'Jährliche Mengenmeldung an CITEO'],
@@ -493,7 +493,7 @@ const countryKnowledge = {
         flag: '🇮🇹',
         register: { de: 'CONAI', en: 'CONAI', fr: 'CONAI', it: 'CONAI', es: 'CONAI' },
         registration_url: 'https://www.conai.org',
-        representative_required: true, // ✅ Italien braucht immer einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung bei CONAI', 'CONAI-Materialcode angeben (z.B. C/PAP 21)', 'Getrennte Materialkennzeichnung pro Fraktion', 'Jährliche Mengenmeldung'],
@@ -529,7 +529,7 @@ const countryKnowledge = {
         flag: '🇪🇸',
         register: { de: 'Ecoembes / MITERD', en: 'Ecoembes / MITERD', fr: 'Ecoembes / MITERD', it: 'Ecoembes / MITERD', es: 'Ecoembes / MITERD' },
         registration_url: 'https://www.ecoembes.com',
-        representative_required: true, // ✅ Spanien braucht immer einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung im staatlichen Register (MITERD)', 'Vertrag mit Ecoembes', 'Punto Verde-Symbol empfohlen', 'Materialcode bei kompostierbaren Anteilen'],
@@ -565,7 +565,7 @@ const countryKnowledge = {
         flag: '🇧🇪',
         register: { de: 'FPS Health', en: 'FPS Health', fr: 'FPS Health', it: 'FPS Health', es: 'FPS Health' },
         registration_url: 'https://www.health.belgium.be',
-        representative_required: true, // ✅ Belgien braucht einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung bei FPS Health', 'Nur 11 Pflichtfelder (einfachstes System)', 'Jährliche Mengenmeldung'],
@@ -601,7 +601,7 @@ const countryKnowledge = {
         flag: '🇳🇱',
         register: { de: 'Eigenes System', en: 'Own System', fr: 'Système propre', it: 'Sistema proprio', es: 'Sistema propio' },
         registration_url: 'https://www.verpakkingen.nl',
-        representative_required: false, // ✅ Niederlande: Bagatellgrenze bis Ende 2026
+        representative_required: false,
         notary_required: false,
         representative_note: {
             de: 'Die Niederlande haben eine Bagatellgrenze von 50t bis Ende 2026 – vorerst ist kein Bevollmächtigter erforderlich.',
@@ -644,7 +644,7 @@ const countryKnowledge = {
         flag: '🇵🇱',
         register: { de: 'BDO', en: 'BDO', fr: 'BDO', it: 'BDO', es: 'BDO' },
         registration_url: 'https://bdo.mos.gov.pl',
-        representative_required: true, // ✅ Polen braucht einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung im BDO-System', 'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'],
@@ -680,7 +680,7 @@ const countryKnowledge = {
         flag: '🇸🇪',
         register: { de: 'Naturvårdsverket', en: 'Naturvårdsverket', fr: 'Naturvårdsverket', it: 'Naturvårdsverket', es: 'Naturvårdsverket' },
         registration_url: 'https://www.naturvardsverket.se',
-        representative_required: true, // ✅ Schweden braucht einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung bei Naturvårdsverket', '21 Pflichtfelder (die meisten!)', 'Nationale e-Identity erforderlich', 'Jährliche Mengenmeldung'],
@@ -711,13 +711,12 @@ const countryKnowledge = {
             es: ['✅ Solicitamos el registro Naturvårdsverket por ti', '✅ Declaramos tus cantidades anualmente']
         }
     },
-    // 🇩🇰 Dänemark – NEU!
     DK: {
         name: { de: 'Dänemark', en: 'Denmark', fr: 'Danemark', it: 'Danimarca', es: 'Dinamarca' },
         flag: '🇩🇰',
         register: { de: 'Dansk Producentansvar', en: 'Danish Producer Responsibility', fr: 'Responsabilité du producteur danois', it: 'Responsabilità del produttore danese', es: 'Responsabilidad del productor danés' },
         registration_url: 'https://www.dpa-system.dk',
-        representative_required: true, // ✅ Dänemark braucht einen Bevollmächtigten
+        representative_required: true,
         notary_required: false,
         requirements: {
             de: ['Registrierung im dänischen System', 'Jährliche Mengenmeldung', 'Dänische Steuernummer erforderlich'],
@@ -1159,12 +1158,10 @@ const countryKnowledge = {
                 const key = el.getAttribute('data-i18n');
                 el.textContent = t(key);
             });
-            // Länder-Check neu rendern, falls bereits ein Land ausgewählt ist
             const selectedCountry = document.getElementById('knowledge-country-select')?.value;
             if (selectedCountry) {
                 showCountryKnowledge();
             }
-            // Select-Optionen übersetzen
             document.querySelectorAll('select [data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 el.textContent = t(key);
@@ -1186,8 +1183,6 @@ const countryKnowledge = {
             }
 
             const c = countryKnowledge[countryCode];
-
-            // Sprachabhängige Werte
             const countryName = c.name?.[lang] || c.name?.de || 'Unbekannt';
             const register = c.register?.[lang] || c.register?.de || '';
             const requirements = c.requirements?.[lang] || c.requirements?.de || [];
@@ -1210,25 +1205,19 @@ const countryKnowledge = {
                     <span class="text-sm text-[var(--text-dim)]">${register}</span>
                     ${c.registration_url ? `<a href="${c.registration_url}" target="_blank" class="text-xs text-[var(--accent)] hover:underline">🔗 ${t('to_register')}</a>` : ''}
                 </div>
-
                 <div class="we-handle-box">
                     <div class="title">${t('we_handle')}</div>
                     <p class="text-sm text-[var(--text-dim)]">${t('we_handle_desc')}</p>
                 </div>
-
                 <div class="grid md:grid-cols-2 gap-4 mt-2">
                     <div>
                         <div class="font-semibold text-sm">${t('requirements_label')}</div>
-                        <ul>
-                            ${requirements.map(r => `<li>${r}</li>`).join('')}
-                        </ul>
+                        <ul>${requirements.map(r => `<li>${r}</li>`).join('')}</ul>
                         ${repWarning}
                     </div>
                     <div>
                         <div class="font-semibold text-sm">${t('labeling_label')}</div>
-                        <ul>
-                            ${labeling.map(l => `<li>${l}</li>`).join('')}
-                        </ul>
+                        <ul>${labeling.map(l => `<li>${l}</li>`).join('')}</ul>
                         <div class="mt-2 text-sm">
                             <span class="font-semibold">${t('eco_fee_label')}:</span>
                             <span class="text-[var(--text-dim)]">${ecoFee}</span>
@@ -1236,15 +1225,12 @@ const countryKnowledge = {
                         ${notaryWarning}
                     </div>
                 </div>
-
                 <div class="mt-3 pt-3 border-t border-[var(--border)]">
                     <div class="font-semibold text-sm">${t('what_we_do')}</div>
                     <div class="text-sm text-[var(--text-dim)] space-y-0.5">
                         ${steps.map(s => `<div>${s}</div>`).join('')}
                     </div>
-                    <div class="mt-2 text-xs text-[var(--text-dim)]">
-                        ${t('why_us')}
-                    </div>
+                    <div class="mt-2 text-xs text-[var(--text-dim)]">${t('why_us')}</div>
                 </div>
             `;
         }
@@ -1255,13 +1241,11 @@ const countryKnowledge = {
         const API_BASE = window.PACK2EU_API_BASE || 'https://ack2eu-backend.onrender.com/api';
 
         function getToken() { return localStorage.getItem('pack2eu_token'); }
-
         function setToken(t) { localStorage.setItem('pack2eu_token', t); }
-
         function clearToken() { localStorage.removeItem('pack2eu_token'); }
 
         async function api(path, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
             const token = getToken();
             if (token) headers['Authorization'] = 'Bearer ' + token;
             const res = await fetch(API_BASE + path, { ...options, headers });
@@ -1316,8 +1300,7 @@ const countryKnowledge = {
                 const submissions = await api('/submissions/me');
                 renderSubmissions(submissions);
 
-                document.getElementById('countries-active').textContent = countries.filter(c => c.status === 'active' || c
-                    .status === 'signed').length;
+                document.getElementById('countries-active').textContent = countries.filter(c => c.status === 'active' || c.status === 'signed').length;
                 document.getElementById('skus-count').textContent = skus.length;
                 document.getElementById('orders-count').textContent = orders.length;
                 document.getElementById('submissions-count').textContent = submissions.length;
@@ -1376,72 +1359,73 @@ const countryKnowledge = {
             document.getElementById('country-modal').style.display = 'none';
         }
 
+        // ============================================================
+        // AKTIVIEREN MIT LAPPA-API
+        // ============================================================
         async function activateCountry() {
-    const code = document.getElementById('country-select').value;
-    const existing_number = document.getElementById('existing-number').value.trim();
-    const error = document.getElementById('country-error');
-    error.classList.add('hidden');
+            const code = document.getElementById('country-select').value;
+            const existing_number = document.getElementById('existing-number').value.trim();
+            const error = document.getElementById('country-error');
+            error.classList.add('hidden');
 
-    try {
-        // ⭐ 1. LAPPA-REGISTRIERUNG STARTEN
-        // Zuerst die Produkte des Händlers abrufen
-        const skus = await api('/skus');
-        
-        // Alle Lappa-Codes aus den Produkten sammeln
-        let packagingData = [];
-        skus.forEach(sku => {
-            const materials = JSON.parse(sku.materials_json || '[]');
-            materials.forEach(m => {
-                if (m.lappa_code) {
-                    packagingData.push({
-                        material_code: m.lappa_code,
-                        weight_grams: m.weight_grams || 0,
-                        is_recyclable: m.is_recyclable || false
+            try {
+                // 1. Produkte abrufen
+                const skus = await api('/skus');
+                let packagingData = [];
+                skus.forEach(sku => {
+                    const materials = JSON.parse(sku.materials_json || '[]');
+                    materials.forEach(m => {
+                        if (m.lappa_code) {
+                            packagingData.push({
+                                material_code: m.lappa_code,
+                                weight_grams: m.weight_grams || 0,
+                                is_recyclable: m.is_recyclable || false
+                            });
+                        }
                     });
+                });
+
+                // 2. Lappa-API aufrufen
+                const lappaResponse = await api('/lappa/register', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        country: code,
+                        packaging: packagingData,
+                        existing_number: existing_number || null
+                    })
+                });
+
+                console.log('Lappa Registrierung:', lappaResponse);
+
+                // 3. Aktivierung
+                const activationData = {
+                    existing_number: lappaResponse.epr_number || existing_number || null
+                };
+
+                await api('/activations/' + code, {
+                    method: 'POST',
+                    body: JSON.stringify(activationData)
+                });
+
+                closeCountryModal();
+                loadDashboard();
+
+                if (lappaResponse.epr_number) {
+                    alert(`✅ Land ${code} wurde erfolgreich bei Lappa registriert!\n\nEPR-Nummer: ${lappaResponse.epr_number}`);
+                } else {
+                    alert(`✅ Land ${code} wurde aktiviert. Die Lappa-Registrierung wird verarbeitet.`);
                 }
-            });
-        });
 
-        // ⭐ 2. LAPPA-API AUFRUFEN (ÜBER IHR BACKEND)
-        const lappaResponse = await api('/lappa/register', {
-            method: 'POST',
-            body: JSON.stringify({
-                country: code,
-                packaging: packagingData,
-                existing_number: existing_number || null
-            })
-        });
-
-        console.log('Lappa Registrierung:', lappaResponse);
-
-        // ⭐ 3. NORMALE AKTIVIERUNG (MIT LAPPA-NUMMER, FALLS VORHANDEN)
-        const activationData = {
-            existing_number: lappaResponse.epr_number || existing_number || null
-        };
-
-        await api('/activations/' + code, {
-            method: 'POST',
-            body: JSON.stringify(activationData)
-        });
-
-        closeCountryModal();
-        loadDashboard();
-        
-        // ⭐ 4. ERFOLGSMELDUNG ANZEIGEN
-        if (lappaResponse.epr_number) {
-            alert(`✅ Land ${code} wurde erfolgreich bei Lappa registriert!\n\nEPR-Nummer: ${lappaResponse.epr_number}`);
-        } else {
-            alert(`✅ Land ${code} wurde aktiviert. Die Lappa-Registrierung wird verarbeitet.`);
+            } catch (err) {
+                console.error('Fehler bei der Aktivierung:', err);
+                error.textContent = err.message || 'Fehler bei der Aktivierung. Bitte versuche es später erneut.';
+                error.classList.remove('hidden');
+            }
         }
 
-    } catch (err) {
-        console.error('Fehler bei der Aktivierung:', err);
-        error.textContent = err.message || 'Fehler bei der Aktivierung. Bitte versuche es später erneut.';
-        error.classList.remove('hidden');
-    }
-}
-        }
-
+        // ============================================================
+        // SIGNATUR
+        // ============================================================
         async function signActivation(code) {
             try {
                 await api('/activations/' + code + '/sign', { method: 'POST' });
@@ -1556,99 +1540,80 @@ const countryKnowledge = {
         }
 
         function getMaterialsFromUI() {
-    const rows = document.querySelectorAll('.material-group');
-    return Array.from(rows).map(row => ({
-        material: row.querySelector('.material-type').value,
-        weight_grams: parseInt(row.querySelector('.material-weight').value) || 0,
-        is_recyclable: parseInt(row.querySelector('.material-recyclable').value) === 1
-    })).filter(m => m.weight_grams > 0);
-}
-
-// ============================================================
-// LAPPA MATERIAL CODE MAPPING (NEU)
-// ============================================================
-function getLappaCode(materialType) {
-    const mapping = {
-        'karton': 'S',     // Paper
-        'papier': 'S',     // Paper
-        'kunststoff': 'B', // Plastics
-        'glas': 'A',       // Glass
-        'metall': 'T',     // Steel (Aluminium wäre 'R')
-        'holz': 'F',       // Wood
-        'sonstige': 'G'    // Others
-    };
-    return mapping[materialType] || 'G';
-}
-
-// ============================================================
-// PRODUKT SPEICHERN (MIT LAPPA-CODE)
-// ============================================================
-async function saveSku() {
-    const sku_name = document.getElementById('sku-name').value.trim();
-    const shopify_product_id = document.getElementById('sku-shopify-id').value.trim();
-    const materials = getMaterialsFromUI();
-    const error = document.getElementById('sku-error');
-    error.classList.add('hidden');
-
-    if (!sku_name) {
-        error.textContent = 'Bitte gib einen Produktnamen ein.';
-        error.classList.remove('hidden');
-        return;
-    }
-    if (materials.length === 0) {
-        error.textContent = 'Bitte füge mindestens ein Material hinzu.';
-        error.classList.remove('hidden');
-        return;
-    }
-
-    try {
-        // ⭐ LAPPA-CODES ZU DEN MATERIALIEN HINZUFÜGEN
-        const materialsWithLappa = materials.map(m => ({
-            ...m,
-            lappa_code: `P${getLappaCode(m.material)}000000000`
-        }));
-
-        const payload = { 
-            sku_name, 
-            shopify_product_id, 
-            materials: materialsWithLappa 
-        };
-
-        if (editingSkuId) {
-            await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
-        } else {
-            await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
+            const rows = document.querySelectorAll('.material-group');
+            return Array.from(rows).map(row => ({
+                material: row.querySelector('.material-type').value,
+                weight_grams: parseInt(row.querySelector('.material-weight').value) || 0,
+                is_recyclable: parseInt(row.querySelector('.material-recyclable').value) === 1
+            })).filter(m => m.weight_grams > 0);
         }
-        closeSkuModal();
-        loadDashboard();
-    } catch (err) {
-        error.textContent = err.message;
-        error.classList.remove('hidden');
-     try {
-        // ⭐ NEU: LAPPA-CODES HINZUFÜGEN
-        const materialsWithLappa = materials.map(m => ({
-            ...m,
-            lappa_code: `P${getLappaCode(m.material)}000000000`
-        }));
 
-        const payload = {
-            sku_name,
-            shopify_product_id,
-            materials: materialsWithLappa
-        };
-
-        if (editingSkuId) {
-            await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
-        } else {
-            await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
+        // ============================================================
+        // LAPPA MATERIAL CODE MAPPING
+        // ============================================================
+        function getLappaCode(materialType) {
+            const mapping = {
+                'karton': 'S',
+                'papier': 'S',
+                'kunststoff': 'B',
+                'glas': 'A',
+                'metall': 'T',
+                'holz': 'F',
+                'sonstige': 'G'
+            };
+            return mapping[materialType] || 'G';
         }
-        closeSkuModal();
-        loadDashboard();
-    } catch (err) {
-        error.textContent = err.message;
-        error.classList.remove('hidden');
-    }
-async function deleteSku(id) {
+
+        // ============================================================
+        // PRODUKT SPEICHERN (MIT LAPPA-CODE)
+        // ============================================================
+        async function saveSku() {
+            const sku_name = document.getElementById('sku-name').value.trim();
+            const shopify_product_id = document.getElementById('sku-shopify-id').value.trim();
+            const materials = getMaterialsFromUI();
+            const error = document.getElementById('sku-error');
+            error.classList.add('hidden');
+
+            if (!sku_name) {
+                error.textContent = 'Bitte gib einen Produktnamen ein.';
+                error.classList.remove('hidden');
+                return;
+            }
+            if (materials.length === 0) {
+                error.textContent = 'Bitte füge mindestens ein Material hinzu.';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const materialsWithLappa = materials.map(m => ({
+                    ...m,
+                    lappa_code: `P${getLappaCode(m.material)}000000000`
+                }));
+
+                const payload = {
+                    sku_name,
+                    shopify_product_id,
+                    materials: materialsWithLappa
+                };
+
+                if (editingSkuId) {
+                    await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
+                } else {
+                    await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
+                }
+                closeSkuModal();
+                loadDashboard();
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        // ============================================================
+        // PRODUKT LÖSCHEN
+        // ============================================================
+        async function deleteSku(id) {
             if (!confirm('Möchtest du dieses Produkt wirklich löschen?')) return;
             try {
                 await api('/skus/' + id, { method: 'DELETE' });
@@ -1699,8 +1664,7 @@ async function deleteSku(id) {
                 const container = document.getElementById('country-stats');
                 const countryEntries = Object.entries(countryStats);
                 if (countryEntries.length === 0) {
-                    container.innerHTML =
-                        `<div class="text-sm text-[var(--text-dim)]">${t('stats_by_country')}</div>`;
+                    container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('stats_by_country')}</div>`;
                     return;
                 }
                 container.innerHTML = countryEntries.map(([country, stats]) => `
