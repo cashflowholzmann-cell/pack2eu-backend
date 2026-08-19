@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db'); // ⭐ db ist jetzt direkt die Datenbank!
+const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
-// ⭐ Auth für alle Routen in dieser Datei
 router.use(requireAuth);
 
 // ============================================================
-// LAPPA-API REGISTRIERUNG
+// LAPPA-API REGISTRIERUNG (PROVIDER-AGNOSTISCH)
 // ============================================================
 router.post('/register', async (req, res) => {
     const { country, packaging, existing_number } = req.body;
@@ -19,13 +18,12 @@ router.post('/register', async (req, res) => {
     try {
         // 1. Händlerdaten abrufen
         const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customer_id);
-        console.log('🔍 Gefundener Kunde:', customer);
-
         if (!customer) {
             return res.status(404).json({ error: 'Händler nicht gefunden' });
         }
 
         // 2. Lappa-API aufrufen (MOCK)
+        // Hier später die echte Lappa-API einbinden
         const lappaResponse = {
             status: 'success',
             epr_number: `EPR-${country}-${Date.now().toString().slice(-6)}`,
@@ -37,10 +35,15 @@ router.post('/register', async (req, res) => {
 
         console.log('🔍 Lappa-Antwort:', lappaResponse);
 
-        // 3. Aktivierung in der Datenbank aktualisieren
+        // 3. Aktivierung in der Datenbank AKTUALISIEREN (provider-agnostisch)
         const updateResult = db.prepare(`
             UPDATE activations 
-            SET lappa_epr_number = ?, lappa_status = ?, lappa_data = ?, status = 'active'
+            SET 
+                provider_id = 'lappa',
+                provider_epr_number = ?,
+                provider_status = ?,
+                provider_data = ?,
+                status = 'active'
             WHERE customer_id = ? AND country_code = ?
         `).run(
             lappaResponse.epr_number || null,
@@ -52,11 +55,12 @@ router.post('/register', async (req, res) => {
 
         console.log('🔍 Update-Result:', updateResult);
 
+        // 4. Falls keine Aktivierung existiert: Neue anlegen
         if (updateResult.changes === 0) {
-            // Falls keine Aktivierung existiert, eine neue anlegen
             db.prepare(`
-                INSERT INTO activations (customer_id, country_code, status, lappa_epr_number, lappa_status, lappa_data)
-                VALUES (?, ?, 'active', ?, ?, ?)
+                INSERT INTO activations 
+                (customer_id, country_code, status, provider_id, provider_epr_number, provider_status, provider_data)
+                VALUES (?, ?, 'active', 'lappa', ?, ?, ?)
             `).run(
                 customer_id,
                 country,
@@ -67,7 +71,12 @@ router.post('/register', async (req, res) => {
             console.log('🔍 Neue Aktivierung angelegt');
         }
 
-        res.json(lappaResponse);
+        // 5. Antwort an Frontend (nur die EPR-Nummer)
+        res.json({
+            status: lappaResponse.status,
+            epr_number: lappaResponse.epr_number,
+            message: lappaResponse.message
+        });
 
     } catch (error) {
         console.error('❌ Lappa API Fehler:', error);
