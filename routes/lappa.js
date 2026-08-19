@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const dbModule = require('../db'); // ⭐ GEÄNDERT!
-const db = dbModule.db; // ⭐ GEÄNDERT!
+const db = require('../db'); // ⭐ Jetzt funktioniert's!
 
 // ============================================================
 // AUTH-MIDDLEWARE
@@ -23,16 +22,13 @@ router.post('/register', auth, async (req, res) => {
     const customer_id = req.user.id;
 
     try {
-        // Händlerdaten abrufen
         const customer = await db.get('SELECT * FROM customers WHERE id = ?', [customer_id]);
         if (!customer) {
             return res.status(404).json({ error: 'Händler nicht gefunden' });
         }
 
-        // Lappa-API aufrufen (MOCK)
         const lappaResponse = await mockLappaRegistration(country, packaging, customer);
 
-        // Ergebnis speichern
         await db.run(`
             UPDATE activations 
             SET lappa_epr_number = ?, lappa_status = ?, lappa_data = ?
