@@ -2,7 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const { init } = require('./db');
+
+// ⭐ DB IMPORT (WIE IN IHREN ROUTES)
+const db = require('./db');
+const { init } = require('./db'); // ⭐ init separat importieren
+init(); // ⭐ Datenbank initialisieren
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -14,27 +18,25 @@ const skusRoutes = require('./routes/skus');
 const shopifyRoutes = require('./routes/shopify');
 const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
-const lappaRoutes = require('./routes/lappa'); // ⭐ NEU
-
-// Datenbank initialisieren
-init();
+const lappaRoutes = require('./routes/lappa');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS – für ALLE erlaubt (das ist wichtig für Netlify!)
+// CORS – für alle erlaubt
 app.use(cors({ origin: '*' }));
-
 app.use(express.json({ limit: '500kb' }));
 
+// Rate Limiting für Auth
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/auth', authLimiter);
 
+// Health-Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
 });
 
-// Routes
+// ⭐ ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/activations', activationRoutes);
@@ -44,17 +46,21 @@ app.use('/api/skus', skusRoutes);
 app.use('/api/shopify', shopifyRoutes);
 app.use('/api/representatives', representativeRoutes);
 app.use('/api/billing', billingRoutes);
-app.use('/api/lappa', lappaRoutes); // ⭐ NEU
+app.use('/api/lappa', lappaRoutes);
 
 // 404
-app.use((req, res) => res.status(404).json({ error: 'Endpunkt nicht gefunden.' }));
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpunkt nicht gefunden.' });
+});
 
 // Error Handler
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error('❌ Serverfehler:', err);
   res.status(500).json({ error: 'Interner Serverfehler.' });
 });
 
+// ⭐ SERVER START
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Pack2EU Backend läuft auf Port ${PORT}`);
+  console.log(`📊 Health-Check: http://localhost:${PORT}/api/health`);
 });
