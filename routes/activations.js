@@ -1,16 +1,26 @@
 const express = require('express');
-const db = require('../db'); // ⭐ db ist jetzt direkt die Datenbank!
+const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth);
 
-// Alle Aktivierungen des Kunden
+// ============================================================
+// ALLE AKTIVIERUNGEN DES KUNDEN (MIT PROVIDER-FELDERN)
+// ============================================================
 router.get('/', (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT a.country_code, a.status, a.signed_at, a.existing_number, a.lappa_epr_number, a.lappa_status,
-             c.name, c.register_body
+      SELECT 
+        a.country_code, 
+        a.status, 
+        a.signed_at, 
+        a.existing_number,
+        a.provider_id,
+        a.provider_epr_number,
+        a.provider_status,
+        c.name, 
+        c.register_body
       FROM activations a
       JOIN countries c ON c.code = a.country_code
       WHERE a.customer_id = ?
@@ -22,18 +32,24 @@ router.get('/', (req, res) => {
   }
 });
 
-// Land aktivieren (mit oder ohne bestehende Nummer)
+// ============================================================
+// LAND AKTIVIEREN
+// ============================================================
 router.post('/:countryCode', (req, res) => {
   try {
     const { countryCode } = req.params;
     const { existing_number } = req.body;
     
     const country = db.prepare('SELECT code FROM countries WHERE code = ?').get(countryCode);
-    if (!country) return res.status(404).json({ error: `Land ${countryCode} wird nicht unterstützt.` });
+    if (!country) {
+      return res.status(404).json({ error: `Land ${countryCode} wird nicht unterstützt.` });
+    }
 
     const existing = db.prepare('SELECT id FROM activations WHERE customer_id = ? AND country_code = ?')
       .get(req.customer.sub, countryCode);
-    if (existing) return res.status(409).json({ error: 'Bereits aktiviert.' });
+    if (existing) {
+      return res.status(409).json({ error: 'Bereits aktiviert.' });
+    }
 
     const status = existing_number ? 'active' : 'pending';
     db.prepare(`
@@ -48,7 +64,9 @@ router.post('/:countryCode', (req, res) => {
   }
 });
 
-// Vollmacht signieren
+// ============================================================
+// VOLLMACHT SIGNIEREN
+// ============================================================
 router.post('/:countryCode/sign', (req, res) => {
   try {
     const { countryCode } = req.params;
@@ -57,7 +75,9 @@ router.post('/:countryCode/sign', (req, res) => {
       WHERE customer_id = ? AND country_code = ?
     `).run(req.customer.sub, countryCode);
 
-    if (result.changes === 0) return res.status(404).json({ error: 'Keine Aktivierung gefunden.' });
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Keine Aktivierung gefunden.' });
+    }
     res.json({ ok: true, countryCode, status: 'signed' });
   } catch (error) {
     console.error('❌ Fehler beim Signieren:', error);
