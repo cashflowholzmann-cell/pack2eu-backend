@@ -1261,7 +1261,7 @@ const countryKnowledge = {
         function clearToken() { localStorage.removeItem('pack2eu_token'); }
 
         async function api(path, options = {}) {
-            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
             const token = getToken();
             if (token) headers['Authorization'] = 'Bearer ' + token;
             const res = await fetch(API_BASE + path, { ...options, headers });
