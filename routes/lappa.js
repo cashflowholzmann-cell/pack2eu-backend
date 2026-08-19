@@ -3,9 +3,23 @@ const router = express.Router();
 const db = require('../db');
 
 // ============================================================
+// AUTH-MIDDLEWARE (MUSS VOR DER ROUTE STEHEN!)
+// ============================================================
+function auth(req, res, next) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+        return res.status(401).json({ error: 'Nicht eingeloggt.' });
+    }
+    // ⚠️ NUR ZUM TESTEN! Später durch echte Validierung ersetzen
+    // Hier müsste der Token validiert werden (z.B. mit JWT)
+    req.user = { id: 1 }; // Platzhalter für die echte User-ID
+    next();
+}
+
+// ============================================================
 // LAPPA-API REGISTRIERUNG
 // ============================================================
-router.post('/register', async (req, res) => {
+router.post('/register', auth, async (req, res) => {
     const { country, packaging, existing_number } = req.body;
     const customer_id = req.user.id; // Aus der Authentifizierung
 
@@ -16,9 +30,7 @@ router.post('/register', async (req, res) => {
             return res.status(404).json({ error: 'Händler nicht gefunden' });
         }
 
-        // 2. Lappa-API aufrufen (HIER KOMMT DIE ECHTE API-INTEGRATION)
-        // ⚠️ ACHTUNG: Das ist aktuell ein MOCK (Test-Daten)!
-        // Ersetzen Sie diesen Teil später mit der echten Lappa-API
+        // 2. Lappa-API aufrufen (MOCK)
         const lappaResponse = await mockLappaRegistration(country, packaging, customer);
 
         // 3. Ergebnis speichern
