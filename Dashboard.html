@@ -1377,19 +1377,69 @@ const countryKnowledge = {
         }
 
         async function activateCountry() {
-            const code = document.getElementById('country-select').value;
-            const existing_number = document.getElementById('existing-number').value.trim();
-            const error = document.getElementById('country-error');
-            error.classList.add('hidden');
+    const code = document.getElementById('country-select').value;
+    const existing_number = document.getElementById('existing-number').value.trim();
+    const error = document.getElementById('country-error');
+    error.classList.add('hidden');
 
-            try {
-                await api('/activations/' + code, { method: 'POST', body: JSON.stringify({ existing_number }) });
-                closeCountryModal();
-                loadDashboard();
-            } catch (err) {
-                error.textContent = err.message;
-                error.classList.remove('hidden');
-            }
+    try {
+        // ⭐ 1. LAPPA-REGISTRIERUNG STARTEN
+        // Zuerst die Produkte des Händlers abrufen
+        const skus = await api('/skus');
+        
+        // Alle Lappa-Codes aus den Produkten sammeln
+        let packagingData = [];
+        skus.forEach(sku => {
+            const materials = JSON.parse(sku.materials_json || '[]');
+            materials.forEach(m => {
+                if (m.lappa_code) {
+                    packagingData.push({
+                        material_code: m.lappa_code,
+                        weight_grams: m.weight_grams || 0,
+                        is_recyclable: m.is_recyclable || false
+                    });
+                }
+            });
+        });
+
+        // ⭐ 2. LAPPA-API AUFRUFEN (ÜBER IHR BACKEND)
+        const lappaResponse = await api('/lappa/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                country: code,
+                packaging: packagingData,
+                existing_number: existing_number || null
+            })
+        });
+
+        console.log('Lappa Registrierung:', lappaResponse);
+
+        // ⭐ 3. NORMALE AKTIVIERUNG (MIT LAPPA-NUMMER, FALLS VORHANDEN)
+        const activationData = {
+            existing_number: lappaResponse.epr_number || existing_number || null
+        };
+
+        await api('/activations/' + code, {
+            method: 'POST',
+            body: JSON.stringify(activationData)
+        });
+
+        closeCountryModal();
+        loadDashboard();
+        
+        // ⭐ 4. ERFOLGSMELDUNG ANZEIGEN
+        if (lappaResponse.epr_number) {
+            alert(`✅ Land ${code} wurde erfolgreich bei Lappa registriert!\n\nEPR-Nummer: ${lappaResponse.epr_number}`);
+        } else {
+            alert(`✅ Land ${code} wurde aktiviert. Die Lappa-Registrierung wird verarbeitet.`);
+        }
+
+    } catch (err) {
+        console.error('Fehler bei der Aktivierung:', err);
+        error.textContent = err.message || 'Fehler bei der Aktivierung. Bitte versuche es später erneut.';
+        error.classList.remove('hidden');
+    }
+}
         }
 
         async function signActivation(code) {
