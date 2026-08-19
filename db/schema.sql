@@ -36,10 +36,11 @@ CREATE TABLE IF NOT EXISTS activations(
     country_code TEXT NOT NULL REFERENCES countries(code),
     status TEXT NOT NULL DEFAULT 'pending', -- pending|signed|active
     existing_number TEXT, -- bestehende EPR-Nummer
-    -- ⭐ NEU: LAPPA-INTEGRATION
-    lappa_epr_number TEXT, -- Von Lappa gelieferte EPR-Nummer
-    lappa_status TEXT DEFAULT 'pending', -- pending|success|failed
-    lappa_data TEXT, -- JSON mit vollständiger Lappa-Antwort
+    -- ⭐ ANBIETER-AGNOSTISCHE FELDER
+    provider_id TEXT, -- z.B. 'lappa', 'ecosistant', 'pro_de'
+    provider_epr_number TEXT, -- Von Provider gelieferte EPR-Nummer
+    provider_status TEXT DEFAULT 'pending', -- pending|success|failed
+    provider_data TEXT, -- JSON mit vollständiger Provider-Antwort
     signed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(customer_id, country_code)
@@ -55,6 +56,8 @@ CREATE TABLE IF NOT EXISTS product_packaging (
   materials_json      TEXT NOT NULL,
   total_weight_grams  INTEGER NOT NULL,
   packaging_type      TEXT,
+  -- ⭐ FÜR KÜNFTIGE ANBIETER-ERWEITERUNG
+  provider_codes_json TEXT,
   created_at          TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
