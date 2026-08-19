@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db'); // ⭐ GEÄNDERT!
+const dbModule = require('../db'); // ⭐ GEÄNDERT!
+const db = dbModule.db; // ⭐ GEÄNDERT!
 
 // ============================================================
 // AUTH-MIDDLEWARE
