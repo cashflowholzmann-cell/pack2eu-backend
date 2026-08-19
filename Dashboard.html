@@ -1506,48 +1506,99 @@ const countryKnowledge = {
         }
 
         function getMaterialsFromUI() {
-            const rows = document.querySelectorAll('.material-group');
-            return Array.from(rows).map(row => ({
-                material: row.querySelector('.material-type').value,
-                weight_grams: parseInt(row.querySelector('.material-weight').value) || 0,
-                is_recyclable: parseInt(row.querySelector('.material-recyclable').value) === 1
-            })).filter(m => m.weight_grams > 0);
+    const rows = document.querySelectorAll('.material-group');
+    return Array.from(rows).map(row => ({
+        material: row.querySelector('.material-type').value,
+        weight_grams: parseInt(row.querySelector('.material-weight').value) || 0,
+        is_recyclable: parseInt(row.querySelector('.material-recyclable').value) === 1
+    })).filter(m => m.weight_grams > 0);
+}
+
+// ============================================================
+// LAPPA MATERIAL CODE MAPPING (NEU)
+// ============================================================
+function getLappaCode(materialType) {
+    const mapping = {
+        'karton': 'S',     // Paper
+        'papier': 'S',     // Paper
+        'kunststoff': 'B', // Plastics
+        'glas': 'A',       // Glass
+        'metall': 'T',     // Steel (Aluminium wäre 'R')
+        'holz': 'F',       // Wood
+        'sonstige': 'G'    // Others
+    };
+    return mapping[materialType] || 'G';
+}
+
+// ============================================================
+// PRODUKT SPEICHERN (MIT LAPPA-CODE)
+// ============================================================
+async function saveSku() {
+    const sku_name = document.getElementById('sku-name').value.trim();
+    const shopify_product_id = document.getElementById('sku-shopify-id').value.trim();
+    const materials = getMaterialsFromUI();
+    const error = document.getElementById('sku-error');
+    error.classList.add('hidden');
+
+    if (!sku_name) {
+        error.textContent = 'Bitte gib einen Produktnamen ein.';
+        error.classList.remove('hidden');
+        return;
+    }
+    if (materials.length === 0) {
+        error.textContent = 'Bitte füge mindestens ein Material hinzu.';
+        error.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        // ⭐ LAPPA-CODES ZU DEN MATERIALIEN HINZUFÜGEN
+        const materialsWithLappa = materials.map(m => ({
+            ...m,
+            lappa_code: `P${getLappaCode(m.material)}000000000`
+        }));
+
+        const payload = { 
+            sku_name, 
+            shopify_product_id, 
+            materials: materialsWithLappa 
+        };
+
+        if (editingSkuId) {
+            await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
         }
+        closeSkuModal();
+        loadDashboard();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove('hidden');
+     try {
+        // ⭐ NEU: LAPPA-CODES HINZUFÜGEN
+        const materialsWithLappa = materials.map(m => ({
+            ...m,
+            lappa_code: `P${getLappaCode(m.material)}000000000`
+        }));
 
-        async function saveSku() {
-            const sku_name = document.getElementById('sku-name').value.trim();
-            const shopify_product_id = document.getElementById('sku-shopify-id').value.trim();
-            const materials = getMaterialsFromUI();
-            const error = document.getElementById('sku-error');
-            error.classList.add('hidden');
+        const payload = {
+            sku_name,
+            shopify_product_id,
+            materials: materialsWithLappa
+        };
 
-            if (!sku_name) {
-                error.textContent = 'Bitte gib einen Produktnamen ein.';
-                error.classList.remove('hidden');
-                return;
-            }
-            if (materials.length === 0) {
-                error.textContent = 'Bitte füge mindestens ein Material hinzu.';
-                error.classList.remove('hidden');
-                return;
-            }
-
-            try {
-                const payload = { sku_name, shopify_product_id, materials };
-                if (editingSkuId) {
-                    await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
-                } else {
-                    await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
-                }
-                closeSkuModal();
-                loadDashboard();
-            } catch (err) {
-                error.textContent = err.message;
-                error.classList.remove('hidden');
-            }
+        if (editingSkuId) {
+            await api('/skus/' + editingSkuId, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            await api('/skus', { method: 'POST', body: JSON.stringify(payload) });
         }
-
-        async function deleteSku(id) {
+        closeSkuModal();
+        loadDashboard();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove('hidden');
+    }
+async function deleteSku(id) {
             if (!confirm('Möchtest du dieses Produkt wirklich löschen?')) return;
             try {
                 await api('/skus/' + id, { method: 'DELETE' });
