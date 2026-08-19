@@ -30,15 +30,19 @@ CREATE TABLE IF NOT EXISTS countries (
 );
 
 -- Aktivierungen (Länder, die der Kunde aktiviert hat)
-CREATE TABLE IF NOT EXISTS activations (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  customer_id     INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  country_code    TEXT NOT NULL REFERENCES countries(code),
-  status          TEXT NOT NULL DEFAULT 'pending',  -- 'pending' | 'signed' | 'active'
-  existing_number TEXT,                              -- NEU: bestehende EPR-Nummer
-  signed_at       TEXT,
-  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(customer_id, country_code)
+CREATE TABLE IF NOT EXISTS activations(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    country_code TEXT NOT NULL REFERENCES countries(code),
+    status TEXT NOT NULL DEFAULT 'pending', -- pending|signed|active
+    existing_number TEXT, -- bestehende EPR-Nummer
+    -- ⭐ NEU: LAPPA-INTEGRATION
+    lappa_epr_number TEXT, -- Von Lappa gelieferte EPR-Nummer
+    lappa_status TEXT DEFAULT 'pending', -- pending|success|failed
+    lappa_data TEXT, -- JSON mit vollständiger Lappa-Antwort
+    signed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(customer_id, country_code)
 );
 
 -- Produkt-Verpackungs-SKUs
