@@ -14,14 +14,22 @@ function init() {
     db.exec(schema);
     console.log('✅ Schema ausgeführt');
 
-    // 2. Lappa-Spalten nachträglich hinzufügen
+    // 2. Provider-Spalten nachträglich hinzufügen (für bestehende Datenbanken)
     try {
-      db.exec(`ALTER TABLE activations ADD COLUMN lappa_epr_number TEXT`);
-      db.exec(`ALTER TABLE activations ADD COLUMN lappa_status TEXT DEFAULT 'pending'`);
-      db.exec(`ALTER TABLE activations ADD COLUMN lappa_data TEXT`);
-      console.log('✅ Lappa-Spalten hinzugefügt');
+      db.exec(`ALTER TABLE activations ADD COLUMN provider_id TEXT`);
+      db.exec(`ALTER TABLE activations ADD COLUMN provider_epr_number TEXT`);
+      db.exec(`ALTER TABLE activations ADD COLUMN provider_status TEXT DEFAULT 'pending'`);
+      db.exec(`ALTER TABLE activations ADD COLUMN provider_data TEXT`);
+      console.log('✅ Provider-Spalten zu activations hinzugefügt');
     } catch (err) {
-      console.log('ℹ️ Lappa-Spalten existieren bereits');
+      console.log('ℹ️ Provider-Spalten existieren bereits');
+    }
+
+    try {
+      db.exec(`ALTER TABLE product_packaging ADD COLUMN provider_codes_json TEXT`);
+      console.log('✅ provider_codes_json zu product_packaging hinzugefügt');
+    } catch (err) {
+      console.log('ℹ️ provider_codes_json existiert bereits');
     }
 
     // 3. Länder seeden
@@ -54,6 +62,6 @@ function init() {
   }
 }
 
-// ⭐ WICHTIG: db als Hauptexport, init als Property
+// ⭐ Export
 module.exports = db;
 module.exports.init = init;
