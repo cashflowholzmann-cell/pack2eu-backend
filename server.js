@@ -3,10 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
-// ⭐ DB IMPORT (WIE IN IHREN ROUTES)
 const db = require('./db');
-const { init } = require('./db'); // ⭐ init separat importieren
-init(); // ⭐ Datenbank initialisieren
+const { init } = db;
+init();
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -23,20 +22,16 @@ const lappaRoutes = require('./routes/lappa');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS – für alle erlaubt
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '500kb' }));
 
-// Rate Limiting für Auth
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/auth', authLimiter);
 
-// Health-Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
 });
 
-// ⭐ ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/activations', activationRoutes);
@@ -48,19 +43,15 @@ app.use('/api/representatives', representativeRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/lappa', lappaRoutes);
 
-// 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpunkt nicht gefunden.' });
 });
 
-// Error Handler
 app.use((err, req, res, next) => {
   console.error('❌ Serverfehler:', err);
   res.status(500).json({ error: 'Interner Serverfehler.' });
 });
 
-// ⭐ SERVER START
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Pack2EU Backend läuft auf Port ${PORT}`);
-  console.log(`📊 Health-Check: http://localhost:${PORT}/api/health`);
 });
