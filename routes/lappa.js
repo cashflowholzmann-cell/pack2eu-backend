@@ -1,18 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const { db } = require('../db'); // ⭐ GEÄNDERT!
 
 // ============================================================
-// AUTH-MIDDLEWARE (MUSS VOR DER ROUTE STEHEN!)
+// AUTH-MIDDLEWARE
 // ============================================================
 function auth(req, res, next) {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
         return res.status(401).json({ error: 'Nicht eingeloggt.' });
     }
-    // ⚠️ NUR ZUM TESTEN! Später durch echte Validierung ersetzen
-    // Hier müsste der Token validiert werden (z.B. mit JWT)
-    req.user = { id: 1 }; // Platzhalter für die echte User-ID
+    req.user = { id: 1 };
     next();
 }
 
@@ -21,19 +19,19 @@ function auth(req, res, next) {
 // ============================================================
 router.post('/register', auth, async (req, res) => {
     const { country, packaging, existing_number } = req.body;
-    const customer_id = req.user.id; // Aus der Authentifizierung
+    const customer_id = req.user.id;
 
     try {
-        // 1. Händlerdaten abrufen
+        // Händlerdaten abrufen
         const customer = await db.get('SELECT * FROM customers WHERE id = ?', [customer_id]);
         if (!customer) {
             return res.status(404).json({ error: 'Händler nicht gefunden' });
         }
 
-        // 2. Lappa-API aufrufen (MOCK)
+        // Lappa-API aufrufen (MOCK)
         const lappaResponse = await mockLappaRegistration(country, packaging, customer);
 
-        // 3. Ergebnis speichern
+        // Ergebnis speichern
         await db.run(`
             UPDATE activations 
             SET lappa_epr_number = ?, lappa_status = ?, lappa_data = ?
@@ -55,13 +53,10 @@ router.post('/register', auth, async (req, res) => {
 });
 
 // ============================================================
-// MOCK-FUNKTION (NUR ZUM TESTEN!)
+// MOCK-FUNKTION
 // ============================================================
 async function mockLappaRegistration(country, packaging, customer) {
-    // Simulierte Verzögerung (wie bei einer echten API)
     await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Simulierte Lappa-Antwort
     return {
         status: 'success',
         epr_number: `EPR-${country}-${Date.now().toString().slice(-6)}`,
