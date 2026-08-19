@@ -1,18 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db'); // ⭐ GEÄNDERT! Wie in activations.js
-const { requireAuth } = require('../middleware/auth'); // ⭐ NEU! Für echte Auth
+const { db } = require('../db'); // ⭐ WIE IN activations.js!
+const { requireAuth } = require('../middleware/auth'); // ⭐ WIE IN activations.js!
+
+// ⭐ Auth für alle Routen in dieser Datei
+router.use(requireAuth);
 
 // ============================================================
-// LAPPA-API REGISTRIERUNG (MIT ECHTER AUTH)
+// LAPPA-API REGISTRIERUNG
 // ============================================================
-router.post('/register', requireAuth, async (req, res) => {
+router.post('/register', async (req, res) => {
     const { country, packaging, existing_number } = req.body;
-    const customer_id = req.customer.sub; // ⭐ Von der echten Auth-Middleware
+    const customer_id = req.customer.sub; // ⭐ Von der Auth-Middleware
+
+    console.log('🔍 Lappa-Registrierung für Land:', country);
+    console.log('🔍 Customer ID:', customer_id);
 
     try {
         // 1. Händlerdaten abrufen
         const customer = await db.get('SELECT * FROM customers WHERE id = ?', [customer_id]);
+        console.log('🔍 Gefundener Kunde:', customer);
+
         if (!customer) {
             return res.status(404).json({ error: 'Händler nicht gefunden' });
         }
@@ -20,7 +28,7 @@ router.post('/register', requireAuth, async (req, res) => {
         // 2. Lappa-API aufrufen (MOCK)
         const lappaResponse = await mockLappaRegistration(country, packaging, customer);
 
-        // 3. Ergebnis speichern (mit UPDATE, weil die Aktivierung bereits existiert)
+        // 3. Ergebnis speichern
         await db.run(`
             UPDATE activations 
             SET lappa_epr_number = ?, lappa_status = ?, lappa_data = ?
@@ -36,7 +44,7 @@ router.post('/register', requireAuth, async (req, res) => {
         res.json(lappaResponse);
 
     } catch (error) {
-        console.error('Lappa API Fehler:', error);
+        console.error('❌ Lappa API Fehler:', error);
         res.status(500).json({ error: 'Fehler bei der Lappa-Registrierung: ' + error.message });
     }
 });
@@ -45,9 +53,7 @@ router.post('/register', requireAuth, async (req, res) => {
 // MOCK-FUNKTION (NUR ZUM TESTEN!)
 // ============================================================
 async function mockLappaRegistration(country, packaging, customer) {
-    // Simulierte Verzögerung
     await new Promise(resolve => setTimeout(resolve, 1000));
-
     return {
         status: 'success',
         epr_number: `EPR-${country}-${Date.now().toString().slice(-6)}`,
