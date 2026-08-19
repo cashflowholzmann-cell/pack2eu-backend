@@ -8,10 +8,23 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 function init() {
+  // 1. Schema ausführen (erstellt/aktualisiert Tabellen)
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
 
-  // Prüfen, ob Länder vorhanden sind, sonst seeden
+  // 2. ⭐⭐⭐ NEU: LAPPA-SPALTEN NACHTRÄGLICH HINZUFÜGEN
+  // (Funktionieren nur, wenn die Spalten noch nicht existieren)
+  try {
+    db.exec(`ALTER TABLE activations ADD COLUMN lappa_epr_number TEXT`);
+    db.exec(`ALTER TABLE activations ADD COLUMN lappa_status TEXT DEFAULT 'pending'`);
+    db.exec(`ALTER TABLE activations ADD COLUMN lappa_data TEXT`);
+    console.log('✅ Lappa-Spalten zu activations hinzugefügt');
+  } catch (err) {
+    // Spalten existieren bereits – das ist OK
+    console.log('ℹ️ Lappa-Spalten existieren bereits');
+  }
+
+  // 3. Prüfen, ob Länder vorhanden sind, sonst seeden
   const count = db.prepare('SELECT COUNT(*) AS n FROM countries').get().n;
   if (count === 0) {
     const insert = db.prepare(`
@@ -27,10 +40,12 @@ function init() {
       { code: 'BE', name: 'Belgien', register_body: 'FPS Health', labeling_reqs: '[]' },
       { code: 'NL', name: 'Niederlande', register_body: 'Eigenes System', labeling_reqs: '[]' },
       { code: 'PL', name: 'Polen', register_body: 'BDO', labeling_reqs: '[]' },
-      { code: 'SE', name: 'Schweden', register_body: 'Naturvårdsverket', labeling_reqs: '[]' }
+      { code: 'SE', name: 'Schweden', register_body: 'Naturvårdsverket', labeling_reqs: '[]' },
+      { code: 'DK', name: 'Dänemark', register_body: 'Dansk Producentansvar', labeling_reqs: '[]' }
     ];
     const insertMany = db.transaction((rows) => rows.forEach((r) => insert.run(r)));
     insertMany(seed);
+    console.log('✅ Länder wurden in die Datenbank eingefügt');
   }
 }
 
