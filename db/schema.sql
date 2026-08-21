@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS customers (
   updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- ⭐ Länder (ERWEITERT)
+-- ⭐ LÄNDER (ERWEITERT)
 CREATE TABLE IF NOT EXISTS countries (
   code            TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
