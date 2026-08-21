@@ -21,12 +21,22 @@ CREATE TABLE IF NOT EXISTS customers (
   updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Länder
+-- ⭐ Länder (ERWEITERT)
 CREATE TABLE IF NOT EXISTS countries (
   code            TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
   register_body   TEXT NOT NULL,
-  labeling_reqs   TEXT NOT NULL DEFAULT '[]'
+  labeling_reqs   TEXT NOT NULL DEFAULT '[]',
+  -- ⭐ NEU: LÄNDER-DETAILS FÜR DIE ANZEIGE
+  requirements_json TEXT NOT NULL DEFAULT '[]',
+  labeling_json    TEXT NOT NULL DEFAULT '[]',
+  eco_fee          TEXT,
+  steps_json       TEXT NOT NULL DEFAULT '[]',
+  representative_required INTEGER DEFAULT 0,
+  notary_required        INTEGER DEFAULT 0,
+  notary_cost            TEXT,
+  registration_url       TEXT,
+  flag              TEXT DEFAULT '🇪🇺'
 );
 
 -- Aktivierungen (Länder, die der Kunde aktiviert hat)
