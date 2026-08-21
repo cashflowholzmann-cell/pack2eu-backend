@@ -158,7 +158,7 @@
                     <span data-i18n="hero.title">Du verkaufst nach Europa.</span><br>
                     <span class="text-[var(--accent)]" data-i18n="hero.title_highlight">Wir kümmern uns um den Verpackungs-Kram.</span>
                 </h1>
-                <p class="mt-6 text-xl max-w-2xl leading-relaxed text-[var(--text-dim)]" data-i18n="hero.subtitle">
+                <p class="mt-6 text-xl max-w-2xl leading-relaxed text-[var(--text-dim])" data-i18n="hero.subtitle">
                     Neue Verpackungspflichten in jedem Land – unterschiedliche Regeln, Register und Behörden.
                     <strong class="text-[var(--text)]">Pack2EU bündelt Registrierung, Bevollmächtigte, Verpackungsdaten und Meldungen in einer einzigen Plattform.</strong>
                 </p>
@@ -346,9 +346,9 @@
         <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[var(--text-dim)]">
             <div data-i18n="footer.copyright">© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops</div>
             <div class="flex gap-6 flex-wrap">
-                <a href="#" class="hover:text-[var(--text)] transition" data-i18n="footer.agb">AGB</a>
-                <a href="#" class="hover:text-[var(--text)] transition" data-i18n="footer.privacy">Datenschutz</a>
-                <a href="#" class="hover:text-[var(--text)] transition" data-i18n="footer.impressum">Impressum</a>
+                <button onclick="openLegalPopup('agb')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer" data-i18n="footer.agb">AGB</button>
+                <button onclick="openLegalPopup('datenschutz')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer" data-i18n="footer.privacy">Datenschutz</button>
+                <button onclick="openLegalPopup('impressum')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer" data-i18n="footer.impressum">Impressum</button>
                 <button onclick="openRepresentativeLogin()" class="hover:text-[var(--text)] transition font-mono" data-i18n="footer.representative">🏛️ Für Beauftragte</button>
             </div>
             <div class="text-xs text-center" data-i18n="footer.disclaimer">
@@ -458,11 +458,132 @@
     </div>
 
     <!-- ============================================================
+    RECHTLICHE POP-UPS (AGB, Datenschutz, Impressum)
+    ============================================================ -->
+    <div id="agb-content" style="display:none;">
+        <h2>Allgemeine Geschäftsbedingungen (AGB)</h2>
+        <p><strong>1. Geltungsbereich</strong><br>
+        Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Dienstleistungen der Holzmann Consulting, Inhaber: Dominik Holzmann, via Aldesago 154, CH-6974 Aldesago, Schweiz (nachfolgend „Anbieter“) gegenüber dem Kunden.</p>
+        <p><strong>2. Vertragsgegenstand</strong><br>
+        Der Anbieter betreibt die Plattform „Pack2EU“ (https://pack2eu.netlify.app), die Händlern eine automatisierte Unterstützung bei der Erfüllung von Verpackungs-Compliance-Pflichten in der EU (PPWR) anbietet. Der Kunde erhält Zugang zur Software-Plattform und zu den darauf angebotenen Dienstleistungen.</p>
+        <p><strong>3. Vertragsschluss</strong><br>
+        Der Vertrag kommt durch die Registrierung des Kunden auf der Plattform und die anschließende Zahlung des ausgewählten Paketpreises zustande. Der Kunde akzeptiert mit der Registrierung diese AGB.</p>
+        <p><strong>4. Leistungen & Preise</strong><br>
+        Die Leistungen und Preise ergeben sich aus der jeweils gültigen Preisübersicht auf der Plattform. Alle Preise verstehen sich in Euro zuzüglich der gesetzlichen Mehrwertsteuer (falls anwendbar). Die reinen Recycling-Gebühren (Öko-Steuer) werden als Durchlaufposten 1:1 an die Behörden weitergegeben und sind nicht Bestandteil der Paketgebühren.</p>
+        <p><strong>5. Laufzeit & Kündigung</strong><br>
+        Die Vertragslaufzeit beträgt bei monatlicher Zahlung einen Monat und verlängert sich automatisch, wenn nicht bis zum Monatsende gekündigt wird. Bei jährlicher Zahlung beträgt die Mindestlaufzeit 12 Monate. Die Kündigung muss schriftlich oder per E-Mail an info@holzmann-consulting.com erfolgen.</p>
+        <p><strong>6. Haftungsausschluss</strong><br>
+        Der Anbieter übernimmt keine Gewähr für die rechtliche Richtigkeit der vom Kunden eingegebenen Daten und der daraus generierten Meldungen. Der Kunde ist für die Richtigkeit seiner Angaben selbst verantwortlich. Die Plattform ersetzt keine individuelle Rechtsberatung.</p>
+        <p><strong>7. Datenschutz</strong><br>
+        Die Erhebung, Verarbeitung und Nutzung personenbezogener Daten erfolgt gemäß unserer Datenschutzerklärung und den anwendbaren gesetzlichen Bestimmungen (insbesondere DSGVO und Schweizer Datenschutzgesetz).</p>
+        <p><strong>8. Salvatorische Klausel</strong><br>
+        Sollten einzelne Bestimmungen dieser AGB unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Anstelle der unwirksamen Bestimmung tritt diejenige Regelung, die dem wirtschaftlichen Zweck am nächsten kommt.</p>
+        <p><strong>9. Anwendbares Recht & Gerichtsstand</strong><br>
+        Es gilt das Recht der Schweizerischen Eidgenossenschaft unter Ausschluss des UN-Kaufrechts. Gerichtsstand ist Lugano, Schweiz.</p>
+        <p><strong>10. Kontakt</strong><br>
+        Holzmann Consulting<br>
+        Inhaber: Dominik Holzmann<br>
+        via Aldesago 154, CH-6974 Aldesago<br>
+        E-Mail: info@holzmann-consulting.com<br>
+        Telefon: +49 176 61874040</p>
+    </div>
+
+    <div id="datenschutz-content" style="display:none;">
+        <h2>Datenschutzerklärung</h2>
+        <p><strong>1. Verantwortlicher</strong><br>
+        Verantwortlicher für die Datenverarbeitung auf dieser Plattform ist:<br>
+        Holzmann Consulting<br>
+        Inhaber: Dominik Holzmann<br>
+        via Aldesago 154, CH-6974 Aldesago<br>
+        E-Mail: info@holzmann-consulting.com<br>
+        Telefon: +49 176 61874040</p>
+        <p><strong>2. Erhebung und Speicherung personenbezogener Daten</strong><br>
+        Bei der Registrierung und Nutzung unserer Plattform erheben wir folgende Daten:<br>
+        • Firmenname, Rechtsform, Adresse<br>
+        • E-Mail-Adresse, Telefonnummer<br>
+        • USt-ID, Steuernummer<br>
+        • Länderspezifische Steuer-IDs (SIREN, Partita IVA, NIF etc.)<br>
+        • Verpackungsdaten (Materialien, Gewichte, Mengen)<br>
+        • Zahlungsinformationen (über Stripe, wir speichern keine Kartendaten)</p>
+        <p><strong>3. Zweck der Datenverarbeitung</strong><br>
+        Die Datenverarbeitung erfolgt zum Zwecke der Vertragsabwicklung, der Bereitstellung der Compliance-Dienste, der Rechnungsstellung und der Kommunikation mit dem Kunden. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
+        <p><strong>4. Weitergabe von Daten</strong><br>
+        Eine Weitergabe Ihrer Daten erfolgt nur an:<br>
+        • Partner-Beauftragte (Authorized Representatives) im jeweiligen Zielland zur Erfüllung der gesetzlichen Pflichten<br>
+        • Stripe (Zahlungsabwicklung)<br>
+        • Behörden (im Rahmen der gesetzlichen Meldepflichten)<br>
+        • Hosting-Dienstleister (Render, Netlify)</p>
+        <p><strong>5. Speicherdauer</strong><br>
+        Wir speichern Ihre Daten, solange der Vertrag besteht und darüber hinaus für die gesetzliche Aufbewahrungsfrist von 10 Jahren gemäß steuerrechtlicher Vorschriften.</p>
+        <p><strong>6. Rechte der betroffenen Personen</strong><br>
+        Sie haben jederzeit das Recht auf:<br>
+        • Auskunft über Ihre gespeicherten Daten<br>
+        • Berichtigung unrichtiger Daten<br>
+        • Löschung Ihrer Daten (sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen)<br>
+        • Einschränkung der Verarbeitung<br>
+        • Datenübertragbarkeit<br>
+        • Widerspruch gegen die Verarbeitung<br>
+        • Beschwerde bei der zuständigen Datenschutzbehörde</p>
+        <p><strong>7. Hosting & Server</strong><br>
+        Unsere Plattform wird auf Servern von Render und Netlify in der EU gehostet. Eine Übermittlung personenbezogener Daten in Drittstaaten erfolgt nur im Rahmen der gesetzlichen Zulässigkeit.</p>
+        <p><strong>8. Cookies</strong><br>
+        Wir verwenden ausschließlich technisch notwendige Cookies zur Aufrechterhaltung der Session (Login-Status). Es werden keine Tracking-Cookies oder Analyse-Tools eingesetzt.</p>
+        <p><strong>9. Kontakt</strong><br>
+        Bei Fragen zum Datenschutz wenden Sie sich bitte an: info@holzmann-consulting.com</p>
+    </div>
+
+    <div id="impressum-content" style="display:none;">
+        <h2>Impressum</h2>
+        <p><strong>Angaben gemäß § 5 TMG und Art. 13 DSGVO</strong></p>
+        <p><strong>Betreiber der Plattform „Pack2EU“:</strong><br>
+        Holzmann Consulting<br>
+        Inhaber: Dominik Holzmann<br>
+        via Aldesago 154<br>
+        CH-6974 Aldesago<br>
+        Schweiz</p>
+        <p><strong>Kontakt:</strong><br>
+        Telefon: +49 176 61874040<br>
+        E-Mail: info@holzmann-consulting.com</p>
+        <p><strong>Verantwortlich für den Inhalt:</strong><br>
+        Dominik Holzmann (Anschrift wie oben)</p>
+        <p><strong>Plattform:</strong><br>
+        Pack2EU – Verpackungs-Compliance für kleine Online-Shops<br>
+        URL: https://pack2eu.netlify.app</p>
+        <p><strong>Hosting:</strong><br>
+        Frontend: Netlify Inc., 44 Montgomery Street, Suite 300, San Francisco, CA 94104, USA<br>
+        Backend: Render Technologies Inc., 750 9th Ave, Suite 200, San Francisco, CA 94103, USA<br>
+        Datenbank: SQLite (lokal auf Render-Servern)</p>
+        <p><strong>Zahlungsabwicklung:</strong><br>
+        Stripe Payments Europe Ltd., 1 Grand Canal Street Lower, Grand Canal Dock, Dublin 2, Ireland</p>
+        <p><strong>Rechtliche Hinweise:</strong><br>
+        1. Die Plattform ist ein Dienstleister, kein Rechtsanwalt.<br>
+        2. Die Nutzung der Plattform ersetzt keine individuelle Rechtsberatung.<br>
+        3. Für die Richtigkeit der vom Kunden eingegebenen Daten ist der Kunde selbst verantwortlich.<br>
+        4. Haftung für Inhalte: Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen.</p>
+        <p><strong>Haftung für Links:</strong><br>
+        Unsere Seite enthält Links zu externen Websites, auf deren Inhalte wir keinen Einfluss haben. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.</p>
+        <p><strong>Urheberrecht:</strong><br>
+        Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem Schweizer Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers.</p>
+        <p><strong>Streitschlichtung:</strong><br>
+        Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie im Impressum. Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+    </div>
+
+    <!-- ============================================================
+    RECHTLICHE POP-UPS (Überlagerung)
+    ============================================================ -->
+    <div id="legal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:16px; max-width:700px; width:100%; max-height:90vh; overflow-y:auto; padding:40px; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+            <button onclick="closeLegalPopup()" style="position:sticky; top:0; float:right; background:none; border:none; font-size:28px; cursor:pointer; color:#64748B; z-index:10;">✕</button>
+            <div id="legal-content"></div>
+        </div>
+    </div>
+
+    <!-- ============================================================
     JAVASCRIPT (alles in einer Datei)
     ============================================================ -->
     <script>
         // ============================================================
-        // 0. ÜBERSETZUNGEN (DE + EN)
+        // 0. ÜBERSETZUNGEN (DE + EN + FR + IT + ES)
         // ============================================================
         const translations = {
             de: {
@@ -904,14 +1025,47 @@
         }
 
         // ============================================================
-        // 5. HELPER
+        // 5. RECHTLICHE POP-UPS
+        // ============================================================
+        function openLegalPopup(type) {
+            var overlay = document.getElementById('legal-overlay');
+            var content = document.getElementById('legal-content');
+
+            var contents = {
+                'agb': document.getElementById('agb-content').innerHTML,
+                'datenschutz': document.getElementById('datenschutz-content').innerHTML,
+                'impressum': document.getElementById('impressum-content').innerHTML
+            };
+
+            content.innerHTML = contents[type] || 'Inhalt nicht gefunden.';
+            overlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLegalPopup() {
+            document.getElementById('legal-overlay').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Pop-up schließen, wenn außerhalb geklickt wird
+        document.getElementById('legal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeLegalPopup();
+        });
+
+        // ESC-Taste schließt Pop-up
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeLegalPopup();
+        });
+
+        // ============================================================
+        // 6. HELPER
         // ============================================================
         function scrollToSection(id) {
             document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
         }
 
         // ============================================================
-        // 6. INIT
+        // 7. INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', function() {
             // Sprache erkennen und setzen
