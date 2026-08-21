@@ -41,92 +41,135 @@
         .badge-accent { background: var(--accent-light); color: var(--accent); }
         .badge-danger { background: #FEE2E2; color: var(--danger); }
         .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 4px 12px; border: 1.5px solid var(--border); background: var(--bg); display: inline-block; }
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 32px; }
-        .pricing-card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 32px; text-align: center; transition: all .2s ease; position: relative; }
+        .pricing-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin-top: 32px; }
+        .pricing-card { 
+            background: white; 
+            border-radius: var(--radius); 
+            border: 1px solid var(--border); 
+            padding: 32px; 
+            text-align: center; 
+            transition: all .2s ease; 
+            position: relative; 
+            flex: 1 1 280px;
+            max-width: 340px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
         .pricing-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
         .pricing-card.popular { border-color: var(--primary); box-shadow: 0 8px 32px rgba(10,37,64,0.12); }
-        .pricing-card.popular::before { content: "BELIEBTESTE WAHL"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 2px 16px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; font-family: var(--mono); }
+        .pricing-card.popular::before { 
+            content: "BELIEBTESTE WAHL"; 
+            position: absolute; 
+            top: -12px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: var(--primary); 
+            color: white; 
+            padding: 2px 16px; 
+            border-radius: 999px; 
+            font-size: 10px; 
+            font-weight: 600; 
+            letter-spacing: 0.08em; 
+            font-family: var(--mono); 
+        }
         .pricing-card .price { font-size: 48px; font-weight: 700; margin: 16px 0 4px; }
         .pricing-card .price span { font-size: 16px; font-weight: 400; color: var(--text-dim); }
-        .pricing-card .features { text-align: left; margin: 24px 0; list-style: none; padding: 0; }
+        .pricing-card .features { text-align: left; margin: 24px 0; list-style: none; padding: 0; flex-grow: 1; }
         .pricing-card .features li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; display: flex; align-items: center; gap: 8px; }
         .pricing-card .features li::before { content: "✓"; color: var(--success); font-weight: 700; }
         .step-number { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; background: var(--accent); color: white; flex-shrink: 0; margin: 0 auto 12px; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .status-dot.green { background: var(--success); }
-        .status-dot.yellow { background: var(--warning); }
-        .status-dot.red { background: var(--danger); }
-        .status-dot.gray { background: var(--border); }
+        .step-card .step-number.done { background: var(--success); }
         .mesh { background: radial-gradient(circle at 15% 20%, rgba(0,102,255,.04), transparent 40%), radial-gradient(circle at 85% 10%, rgba(10,37,64,.06), transparent 45%); }
-        .fade-in { animation: fadeIn .4s ease both; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .step-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 32px; }
         .step-card { text-align: center; padding: 20px 16px; background: white; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); transition: all .2s ease; }
         .step-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-        .step-card .step-number { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; background: var(--accent); color: white; margin: 0 auto 12px; }
-        .step-card .step-number.done { background: var(--success); }
         .step-card h4 { font-weight: 700; margin-bottom: 4px; }
         .step-card p { font-size: 14px; color: var(--text-dim); }
         @media (max-width: 768px) {
             .step-grid { grid-template-columns: 1fr 1fr; }
-            .pricing-grid { grid-template-columns: 1fr; }
+            .pricing-grid { flex-direction: column; align-items: center; }
+            .pricing-card { max-width: 100%; width: 100%; }
         }
         @media (max-width: 480px) {
             .step-grid { grid-template-columns: 1fr; }
         }
         .hero-price-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 999px; padding: 6px 16px; font-weight: 600; font-size: 14px; color: var(--accent); }
         .hero-price-badge .price { font-size: 20px; }
+        .lang-select { 
+            background: var(--bg); 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            padding: 6px 12px; 
+            font-size: 13px; 
+            font-weight: 500; 
+            cursor: pointer; 
+            font-family: var(--font);
+            color: var(--text);
+        }
+        .lang-select:focus { outline: none; border-color: var(--accent); }
+        .btn-block { width: 100%; justify-content: center; }
     </style>
 </head>
 <body>
 
     <!-- ============================================================
-    TOP BAR
+    TOP BAR (MIT SPRACHAUSWAHL)
     ============================================================ -->
     <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[var(--border)]">
-        <div class="container py-4 flex items-center justify-between">
+        <div class="container py-4 flex items-center justify-between flex-wrap gap-3">
             <div class="flex items-center gap-3">
                 <div class="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center text-white font-bold text-lg">P</div>
                 <span class="text-xl font-bold tracking-tight">Pack2EU</span>
-                <span class="badge badge-success ml-2">Live</span>
+                <span class="badge badge-success ml-2" data-i18n="badge">Live</span>
             </div>
-            <div class="flex items-center gap-4">
-                <a href="#pricing" class="text-sm font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition">Preise</a>
-                <a href="#how-it-works" class="text-sm font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition hidden md:inline">So funktioniert's</a>
-                <button onclick="openOnboarding()" class="btn-primary text-sm py-2 px-5">Jetzt starten →</button>
-                <button onclick="openRepresentativeLogin()" class="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition font-mono border border-[var(--border)] px-3 py-1 rounded-lg">🏛️ Für Beauftragte</button>
+            <div class="flex items-center gap-4 flex-wrap">
+                <a href="#pricing" class="text-sm font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition" data-i18n="nav.pricing">Preise</a>
+                <a href="#how-it-works" class="text-sm font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition hidden md:inline" data-i18n="nav.how_it_works">So funktioniert's</a>
+                
+                <!-- ⭐ SPRACHAUSWAHL -->
+                <select id="lang-select" onchange="setLanguage(this.value)" class="lang-select">
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="it">🇮🇹 Italiano</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
+                
+                <button onclick="openOnboarding()" class="btn-primary text-sm py-2 px-5" data-i18n="nav.start">Jetzt starten →</button>
+                <button onclick="openRepresentativeLogin()" class="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition font-mono border border-[var(--border)] px-3 py-1 rounded-lg" data-i18n="nav.representative">🏛️ Für Beauftragte</button>
             </div>
         </div>
     </header>
 
     <!-- ============================================================
-    HERO - mit "ab 15 €"
+    HERO
     ============================================================ -->
     <section class="mesh py-20 md:py-28">
         <div class="container">
             <div class="max-w-3xl">
                 <div class="flex items-center gap-3 flex-wrap mb-6">
-                    <span class="badge badge-accent">✔️ Für Shopify, Etsy & Co.</span>
+                    <span class="badge badge-accent" data-i18n="hero.badge">✔️ Für Shopify, Etsy & Co.</span>
                     <span class="hero-price-badge">
-                        💳 <span class="price">ab 15 €</span> / Monat
+                        💳 <span class="price" data-i18n="hero.price">ab 15 €</span> / <span data-i18n="hero.month">Monat</span>
                     </span>
                 </div>
                 <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.08]">
-                    Du verkaufst nach Europa.<br>
-                    <span class="text-[var(--accent)]">Wir kümmern uns um den Verpackungs-Kram.</span>
+                    <span data-i18n="hero.title">Du verkaufst nach Europa.</span><br>
+                    <span class="text-[var(--accent)]" data-i18n="hero.title_highlight">Wir kümmern uns um den Verpackungs-Kram.</span>
                 </h1>
-                <p class="mt-6 text-xl max-w-2xl leading-relaxed text-[var(--text-dim)]">
+                <p class="mt-6 text-xl max-w-2xl leading-relaxed text-[var(--text-dim)]" data-i18n="hero.subtitle">
                     Neue Verpackungspflichten in jedem Land – unterschiedliche Regeln, Register und Behörden.
                     <strong class="text-[var(--text)]">Pack2EU bündelt Registrierung, Bevollmächtigte, Verpackungsdaten und Meldungen in einer einzigen Plattform.</strong>
                 </p>
                 <div class="mt-8 flex flex-wrap gap-4">
-                    <button onclick="openOnboarding()" class="btn-primary text-lg px-8 py-4">Jetzt loslegen →</button>
-                    <button onclick="scrollToSection('how-it-works')" class="btn-outline text-lg px-8 py-4">So funktioniert's</button>
+                    <button onclick="openOnboarding()" class="btn-primary text-lg px-8 py-4" data-i18n="hero.cta">Jetzt loslegen →</button>
+                    <button onclick="scrollToSection('how-it-works')" class="btn-outline text-lg px-8 py-4" data-i18n="hero.secondary_cta">So funktioniert's</button>
                 </div>
-                <div class="mt-8 flex items-center gap-6 text-sm text-[var(--text-dim)]">
-                    <span>✅ Keine versteckten Kosten</span>
-                    <span>✅ Monatlich kündbar</span>
-                    <span>✅ Für Kleinst- & Kleinunternehmen</span>
+                <div class="mt-8 flex items-center gap-6 text-sm text-[var(--text-dim)] flex-wrap">
+                    <span data-i18n="hero.feature1">✅ Keine versteckten Kosten</span>
+                    <span data-i18n="hero.feature2">✅ Monatlich kündbar</span>
+                    <span data-i18n="hero.feature3">✅ Für Kleinst- & Kleinunternehmen</span>
                 </div>
             </div>
         </div>
@@ -138,9 +181,9 @@
     <section class="py-16 bg-white border-y border-[var(--border)]">
         <div class="container">
             <div class="max-w-3xl mx-auto text-center">
-                <span class="tag mb-4">Das Problem</span>
-                <h2 class="text-3xl font-bold mb-6">EU-Verpackungsrecht ist kompliziert – und für kleine Shops kaum bezahlbar.</h2>
-                <p class="text-lg text-[var(--text-dim)] leading-relaxed">
+                <span class="tag mb-4" data-i18n="problem.tag">Das Problem</span>
+                <h2 class="text-3xl font-bold mb-6" data-i18n="problem.title">EU-Verpackungsrecht ist kompliziert – und für kleine Shops kaum bezahlbar.</h2>
+                <p class="text-lg text-[var(--text-dim)] leading-relaxed" data-i18n="problem.text">
                     Frankreich funktioniert anders als Deutschland. Italien anders als Frankreich.
                     Eine Kanzlei oder spezialisierte Beratung für jedes einzelne Land kann für einen kleinen Shop
                     wirtschaftlich schlicht keinen Sinn ergeben.
@@ -148,18 +191,18 @@
                 <div class="grid md:grid-cols-3 gap-6 mt-10 text-left">
                     <div class="card">
                         <div class="text-3xl mb-3">📋</div>
-                        <h4 class="font-bold">Unterschiedliche Registrierungen</h4>
-                        <p class="text-sm text-[var(--text-dim)]">Jedes EU-Land hat sein eigenes Register und eigene Regeln.</p>
+                        <h4 class="font-bold" data-i18n="problem.card1.title">Unterschiedliche Registrierungen</h4>
+                        <p class="text-sm text-[var(--text-dim)]" data-i18n="problem.card1.text">Jedes EU-Land hat sein eigenes Register und eigene Regeln.</p>
                     </div>
                     <div class="card">
                         <div class="text-3xl mb-3">🏛️</div>
-                        <h4 class="font-bold">Bevollmächtigte vor Ort</h4>
-                        <p class="text-sm text-[var(--text-dim)]">Ohne lokalen Ansprechpartner keine Registrierung in den meisten Ländern.</p>
+                        <h4 class="font-bold" data-i18n="problem.card2.title">Bevollmächtigte vor Ort</h4>
+                        <p class="text-sm text-[var(--text-dim)]" data-i18n="problem.card2.text">Ohne lokalen Ansprechpartner keine Registrierung in den meisten Ländern.</p>
                     </div>
                     <div class="card">
                         <div class="text-3xl mb-3">💶</div>
-                        <h4 class="font-bold">Hohe Einzelkosten</h4>
-                        <p class="text-sm text-[var(--text-dim)]">Kanzleien verlangen oft 300–800 € pro Land und Jahr.</p>
+                        <h4 class="font-bold" data-i18n="problem.card3.title">Hohe Einzelkosten</h4>
+                        <p class="text-sm text-[var(--text-dim)]" data-i18n="problem.card3.text">Kanzleien verlangen oft 300–800 € pro Land und Jahr.</p>
                     </div>
                 </div>
             </div>
@@ -167,210 +210,113 @@
     </section>
 
     <!-- ============================================================
-    LÖSUNG / HOW IT WORKS (4 SCHRITTE IN EINER REIHE)
+    LÖSUNG / HOW IT WORKS
     ============================================================ -->
     <section id="how-it-works" class="py-20">
         <div class="container">
             <div class="text-center max-w-2xl mx-auto mb-12">
-                <span class="tag mb-4">So funktioniert's</span>
-                <h2 class="text-3xl font-bold">Einmal erfassen. Pack2EU weiß, was daraus wird.</h2>
-                <p class="text-[var(--text-dim)] mt-4">Vom Produkt bis zur Meldung – ein durchgängiger Prozess.</p>
+                <span class="tag mb-4" data-i18n="how.tag">So funktioniert's</span>
+                <h2 class="text-3xl font-bold" data-i18n="how.title">Einmal erfassen. Pack2EU weiß, was daraus wird.</h2>
+                <p class="text-[var(--text-dim)] mt-4" data-i18n="how.subtitle">Vom Produkt bis zur Meldung – ein durchgängiger Prozess.</p>
             </div>
-
-            <!-- 4 Schritte in einer Reihe -->
             <div class="step-grid">
-                <!-- Schritt 1 -->
                 <div class="step-card">
                     <div class="step-number">1</div>
-                    <h4>Produkt & Verpackung hinterlegen</h4>
-                    <p>Karton, Kunststoff, Füllmaterial – einmal eingeben, immer verfügbar.</p>
+                    <h4 data-i18n="how.step1.title">Produkt & Verpackung hinterlegen</h4>
+                    <p data-i18n="how.step1.text">Karton, Kunststoff, Füllmaterial – einmal eingeben, immer verfügbar.</p>
                 </div>
-                <!-- Schritt 2 -->
                 <div class="step-card">
                     <div class="step-number">2</div>
-                    <h4>Shop verbinden</h4>
-                    <p>Shopify, Etsy oder manuelle Eingabe – Bestellungen werden automatisch erfasst.</p>
+                    <h4 data-i18n="how.step2.title">Shop verbinden</h4>
+                    <p data-i18n="how.step2.text">Shopify, Etsy oder manuelle Eingabe – Bestellungen werden automatisch erfasst.</p>
                 </div>
-                <!-- Schritt 3 -->
                 <div class="step-card">
                     <div class="step-number">3</div>
-                    <h4>Länderspezifische Anforderungen</h4>
-                    <p>Pack2EU prüft, was in Frankreich, Italien, Spanien & Co. benötigt wird.</p>
+                    <h4 data-i18n="how.step3.title">Länderspezifische Anforderungen</h4>
+                    <p data-i18n="how.step3.text">Pack2EU prüft, was in Frankreich, Italien, Spanien & Co. benötigt wird.</p>
                 </div>
-                <!-- Schritt 4 -->
                 <div class="step-card">
                     <div class="step-number done">✓</div>
-                    <h4 style="color:var(--success);">Erledigt</h4>
-                    <p>Registrierung, Bevollmächtigter, Meldung – alles im Griff.</p>
+                    <h4 style="color:var(--success);" data-i18n="how.step4.title">Erledigt</h4>
+                    <p data-i18n="how.step4.text">Registrierung, Bevollmächtigter, Meldung – alles im Griff.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ============================================================
-    STATUS / DASHBOARD VORSCHAU
-    ============================================================ -->
-    <section class="py-16 bg-white border-y border-[var(--border)]">
-        <div class="container">
-            <div class="max-w-4xl mx-auto">
-                <div class="text-center mb-10">
-                    <span class="tag mb-4">Dein Status</span>
-                    <h2 class="text-3xl font-bold">Was muss ich wo tun? <span class="text-[var(--accent)]">Auf einen Blick.</span></h2>
-                    <p class="text-[var(--text-dim)] mt-4">Pack2EU zeigt dir genau, in welchem Land was noch zu erledigen ist.</p>
-                </div>
-                <div class="card p-6 md:p-8">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
-                        <div>
-                            <div class="font-bold text-lg">🇩🇪 Deutschland</div>
-                            <div class="text-sm text-[var(--text-dim)]">LUCID / ZSVR</div>
-                            <div class="text-xs text-[var(--success)]">Nummer: DE123456789 ✓</div>
-                        </div>
-                        <div>
-                            <span class="status-dot green"></span>
-                            <span class="font-medium text-[var(--success)]">Erledigt ✓</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
-                        <div>
-                            <div class="font-bold text-lg">🇫🇷 Frankreich</div>
-                            <div class="text-sm text-[var(--text-dim)]">ADEME / CITEO</div>
-                            <div class="text-xs text-[var(--warning)]">In Bearbeitung</div>
-                        </div>
-                        <div>
-                            <span class="status-dot yellow"></span>
-                            <span class="font-medium text-[var(--warning)]">In Bearbeitung</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
-                        <div>
-                            <div class="font-bold text-lg">🇮🇹 Italien</div>
-                            <div class="text-sm text-[var(--text-dim)]">CONAI</div>
-                            <div class="text-xs text-[var(--danger)]">Handlung erforderlich</div>
-                        </div>
-                        <div>
-                            <span class="status-dot red"></span>
-                            <span class="font-medium text-[var(--danger)]">Handlung erforderlich</span>
-                            <button onclick="openOnboarding()" class="ml-4 text-sm text-[var(--accent)] font-medium hover:underline">Jetzt erledigen →</button>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="font-bold text-lg">🇪🇸 Spanien</div>
-                            <div class="text-sm text-[var(--text-dim)]">Ecoembes</div>
-                            <div class="text-xs text-[var(--text-dim)]">Noch nicht eingerichtet</div>
-                        </div>
-                        <div>
-                            <span class="status-dot gray"></span>
-                            <span class="font-medium text-[var(--text-dim)]">Noch nicht eingerichtet</span>
-                            <button onclick="openOnboarding()" class="ml-4 text-sm text-[var(--accent)] font-medium hover:underline">Jetzt erledigen →</button>
-                        </div>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-[var(--border)] text-xs text-[var(--text-dim)]">
-                        💡 Hast du bereits eine EPR-Nummer? Du kannst sie bei der Aktivierung des Landes eintragen.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ============================================================
-    BEVOLLMÄCHTIGTER
-    ============================================================ -->
-    <section class="py-16">
-        <div class="container">
-            <div class="grid md:grid-cols-2 gap-12 items-center">
-                <div>
-                    <span class="tag mb-4">Bevollmächtigter</span>
-                    <h2 class="text-3xl font-bold mb-4">Sie brauchen einen Ansprechpartner vor Ort?</h2>
-                    <p class="text-lg text-[var(--text-dim)] leading-relaxed mb-6">
-                        Kein Problem. <strong>Pack2EU vermittelt Ihnen den erforderlichen Bevollmächtigten im jeweiligen Zielland</strong> und verwaltet die notwendigen Unterlagen zentral über Ihr Konto.
-                    </p>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3"><span class="text-[var(--success)]">✓</span> <span>🇫🇷 Frankreich – Bevollmächtigter aktiv</span></div>
-                        <div class="flex items-center gap-3"><span class="text-[var(--success)]">✓</span> <span>🇮🇹 Italien – Bevollmächtigter aktiv</span></div>
-                        <div class="flex items-center gap-3"><span class="text-[var(--text-dim)]">○</span> <span>🇪🇸 Spanien – noch nicht aktiviert</span></div>
-                    </div>
-                    <button onclick="openOnboarding()" class="btn-primary mt-6">Jetzt aktivieren →</button>
-                </div>
-                <div class="card p-8 bg-[var(--primary)] text-white">
-                    <div class="text-4xl mb-4">🏛️</div>
-                    <h3 class="text-xl font-bold mb-2">Was ist ein Bevollmächtigter?</h3>
-                    <p class="text-sm opacity-80 leading-relaxed">
-                        In den meisten EU-Ländern muss ein ausländischer Händler einen lokalen Ansprechpartner benennen,
-                        der für die Einhaltung der Verpackungsvorschriften haftet.
-                        Pack2EU organisiert diesen Partner für Sie – in jedem Land, in das Sie verkaufen.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ============================================================
-    PREISE
+    PREISE (MIT ALLEN 3 PAKETEN AUF GLEICHER HÖHE)
     ============================================================ -->
     <section id="pricing" class="py-20 bg-white border-y border-[var(--border)]">
         <div class="container">
             <div class="text-center max-w-2xl mx-auto mb-12">
-                <span class="tag mb-4">Preise</span>
-                <h2 class="text-3xl font-bold">Compliance, die zu deinem Shop passt.</h2>
-                <p class="text-[var(--text-dim)] mt-4">Keine versteckten Kosten – du zahlst nur das Paket, das du brauchst.</p>
+                <span class="tag mb-4" data-i18n="pricing.tag">Preise</span>
+                <h2 class="text-3xl font-bold" data-i18n="pricing.title">Compliance, die zu deinem Shop passt.</h2>
+                <p class="text-[var(--text-dim)] mt-4" data-i18n="pricing.subtitle">Keine versteckten Kosten – du zahlst nur das Paket, das du brauchst.</p>
             </div>
-<div class="pricing-grid">
-    <!-- S -->
-    <div class="pricing-card" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-            <div class="tag mb-2">Starter</div>
-            <div class="price">15<span>€ / Monat</span></div>
-            <div class="text-sm text-[var(--text-dim)]">oder 119 € / Jahr</div>
-            <ul class="features" style="min-height: 240px;">
-                <li>Max. 2 EU-Länder</li>
-                <li>Bis 50 kg Verpackung/Jahr</li>
-                <li>Basis-Dashboard</li>
-                <li>Manuelle Eingabe</li>
-                <li>Bestehende Nummer importieren</li>
-            </ul>
-        </div>
-        <button onclick="selectPlan('S')" class="btn-outline w-full justify-center" style="margin-top: auto;">Starten</button>
-    </div>
 
-    <!-- M -->
-    <div class="pricing-card popular" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-            <div class="tag mb-2" style="background:var(--primary); color:white;">Bestseller</div>
-            <div class="price">49<span>€ / Monat</span></div>
-            <div class="text-sm text-[var(--text-dim)]">oder 449 € / Jahr</div>
-            <ul class="features" style="min-height: 240px;">
-                <li>Alle 27 EU-Länder</li>
-                <li>Bis 1.000 kg Verpackung/Jahr</li>
-                <li>Shop-Integration (Shopify/Etsy)</li>
-                <li>Notar-Integration (Österreich)</li>
-                <li>Bevollmächtigten-Netzwerk inkl.</li>
-                <li>Bestehende Nummer importieren</li>
-            </ul>
-        </div>
-        <button onclick="selectPlan('M')" class="btn-primary w-full justify-center" style="margin-top: auto;">Jetzt starten</button>
-    </div>
+            <div class="pricing-grid">
+                <!-- S -->
+                <div class="pricing-card">
+                    <div>
+                        <div class="tag mb-2" data-i18n="pricing.starter.name">Starter</div>
+                        <div class="price">15<span>€ / <span data-i18n="pricing.month">Monat</span></span></div>
+                        <div class="text-sm text-[var(--text-dim)]" data-i18n="pricing.starter.price_year">oder 119 € / Jahr</div>
+                        <ul class="features">
+                            <li data-i18n="pricing.starter.feature1">Max. 2 EU-Länder</li>
+                            <li data-i18n="pricing.starter.feature2">Bis 50 kg Verpackung/Jahr</li>
+                            <li data-i18n="pricing.starter.feature3">Basis-Dashboard</li>
+                            <li data-i18n="pricing.starter.feature4">Manuelle Eingabe</li>
+                            <li data-i18n="pricing.starter.feature5">Bestehende Nummer importieren</li>
+                        </ul>
+                    </div>
+                    <button onclick="selectPlan('S')" class="btn-outline btn-block" data-i18n="pricing.starter.cta">Starten</button>
+                </div>
 
-    <!-- L -->
-    <div class="pricing-card" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-            <div class="tag mb-2" style="color:var(--accent)">Enterprise</div>
-            <div class="price">149<span>€ / Monat</span></div>
-            <div class="text-sm text-[var(--text-dim)]">oder 1.299 € / Jahr</div>
-            <ul class="features" style="min-height: 240px;">
-                <li>Alle 27 EU-Länder</li>
-                <li>Unbegrenztes Gewicht</li>
-                <li>Audit-Berichte (CSV/PDF)</li>
-                <li>Dedizierter Support</li>
-                <li>API-Zugang</li>
-                <li>Bestehende Nummer importieren</li>
-            </ul>
-        </div>
-        <button onclick="selectPlan('L')" class="btn-outline w-full justify-center" style="margin-top: auto;">Starten</button>
-    </div>
-</div>
+                <!-- M -->
+                <div class="pricing-card popular">
+                    <div>
+                        <div class="tag mb-2" style="background:var(--primary); color:white;" data-i18n="pricing.bestseller.name">Bestseller</div>
+                        <div class="price">49<span>€ / <span data-i18n="pricing.month">Monat</span></span></div>
+                        <div class="text-sm text-[var(--text-dim)]" data-i18n="pricing.bestseller.price_year">oder 449 € / Jahr</div>
+                        <ul class="features">
+                            <li data-i18n="pricing.bestseller.feature1">Alle 27 EU-Länder</li>
+                            <li data-i18n="pricing.bestseller.feature2">Bis 1.000 kg Verpackung/Jahr</li>
+                            <li data-i18n="pricing.bestseller.feature3">Shop-Integration (Shopify/Etsy)</li>
+                            <li data-i18n="pricing.bestseller.feature4">Notar-Integration (Österreich)</li>
+                            <li data-i18n="pricing.bestseller.feature5">Bevollmächtigten-Netzwerk inkl.</li>
+                            <li data-i18n="pricing.bestseller.feature6">Bestehende Nummer importieren</li>
+                        </ul>
+                    </div>
+                    <button onclick="selectPlan('M')" class="btn-primary btn-block" data-i18n="pricing.bestseller.cta">Jetzt starten</button>
+                </div>
 
-            <div class="text-center mt-8 text-sm text-[var(--text-dim)]">
+                <!-- L -->
+                <div class="pricing-card">
+                    <div>
+                        <div class="tag mb-2" style="color:var(--accent);" data-i18n="pricing.enterprise.name">Enterprise</div>
+                        <div class="price">149<span>€ / <span data-i18n="pricing.month">Monat</span></span></div>
+                        <div class="text-sm text-[var(--text-dim)]" data-i18n="pricing.enterprise.price_year">oder 1.299 € / Jahr</div>
+                        <ul class="features">
+                            <li data-i18n="pricing.enterprise.feature1">Alle 27 EU-Länder</li>
+                            <li data-i18n="pricing.enterprise.feature2">Unbegrenztes Gewicht</li>
+                            <li data-i18n="pricing.enterprise.feature3">Audit-Berichte (CSV/PDF)</li>
+                            <li data-i18n="pricing.enterprise.feature4">Dedizierter Support</li>
+                            <li data-i18n="pricing.enterprise.feature5">API-Zugang</li>
+                            <li data-i18n="pricing.enterprise.feature6">Bestehende Nummer importieren</li>
+                        </ul>
+                    </div>
+                    <button onclick="selectPlan('L')" class="btn-primary btn-block" data-i18n="pricing.enterprise.cta">Starten</button>
+                </div>
+            </div>
+
+            <!-- ⭐ KOSTENTRANSPARENZ -->
+            <div class="text-center mt-6 text-xs text-[var(--text-dim)] border-t border-[var(--border)] pt-4 max-w-2xl mx-auto">
+                <span data-i18n="pricing.disclaimer">Die Gebühren für Bevollmächtigte, Notare und Recycling-Systeme (Öko-Steuer) werden 1:1 an die Dienstleister weitergegeben und sind nicht im Abo-Preis enthalten.</span>
+                <a href="#" class="text-[var(--accent)] hover:underline" data-i18n="pricing.more">Mehr erfahren →</a>
+            </div>
+
+            <div class="text-center mt-4 text-sm text-[var(--text-dim)]" data-i18n="pricing.eco_note">
                 💡 Die reinen Recycling-Gebühren (Öko-Steuer) werden 1:1 an die Behörden weitergegeben – kein Aufschlag durch Pack2EU.
             </div>
         </div>
@@ -381,36 +327,35 @@
     ============================================================ -->
     <section class="py-20 mesh">
         <div class="container text-center max-w-2xl mx-auto">
-            <span class="tag mb-4">Loslegen</span>
-            <h2 class="text-3xl font-bold mb-4">Pack2EU in 5 Minuten einrichten.</h2>
-            <p class="text-lg text-[var(--text-dim)] mb-8">
-                Keine Anmeldung, kein Vertrag – einfach starten, Shop verbinden, Länder auswählen.
-            </p>
-            <button onclick="openOnboarding()" class="btn-primary text-lg px-10 py-4">Jetzt loslegen →</button>
-            <div class="mt-6 flex justify-center gap-6 text-sm text-[var(--text-dim)]">
-                <span>💳 Keine versteckten Kosten</span>
-                <span>🔄 Monatlich kündbar</span>
-                <span>⚡ 5 Minuten Einrichtung</span>
+            <span class="tag mb-4" data-i18n="cta.tag">Loslegen</span>
+            <h2 class="text-3xl font-bold mb-4" data-i18n="cta.title">Pack2EU in 5 Minuten einrichten.</h2>
+            <p class="text-lg text-[var(--text-dim)] mb-8" data-i18n="cta.text">Keine Anmeldung, kein Vertrag – einfach starten, Shop verbinden, Länder auswählen.</p>
+            <button onclick="openOnboarding()" class="btn-primary text-lg px-10 py-4" data-i18n="cta.button">Jetzt loslegen →</button>
+            <div class="mt-6 flex justify-center gap-6 text-sm text-[var(--text-dim)] flex-wrap">
+                <span data-i18n="cta.feature1">💳 Keine versteckten Kosten</span>
+                <span data-i18n="cta.feature2">🔄 Monatlich kündbar</span>
+                <span data-i18n="cta.feature3">⚡ 5 Minuten Einrichtung</span>
             </div>
         </div>
     </section>
 
     <!-- ============================================================
-    FOOTER
+    FOOTER (MIT DISCLAIMER)
     ============================================================ -->
     <footer class="border-t border-[var(--border)] py-8 bg-white">
-    <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
-        <div>© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops</div>
-        <div class="flex gap-6">
-            <button onclick="openLegalPopup('agb')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer">AGB</button>
-            <button onclick="openLegalPopup('datenschutz')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer">Datenschutz</button>
-            <button onclick="openLegalPopup('impressum')" class="hover:text-[var(--text)] transition bg-transparent border-none cursor-pointer">Impressum</button>
+        <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[var(--text-dim)]">
+            <div data-i18n="footer.copyright">© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops</div>
+            <div class="flex gap-6 flex-wrap">
+                <a href="#" class="hover:text-[var(--text)] transition" data-i18n="footer.agb">AGB</a>
+                <a href="#" class="hover:text-[var(--text)] transition" data-i18n="footer.privacy">Datenschutz</a>
+                <a href="#" class="hover:text-[var(--text)] transition" data-i18n="footer.impressum">Impressum</a>
+                <button onclick="openRepresentativeLogin()" class="hover:text-[var(--text)] transition font-mono" data-i18n="footer.representative">🏛️ Für Beauftragte</button>
+            </div>
+            <div class="text-xs text-center" data-i18n="footer.disclaimer">
+                ⚠️ Hinweis: Pack2EU ist ein Dienstleister, kein Rechtsanwalt. Die Plattform ersetzt keine individuelle Rechtsberatung.
+            </div>
         </div>
-        <div class="text-xs">
-            ⚠️ Hinweis: Pack2EU ist ein Dienstleister, kein Rechtsanwalt. Die Plattform ersetzt keine individuelle Rechtsberatung.
-        </div>
-    </div>
-</footer>
+    </footer>
 
     <!-- ============================================================
     ONBOARDING MODAL
@@ -418,17 +363,14 @@
     <div id="onboarding-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold">Jetzt starten</h3>
+                <h3 class="text-2xl font-bold" data-i18n="onboarding.title">Jetzt starten</h3>
                 <button onclick="closeOnboarding()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
-
             <div id="onb-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
-
             <div id="onb-register-fields">
-                <label class="block font-medium text-sm mb-1">Firmenname *</label>
+                <label class="block font-medium text-sm mb-1" data-i18n="onboarding.company">Firmenname *</label>
                 <input id="onb-company" type="text" placeholder="z. B. Little Acorn Baby Co." class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-
-                <label class="block font-medium text-sm mb-1">Herkunftsland *</label>
+                <label class="block font-medium text-sm mb-1" data-i18n="onboarding.country">Herkunftsland *</label>
                 <select id="onb-country" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
                     <option value="DE">🇩🇪 Deutschland</option>
                     <option value="AT">🇦🇹 Österreich</option>
@@ -444,25 +386,18 @@
                     <option value="RU">🇷🇺 Russland</option>
                     <option value="ZA">🇿🇦 Südafrika</option>
                 </select>
-
-                <label class="block font-medium text-sm mb-1">E-Mail *</label>
+                <label class="block font-medium text-sm mb-1" data-i18n="onboarding.email">E-Mail *</label>
                 <input id="onb-email" type="email" placeholder="max@littleacorn.de" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-
-                <label class="block font-medium text-sm mb-1">Passwort *</label>
+                <label class="block font-medium text-sm mb-1" data-i18n="onboarding.password">Passwort *</label>
                 <input id="onb-password" type="password" placeholder="••••••••" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
             </div>
-
             <div class="flex items-center gap-3 mb-6">
                 <input type="checkbox" id="onb-agb" class="accent-[var(--primary)]" checked>
-                <label for="onb-agb" class="text-sm">Ich akzeptiere die <a href="#" class="text-[var(--accent)] underline">AGB</a> und <a href="#" class="text-[var(--accent)] underline">Datenschutzerklärung</a>.</label>
+                <label for="onb-agb" class="text-sm" data-i18n="onboarding.agb">Ich akzeptiere die AGB und Datenschutzerklärung.</label>
             </div>
-
-            <button id="onb-submit-btn" onclick="onbSubmit()" class="btn-primary w-full justify-center py-3">Kostenlos starten →</button>
-
+            <button id="onb-submit-btn" onclick="onbSubmit()" class="btn-primary w-full justify-center py-3" data-i18n="onboarding.submit">Kostenlos starten →</button>
             <div class="text-center mt-4">
-                <button onclick="onbToggleMode()" class="text-sm text-[var(--text-dim)] hover:text-[var(--text)] underline bg-transparent border-none cursor-pointer">
-                    Bereits Kunde? Einloggen
-                </button>
+                <button onclick="onbToggleMode()" class="text-sm text-[var(--text-dim)] hover:text-[var(--text)] underline bg-transparent border-none cursor-pointer" data-i18n="onboarding.login_link">Bereits Kunde? Einloggen</button>
             </div>
         </div>
     </div>
@@ -473,19 +408,17 @@
     <div id="representative-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-8">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold">🏛️ Für Beauftragte</h3>
+                <h3 class="text-2xl font-bold" data-i18n="rep.title">🏛️ Für Beauftragte</h3>
                 <button onclick="closeRepresentativeLogin()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
             <div id="rep-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
-            <label>E-Mail *</label>
+            <label data-i18n="rep.email">E-Mail *</label>
             <input id="rep-email" type="email" placeholder="ihre@kanzlei.de" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-            <label>Passwort *</label>
+            <label data-i18n="rep.password">Passwort *</label>
             <input id="rep-password" type="password" placeholder="••••••••" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-            <button onclick="representativeLogin()" class="btn-primary w-full justify-center py-3">Einloggen →</button>
+            <button onclick="representativeLogin()" class="btn-primary w-full justify-center py-3" data-i18n="rep.login">Einloggen →</button>
             <div class="text-center mt-4">
-                <button onclick="openRepresentativeRegister()" class="text-sm text-[var(--accent)] hover:underline bg-transparent border-none cursor-pointer">
-                    Noch kein Konto? Jetzt registrieren
-                </button>
+                <button onclick="openRepresentativeRegister()" class="text-sm text-[var(--accent)] hover:underline bg-transparent border-none cursor-pointer" data-i18n="rep.register_link">Noch kein Konto? Jetzt registrieren</button>
             </div>
         </div>
     </div>
@@ -496,15 +429,15 @@
     <div id="representative-register-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-8">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold">🏛️ Beauftragter werden</h3>
+                <h3 class="text-2xl font-bold" data-i18n="rep.register_title">🏛️ Beauftragter werden</h3>
                 <button onclick="closeRepresentativeRegister()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
             <div id="rep-reg-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
-            <label>Name *</label>
+            <label data-i18n="rep.name">Name *</label>
             <input id="rep-reg-name" placeholder="Max Mustermann" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-            <label>Kanzlei / Unternehmen *</label>
+            <label data-i18n="rep.company">Kanzlei / Unternehmen *</label>
             <input id="rep-reg-company" placeholder="Mustermann Rechtsanwälte" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-            <label>Land *</label>
+            <label data-i18n="rep.country">Land *</label>
             <select id="rep-reg-country" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
                 <option value="FR">🇫🇷 Frankreich</option>
                 <option value="DE">🇩🇪 Deutschland</option>
@@ -516,27 +449,296 @@
                 <option value="PL">🇵🇱 Polen</option>
                 <option value="SE">🇸🇪 Schweden</option>
             </select>
-            <label>E-Mail *</label>
+            <label data-i18n="rep.email">E-Mail *</label>
             <input id="rep-reg-email" type="email" placeholder="ihre@kanzlei.de" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-            <label>Passwort *</label>
+            <label data-i18n="rep.password">Passwort *</label>
             <input id="rep-reg-password" type="password" placeholder="••••••••" class="w-full border border-[var(--border)] rounded-lg px-4 py-3 mb-4">
-            <button onclick="representativeRegister()" class="btn-primary w-full justify-center py-3">Registrieren →</button>
+            <button onclick="representativeRegister()" class="btn-primary w-full justify-center py-3" data-i18n="rep.register_submit">Registrieren →</button>
         </div>
     </div>
 
     <!-- ============================================================
-    JAVASCRIPT
+    JAVASCRIPT (alles in einer Datei)
     ============================================================ -->
     <script>
         // ============================================================
-        // 1. API KONFIGURATION
+        // 0. ÜBERSETZUNGEN (DE + EN)
+        // ============================================================
+        const translations = {
+            de: {
+                // Top-Bar
+                'badge': 'Live',
+                'nav.pricing': 'Preise',
+                'nav.how_it_works': 'So funktioniert\'s',
+                'nav.start': 'Jetzt starten →',
+                'nav.representative': '🏛️ Für Beauftragte',
+                // Hero
+                'hero.badge': '✔️ Für Shopify, Etsy & Co.',
+                'hero.price': 'ab 15 €',
+                'hero.month': 'Monat',
+                'hero.title': 'Du verkaufst nach Europa.',
+                'hero.title_highlight': 'Wir kümmern uns um den Verpackungs-Kram.',
+                'hero.subtitle': 'Neue Verpackungspflichten in jedem Land – unterschiedliche Regeln, Register und Behörden. Pack2EU bündelt Registrierung, Bevollmächtigte, Verpackungsdaten und Meldungen in einer einzigen Plattform.',
+                'hero.cta': 'Jetzt loslegen →',
+                'hero.secondary_cta': 'So funktioniert\'s',
+                'hero.feature1': '✅ Keine versteckten Kosten',
+                'hero.feature2': '✅ Monatlich kündbar',
+                'hero.feature3': '✅ Für Kleinst- & Kleinunternehmen',
+                // Problem
+                'problem.tag': 'Das Problem',
+                'problem.title': 'EU-Verpackungsrecht ist kompliziert – und für kleine Shops kaum bezahlbar.',
+                'problem.text': 'Frankreich funktioniert anders als Deutschland. Italien anders als Frankreich. Eine Kanzlei oder spezialisierte Beratung für jedes einzelne Land kann für einen kleinen Shop wirtschaftlich schlicht keinen Sinn ergeben.',
+                'problem.card1.title': 'Unterschiedliche Registrierungen',
+                'problem.card1.text': 'Jedes EU-Land hat sein eigenes Register und eigene Regeln.',
+                'problem.card2.title': 'Bevollmächtigte vor Ort',
+                'problem.card2.text': 'Ohne lokalen Ansprechpartner keine Registrierung in den meisten Ländern.',
+                'problem.card3.title': 'Hohe Einzelkosten',
+                'problem.card3.text': 'Kanzleien verlangen oft 300–800 € pro Land und Jahr.',
+                // How it works
+                'how.tag': 'So funktioniert\'s',
+                'how.title': 'Einmal erfassen. Pack2EU weiß, was daraus wird.',
+                'how.subtitle': 'Vom Produkt bis zur Meldung – ein durchgängiger Prozess.',
+                'how.step1.title': 'Produkt & Verpackung hinterlegen',
+                'how.step1.text': 'Karton, Kunststoff, Füllmaterial – einmal eingeben, immer verfügbar.',
+                'how.step2.title': 'Shop verbinden',
+                'how.step2.text': 'Shopify, Etsy oder manuelle Eingabe – Bestellungen werden automatisch erfasst.',
+                'how.step3.title': 'Länderspezifische Anforderungen',
+                'how.step3.text': 'Pack2EU prüft, was in Frankreich, Italien, Spanien & Co. benötigt wird.',
+                'how.step4.title': 'Erledigt',
+                'how.step4.text': 'Registrierung, Bevollmächtigter, Meldung – alles im Griff.',
+                // Pricing
+                'pricing.tag': 'Preise',
+                'pricing.title': 'Compliance, die zu deinem Shop passt.',
+                'pricing.subtitle': 'Keine versteckten Kosten – du zahlst nur das Paket, das du brauchst.',
+                'pricing.month': 'Monat',
+                'pricing.starter.name': 'Starter',
+                'pricing.starter.price_year': 'oder 119 € / Jahr',
+                'pricing.starter.feature1': 'Max. 2 EU-Länder',
+                'pricing.starter.feature2': 'Bis 50 kg Verpackung/Jahr',
+                'pricing.starter.feature3': 'Basis-Dashboard',
+                'pricing.starter.feature4': 'Manuelle Eingabe',
+                'pricing.starter.feature5': 'Bestehende Nummer importieren',
+                'pricing.starter.cta': 'Starten',
+                'pricing.bestseller.name': 'Bestseller',
+                'pricing.bestseller.price_year': 'oder 449 € / Jahr',
+                'pricing.bestseller.feature1': 'Alle 27 EU-Länder',
+                'pricing.bestseller.feature2': 'Bis 1.000 kg Verpackung/Jahr',
+                'pricing.bestseller.feature3': 'Shop-Integration (Shopify/Etsy)',
+                'pricing.bestseller.feature4': 'Notar-Integration (Österreich)',
+                'pricing.bestseller.feature5': 'Bevollmächtigten-Netzwerk inkl.',
+                'pricing.bestseller.feature6': 'Bestehende Nummer importieren',
+                'pricing.bestseller.cta': 'Jetzt starten',
+                'pricing.enterprise.name': 'Enterprise',
+                'pricing.enterprise.price_year': 'oder 1.299 € / Jahr',
+                'pricing.enterprise.feature1': 'Alle 27 EU-Länder',
+                'pricing.enterprise.feature2': 'Unbegrenztes Gewicht',
+                'pricing.enterprise.feature3': 'Audit-Berichte (CSV/PDF)',
+                'pricing.enterprise.feature4': 'Dedizierter Support',
+                'pricing.enterprise.feature5': 'API-Zugang',
+                'pricing.enterprise.feature6': 'Bestehende Nummer importieren',
+                'pricing.enterprise.cta': 'Starten',
+                'pricing.disclaimer': 'Die Gebühren für Bevollmächtigte, Notare und Recycling-Systeme (Öko-Steuer) werden 1:1 an die Dienstleister weitergegeben und sind nicht im Abo-Preis enthalten.',
+                'pricing.more': 'Mehr erfahren →',
+                'pricing.eco_note': '💡 Die reinen Recycling-Gebühren (Öko-Steuer) werden 1:1 an die Behörden weitergegeben – kein Aufschlag durch Pack2EU.',
+                // CTA
+                'cta.tag': 'Loslegen',
+                'cta.title': 'Pack2EU in 5 Minuten einrichten.',
+                'cta.text': 'Keine Anmeldung, kein Vertrag – einfach starten, Shop verbinden, Länder auswählen.',
+                'cta.button': 'Jetzt loslegen →',
+                'cta.feature1': '💳 Keine versteckten Kosten',
+                'cta.feature2': '🔄 Monatlich kündbar',
+                'cta.feature3': '⚡ 5 Minuten Einrichtung',
+                // Footer
+                'footer.copyright': '© 2026 Pack2EU — Verpackungs-Compliance für kleine Online-Shops',
+                'footer.agb': 'AGB',
+                'footer.privacy': 'Datenschutz',
+                'footer.impressum': 'Impressum',
+                'footer.representative': '🏛️ Für Beauftragte',
+                'footer.disclaimer': '⚠️ Hinweis: Pack2EU ist ein Dienstleister, kein Rechtsanwalt. Die Plattform ersetzt keine individuelle Rechtsberatung.',
+                // Onboarding
+                'onboarding.title': 'Jetzt starten',
+                'onboarding.company': 'Firmenname *',
+                'onboarding.country': 'Herkunftsland *',
+                'onboarding.email': 'E-Mail *',
+                'onboarding.password': 'Passwort *',
+                'onboarding.agb': 'Ich akzeptiere die AGB und Datenschutzerklärung.',
+                'onboarding.submit': 'Kostenlos starten →',
+                'onboarding.login_link': 'Bereits Kunde? Einloggen',
+                // Representative
+                'rep.title': '🏛️ Für Beauftragte',
+                'rep.email': 'E-Mail *',
+                'rep.password': 'Passwort *',
+                'rep.login': 'Einloggen →',
+                'rep.register_link': 'Noch kein Konto? Jetzt registrieren',
+                'rep.register_title': '🏛️ Beauftragter werden',
+                'rep.name': 'Name *',
+                'rep.company': 'Kanzlei / Unternehmen *',
+                'rep.country': 'Land *',
+                'rep.register_submit': 'Registrieren →',
+            },
+            en: {
+                // Top-Bar
+                'badge': 'Live',
+                'nav.pricing': 'Pricing',
+                'nav.how_it_works': 'How it works',
+                'nav.start': 'Start now →',
+                'nav.representative': '🏛️ For Representatives',
+                // Hero
+                'hero.badge': '✔️ For Shopify, Etsy & Co.',
+                'hero.price': 'from 15 €',
+                'hero.month': 'Month',
+                'hero.title': 'You sell to Europe.',
+                'hero.title_highlight': 'We take care of the packaging stuff.',
+                'hero.subtitle': 'New packaging obligations in every country – different rules, registers and authorities. Pack2EU combines registration, authorized representatives, packaging data and reporting in a single platform.',
+                'hero.cta': 'Get started →',
+                'hero.secondary_cta': 'How it works',
+                'hero.feature1': '✅ No hidden fees',
+                'hero.feature2': '✅ Cancel monthly',
+                'hero.feature3': '✅ For small & micro businesses',
+                // Problem
+                'problem.tag': 'The Problem',
+                'problem.title': 'EU packaging law is complicated – and hardly affordable for small shops.',
+                'problem.text': 'France works differently than Germany. Italy differently than France. A law firm or specialized consultancy for each individual country simply doesn\'t make economic sense for a small shop.',
+                'problem.card1.title': 'Different registrations',
+                'problem.card1.text': 'Every EU country has its own register and its own rules.',
+                'problem.card2.title': 'Local representatives',
+                'problem.card2.text': 'Without a local contact person, registration is not possible in most countries.',
+                'problem.card3.title': 'High individual costs',
+                'problem.card3.text': 'Law firms often charge €300-800 per country per year.',
+                // How it works
+                'how.tag': 'How it works',
+                'how.title': 'Enter once. Pack2EU knows what to do.',
+                'how.subtitle': 'From product to reporting – a seamless process.',
+                'how.step1.title': 'Add product & packaging',
+                'how.step1.text': 'Cardboard, plastic, filling material – enter once, always available.',
+                'how.step2.title': 'Connect your shop',
+                'how.step2.text': 'Shopify, Etsy or manual entry – orders are automatically recorded.',
+                'how.step3.title': 'Country-specific requirements',
+                'how.step3.text': 'Pack2EU checks what is needed in France, Italy, Spain & Co.',
+                'how.step4.title': 'Done',
+                'how.step4.text': 'Registration, representative, reporting – all under control.',
+                // Pricing
+                'pricing.tag': 'Pricing',
+                'pricing.title': 'Compliance that fits your shop.',
+                'pricing.subtitle': 'No hidden fees – you only pay for the package you need.',
+                'pricing.month': 'Month',
+                'pricing.starter.name': 'Starter',
+                'pricing.starter.price_year': 'or 119 € / year',
+                'pricing.starter.feature1': 'Max. 2 EU countries',
+                'pricing.starter.feature2': 'Up to 50 kg packaging/year',
+                'pricing.starter.feature3': 'Basic Dashboard',
+                'pricing.starter.feature4': 'Manual entry',
+                'pricing.starter.feature5': 'Import existing number',
+                'pricing.starter.cta': 'Start',
+                'pricing.bestseller.name': 'Bestseller',
+                'pricing.bestseller.price_year': 'or 449 € / year',
+                'pricing.bestseller.feature1': 'All 27 EU countries',
+                'pricing.bestseller.feature2': 'Up to 1.000 kg packaging/year',
+                'pricing.bestseller.feature3': 'Shop Integration (Shopify/Etsy)',
+                'pricing.bestseller.feature4': 'Notary Integration (Austria)',
+                'pricing.bestseller.feature5': 'Representative network included',
+                'pricing.bestseller.feature6': 'Import existing number',
+                'pricing.bestseller.cta': 'Start now',
+                'pricing.enterprise.name': 'Enterprise',
+                'pricing.enterprise.price_year': 'or 1.299 € / year',
+                'pricing.enterprise.feature1': 'All 27 EU countries',
+                'pricing.enterprise.feature2': 'Unlimited weight',
+                'pricing.enterprise.feature3': 'Audit reports (CSV/PDF)',
+                'pricing.enterprise.feature4': 'Dedicated support',
+                'pricing.enterprise.feature5': 'API access',
+                'pricing.enterprise.feature6': 'Import existing number',
+                'pricing.enterprise.cta': 'Start',
+                'pricing.disclaimer': 'Fees for representatives, notaries and recycling systems (eco-tax) are passed on 1:1 to the service providers and are not included in the subscription price.',
+                'pricing.more': 'Learn more →',
+                'pricing.eco_note': '💡 The pure recycling fees (eco-tax) are passed on 1:1 to the authorities – no markup by Pack2EU.',
+                // CTA
+                'cta.tag': 'Get started',
+                'cta.title': 'Set up Pack2EU in 5 minutes.',
+                'cta.text': 'No registration, no contract – just start, connect your shop, select countries.',
+                'cta.button': 'Get started →',
+                'cta.feature1': '💳 No hidden fees',
+                'cta.feature2': '🔄 Cancel monthly',
+                'cta.feature3': '⚡ 5 min setup',
+                // Footer
+                'footer.copyright': '© 2026 Pack2EU — Packaging compliance for small online shops',
+                'footer.agb': 'Terms',
+                'footer.privacy': 'Privacy',
+                'footer.impressum': 'Imprint',
+                'footer.representative': '🏛️ For Representatives',
+                'footer.disclaimer': '⚠️ Note: Pack2EU is a service provider, not a lawyer. The platform does not replace individual legal advice.',
+                // Onboarding
+                'onboarding.title': 'Get started',
+                'onboarding.company': 'Company name *',
+                'onboarding.country': 'Country of origin *',
+                'onboarding.email': 'Email *',
+                'onboarding.password': 'Password *',
+                'onboarding.agb': 'I accept the terms and privacy policy.',
+                'onboarding.submit': 'Start for free →',
+                'onboarding.login_link': 'Already a customer? Log in',
+                // Representative
+                'rep.title': '🏛️ For Representatives',
+                'rep.email': 'Email *',
+                'rep.password': 'Password *',
+                'rep.login': 'Log in →',
+                'rep.register_link': 'No account yet? Register now',
+                'rep.register_title': '🏛️ Become a Representative',
+                'rep.name': 'Name *',
+                'rep.company': 'Law firm / Company *',
+                'rep.country': 'Country *',
+                'rep.register_submit': 'Register →',
+            }
+        };
+
+        // ============================================================
+        // 1. SPRACHE
+        // ============================================================
+        let currentLang = 'de';
+
+        function detectLanguage() {
+            // 1. Gespeicherte Sprache aus localStorage
+            const savedLang = localStorage.getItem('pack2eu_lang');
+            if (savedLang && translations[savedLang]) return savedLang;
+
+            // 2. Browser-Sprache des Nutzers
+            const browserLang = navigator.language || navigator.userLanguage;
+            const langMap = {
+                'de': 'de', 'de-DE': 'de', 'de-AT': 'de', 'de-CH': 'de',
+                'en': 'en', 'en-US': 'en', 'en-GB': 'en',
+                'fr': 'fr', 'fr-FR': 'fr',
+                'it': 'it', 'it-IT': 'it',
+                'es': 'es', 'es-ES': 'es'
+            };
+            const detected = langMap[browserLang] || 'de';
+            return detected;
+        }
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            localStorage.setItem('pack2eu_lang', lang);
+            
+            // Alle Elemente mit data-i18n aktualisieren
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key] !== undefined) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+            
+            // Dropdown aktualisieren
+            document.getElementById('lang-select').value = lang;
+            
+            // HTML lang-Attribut setzen
+            document.documentElement.lang = lang;
+        }
+
+        // ============================================================
+        // 2. API KONFIGURATION
         // ============================================================
         const API_BASE = window.PACK2EU_API_BASE || 'https://ack2eu-backend.onrender.com/api';
 
         function getToken() { return localStorage.getItem('pack2eu_token'); }
-
         function setToken(t) { localStorage.setItem('pack2eu_token', t); }
-
         function clearToken() { localStorage.removeItem('pack2eu_token'); }
 
         async function api(path, options = {}) {
@@ -554,7 +756,7 @@
         }
 
         // ============================================================
-        // 2. ONBOARDING
+        // 3. ONBOARDING
         // ============================================================
         let selectedPlan = 'M';
         let onbMode = 'register';
@@ -583,7 +785,9 @@
         function applyOnbMode() {
             const isLogin = onbMode === 'login';
             document.getElementById('onb-register-fields').style.display = isLogin ? 'none' : 'block';
-            document.getElementById('onb-submit-btn').textContent = isLogin ? 'Einloggen →' : 'Kostenlos starten →';
+            document.getElementById('onb-submit-btn').textContent = isLogin ? 
+                (translations[currentLang]?.['onboarding.login'] || 'Einloggen →') : 
+                (translations[currentLang]?.['onboarding.submit'] || 'Kostenlos starten →');
         }
 
         function showOnbError(msg) {
@@ -625,7 +829,7 @@
         }
 
         // ============================================================
-        // 3. BEAUFTRAGTE
+        // 4. BEAUFTRAGTE
         // ============================================================
         function openRepresentativeLogin() {
             document.getElementById('representative-modal').style.display = 'flex';
@@ -700,316 +904,28 @@
         }
 
         // ============================================================
-        // 4. HELPER
+        // 5. HELPER
         // ============================================================
         function scrollToSection(id) {
             document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
         }
 
         // ============================================================
-        // 5. INIT
+        // 6. INIT
         // ============================================================
-        console.log('🚀 Pack2EU geladen!');
-
-        if (getToken()) {
-            window.location.href = '/dashboard.html';
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sprache erkennen und setzen
+            const detectedLang = detectLanguage();
+            setLanguage(detectedLang);
+            
+            console.log('🚀 Pack2EU geladen! Sprache:', detectedLang);
+            
+            // Token prüfen – wenn vorhanden, direkt zum Dashboard
+            if (getToken()) {
+                window.location.href = '/dashboard.html';
+            }
+        });
     </script>
-    <!-- ============================================================
-RECHTLICHE TEXTE (AGB, Datenschutz, Impressum)
-============================================================ -->
-<div id="agb-content" style="display:none;">
-<h2>Allgemeine Geschäftsbedingungen (AGB)</h2>
-<p><strong>1. Geltungsbereich</strong><br>
-Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Dienstleistungen der Holzmann Consulting, Inhaber: Dominik Holzmann, via Aldesago 154, CH-6974 Aldesago, Schweiz (nachfolgend „Anbieter“) gegenüber dem Kunden.</p>
-<p><strong>2. Vertragsgegenstand</strong><br>
-Der Anbieter betreibt die Plattform „Pack2EU“ (https://pack2eu.netlify.app), die Händlern eine automatisierte Unterstützung bei der Erfüllung von Verpackungs-Compliance-Pflichten in der EU (PPWR) anbietet. Der Kunde erhält Zugang zur Software-Plattform und zu den darauf angebotenen Dienstleistungen.</p>
-<p><strong>3. Vertragsschluss</strong><br>
-Der Vertrag kommt durch die Registrierung des Kunden auf der Plattform und die anschließende Zahlung des ausgewählten Paketpreises zustande. Der Kunde akzeptiert mit der Registrierung diese AGB.</p>
-<p><strong>4. Leistungen & Preise</strong><br>
-Die Leistungen und Preise ergeben sich aus der jeweils gültigen Preisübersicht auf der Plattform. Alle Preise verstehen sich in Euro zuzüglich der gesetzlichen Mehrwertsteuer (falls anwendbar). Die reinen Recycling-Gebühren (Öko-Steuer) werden als Durchlaufposten 1:1 an die Behörden weitergegeben und sind nicht Bestandteil der Paketgebühren.</p>
-<p><strong>5. Laufzeit & Kündigung</strong><br>
-Die Vertragslaufzeit beträgt bei monatlicher Zahlung einen Monat und verlängert sich automatisch, wenn nicht bis zum Monatsende gekündigt wird. Bei jährlicher Zahlung beträgt die Mindestlaufzeit 12 Monate. Die Kündigung muss schriftlich oder per E-Mail an info@holzmann-consulting.com erfolgen.</p>
-<p><strong>6. Haftungsausschluss</strong><br>
-Der Anbieter übernimmt keine Gewähr für die rechtliche Richtigkeit der vom Kunden eingegebenen Daten und der daraus generierten Meldungen. Der Kunde ist für die Richtigkeit seiner Angaben selbst verantwortlich. Die Plattform ersetzt keine individuelle Rechtsberatung.</p>
-<p><strong>7. Datenschutz</strong><br>
-Die Erhebung, Verarbeitung und Nutzung personenbezogener Daten erfolgt gemäß unserer Datenschutzerklärung und den anwendbaren gesetzlichen Bestimmungen (insbesondere DSGVO und Schweizer Datenschutzgesetz).</p>
-<p><strong>8. Salvatorische Klausel</strong><br>
-Sollten einzelne Bestimmungen dieser AGB unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Anstelle der unwirksamen Bestimmung tritt diejenige Regelung, die dem wirtschaftlichen Zweck am nächsten kommt.</p>
-<p><strong>9. Anwendbares Recht & Gerichtsstand</strong><br>
-Es gilt das Recht der Schweizerischen Eidgenossenschaft unter Ausschluss des UN-Kaufrechts. Gerichtsstand ist Lugano, Schweiz.</p>
-<p><strong>10. Kontakt</strong><br>
-Holzmann Consulting<br>
-Inhaber: Dominik Holzmann<br>
-via Aldesago 154, CH-6974 Aldesago<br>
-E-Mail: info@holzmann-consulting.com<br>
-Telefon: +49 176 61874040</p>
-</div>
-
-<div id="datenschutz-content" style="display:none;">
-<h2>Datenschutzerklärung</h2>
-<p><strong>1. Verantwortlicher</strong><br>
-Verantwortlicher für die Datenverarbeitung auf dieser Plattform ist:<br>
-Holzmann Consulting<br>
-Inhaber: Dominik Holzmann<br>
-via Aldesago 154, CH-6974 Aldesago<br>
-E-Mail: info@holzmann-consulting.com<br>
-Telefon: +49 176 61874040</p>
-<p><strong>2. Erhebung und Speicherung personenbezogener Daten</strong><br>
-Bei der Registrierung und Nutzung unserer Plattform erheben wir folgende Daten:<br>
-• Firmenname, Rechtsform, Adresse<br>
-• E-Mail-Adresse, Telefonnummer<br>
-• USt-ID, Steuernummer<br>
-• Länderspezifische Steuer-IDs (SIREN, Partita IVA, NIF etc.)<br>
-• Verpackungsdaten (Materialien, Gewichte, Mengen)<br>
-• Zahlungsinformationen (über Stripe, wir speichern keine Kartendaten)</p>
-<p><strong>3. Zweck der Datenverarbeitung</strong><br>
-Die Datenverarbeitung erfolgt zum Zwecke der Vertragsabwicklung, der Bereitstellung der Compliance-Dienste, der Rechnungsstellung und der Kommunikation mit dem Kunden. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
-<p><strong>4. Weitergabe von Daten</strong><br>
-Eine Weitergabe Ihrer Daten erfolgt nur an:<br>
-• Partner-Beauftragte (Authorized Representatives) im jeweiligen Zielland zur Erfüllung der gesetzlichen Pflichten<br>
-• Stripe (Zahlungsabwicklung)<br>
-• Behörden (im Rahmen der gesetzlichen Meldepflichten)<br>
-• Hosting-Dienstleister (Render, Netlify)</p>
-<p><strong>5. Speicherdauer</strong><br>
-Wir speichern Ihre Daten, solange der Vertrag besteht und darüber hinaus für die gesetzliche Aufbewahrungsfrist von 10 Jahren gemäß steuerrechtlicher Vorschriften.</p>
-<p><strong>6. Rechte der betroffenen Personen</strong><br>
-Sie haben jederzeit das Recht auf:<br>
-• Auskunft über Ihre gespeicherten Daten<br>
-• Berichtigung unrichtiger Daten<br>
-• Löschung Ihrer Daten (sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen)<br>
-• Einschränkung der Verarbeitung<br>
-• Datenübertragbarkeit<br>
-• Widerspruch gegen die Verarbeitung<br>
-• Beschwerde bei der zuständigen Datenschutzbehörde</p>
-<p><strong>7. Hosting & Server</strong><br>
-Unsere Plattform wird auf Servern von Render und Netlify in der EU gehostet. Eine Übermittlung personenbezogener Daten in Drittstaaten erfolgt nur im Rahmen der gesetzlichen Zulässigkeit.</p>
-<p><strong>8. Cookies</strong><br>
-Wir verwenden ausschließlich technisch notwendige Cookies zur Aufrechterhaltung der Session (Login-Status). Es werden keine Tracking-Cookies oder Analyse-Tools eingesetzt.</p>
-<p><strong>9. Kontakt</strong><br>
-Bei Fragen zum Datenschutz wenden Sie sich bitte an: info@holzmann-consulting.com</p>
-</div>
-
-<div id="impressum-content" style="display:none;">
-<h2>Impressum</h2>
-<p><strong>Angaben gemäß § 5 TMG und Art. 13 DSGVO</strong></p>
-<p><strong>Betreiber der Plattform „Pack2EU“:</strong><br>
-Holzmann Consulting<br>
-Inhaber: Dominik Holzmann<br>
-via Aldesago 154<br>
-CH-6974 Aldesago<br>
-Schweiz</p>
-<p><strong>Kontakt:</strong><br>
-Telefon: +49 176 61874040<br>
-E-Mail: info@holzmann-consulting.com</p>
-<p><strong>Verantwortlich für den Inhalt:</strong><br>
-Dominik Holzmann (Anschrift wie oben)</p>
-<p><strong>Plattform:</strong><br>
-Pack2EU – Verpackungs-Compliance für kleine Online-Shops<br>
-URL: https://pack2eu.netlify.app</p>
-<p><strong>Hosting:</strong><br>
-Frontend: Netlify Inc., 44 Montgomery Street, Suite 300, San Francisco, CA 94104, USA<br>
-Backend: Render Technologies Inc., 750 9th Ave, Suite 200, San Francisco, CA 94103, USA<br>
-Datenbank: SQLite (lokal auf Render-Servern)</p>
-<p><strong>Zahlungsabwicklung:</strong><br>
-Stripe Payments Europe Ltd., 1 Grand Canal Street Lower, Grand Canal Dock, Dublin 2, Ireland</p>
-<p><strong>Rechtliche Hinweise:</strong><br>
-1. Die Plattform ist ein Dienstleister, kein Rechtsanwalt.<br>
-2. Die Nutzung der Plattform ersetzt keine individuelle Rechtsberatung.<br>
-3. Für die Richtigkeit der vom Kunden eingegebenen Daten ist der Kunde selbst verantwortlich.<br>
-4. Haftung für Inhalte: Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen.</p>
-<p><strong>Haftung für Links:</strong><br>
-Unsere Seite enthält Links zu externen Websites, auf deren Inhalte wir keinen Einfluss haben. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.</p>
-<p><strong>Urheberrecht:</strong><br>
-Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem Schweizer Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers.</p>
-<p><strong>Streitschlichtung:</strong><br>
-Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie im Impressum. Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
-</div>
-
-<!-- ============================================================
-RECHTLICHE POP-UPS (Überlagerung)
-============================================================ -->
-<div id="legal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:20px;">
-    <div style="background:white; border-radius:16px; max-width:700px; width:100%; max-height:90vh; overflow-y:auto; padding:40px; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
-        <button onclick="closeLegalPopup()" style="position:sticky; top:0; float:right; background:none; border:none; font-size:28px; cursor:pointer; color:#64748B; z-index:10;">✕</button>
-        <div id="legal-content"></div>
-    </div>
-</div>
-        <!-- ============================================================
-    ALLES ANDERE (deine bestehenden Sachen)
-    ============================================================ -->
-    <!-- Ende des bestehenden Inhalts -->
-
-
-    <!-- ============================================================
-    RECHTLICHE TEXTE (AGB, Datenschutz, Impressum)
-    ============================================================ -->
-    <div id="agb-content" style="display:none;">
-        ... AGB-Text ...
-    </div>
-    <div id="datenschutz-content" style="display:none;">
-        ... Datenschutz-Text ...
-    </div>
-    <div id="impressum-content" style="display:none;">
-        ... Impressum-Text ...
-    </div>
-
-
-   <!-- ============================================================
-RECHTLICHE TEXTE (AGB, Datenschutz, Impressum)
-============================================================ -->
-<div id="agb-content" style="display:none;">
-<h2>Allgemeine Geschäftsbedingungen (AGB)</h2>
-<p><strong>1. Geltungsbereich</strong><br>
-Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Dienstleistungen der Holzmann Consulting, Inhaber: Dominik Holzmann, via Aldesago 154, CH-6974 Aldesago, Schweiz (nachfolgend „Anbieter“) gegenüber dem Kunden.</p>
-<p><strong>2. Vertragsgegenstand</strong><br>
-Der Anbieter betreibt die Plattform „Pack2EU“ (https://pack2eu.netlify.app), die Händlern eine automatisierte Unterstützung bei der Erfüllung von Verpackungs-Compliance-Pflichten in der EU (PPWR) anbietet. Der Kunde erhält Zugang zur Software-Plattform und zu den darauf angebotenen Dienstleistungen.</p>
-<p><strong>3. Vertragsschluss</strong><br>
-Der Vertrag kommt durch die Registrierung des Kunden auf der Plattform und die anschließende Zahlung des ausgewählten Paketpreises zustande. Der Kunde akzeptiert mit der Registrierung diese AGB.</p>
-<p><strong>4. Leistungen & Preise</strong><br>
-Die Leistungen und Preise ergeben sich aus der jeweils gültigen Preisübersicht auf der Plattform. Alle Preise verstehen sich in Euro zuzüglich der gesetzlichen Mehrwertsteuer (falls anwendbar). Die reinen Recycling-Gebühren (Öko-Steuer) werden als Durchlaufposten 1:1 an die Behörden weitergegeben und sind nicht Bestandteil der Paketgebühren.</p>
-<p><strong>5. Laufzeit & Kündigung</strong><br>
-Die Vertragslaufzeit beträgt bei monatlicher Zahlung einen Monat und verlängert sich automatisch, wenn nicht bis zum Monatsende gekündigt wird. Bei jährlicher Zahlung beträgt die Mindestlaufzeit 12 Monate. Die Kündigung muss schriftlich oder per E-Mail an info@holzmann-consulting.com erfolgen.</p>
-<p><strong>6. Haftungsausschluss</strong><br>
-Der Anbieter übernimmt keine Gewähr für die rechtliche Richtigkeit der vom Kunden eingegebenen Daten und der daraus generierten Meldungen. Der Kunde ist für die Richtigkeit seiner Angaben selbst verantwortlich. Die Plattform ersetzt keine individuelle Rechtsberatung.</p>
-<p><strong>7. Datenschutz</strong><br>
-Die Erhebung, Verarbeitung und Nutzung personenbezogener Daten erfolgt gemäß unserer Datenschutzerklärung und den anwendbaren gesetzlichen Bestimmungen (insbesondere DSGVO und Schweizer Datenschutzgesetz).</p>
-<p><strong>8. Salvatorische Klausel</strong><br>
-Sollten einzelne Bestimmungen dieser AGB unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Anstelle der unwirksamen Bestimmung tritt diejenige Regelung, die dem wirtschaftlichen Zweck am nächsten kommt.</p>
-<p><strong>9. Anwendbares Recht & Gerichtsstand</strong><br>
-Es gilt das Recht der Schweizerischen Eidgenossenschaft unter Ausschluss des UN-Kaufrechts. Gerichtsstand ist Lugano, Schweiz.</p>
-<p><strong>10. Kontakt</strong><br>
-Holzmann Consulting<br>
-Inhaber: Dominik Holzmann<br>
-via Aldesago 154, CH-6974 Aldesago<br>
-E-Mail: info@holzmann-consulting.com<br>
-Telefon: +49 176 61874040</p>
-</div>
-
-<div id="datenschutz-content" style="display:none;">
-<h2>Datenschutzerklärung</h2>
-<p><strong>1. Verantwortlicher</strong><br>
-Verantwortlicher für die Datenverarbeitung auf dieser Plattform ist:<br>
-Holzmann Consulting<br>
-Inhaber: Dominik Holzmann<br>
-via Aldesago 154, CH-6974 Aldesago<br>
-E-Mail: info@holzmann-consulting.com<br>
-Telefon: +49 176 61874040</p>
-<p><strong>2. Erhebung und Speicherung personenbezogener Daten</strong><br>
-Bei der Registrierung und Nutzung unserer Plattform erheben wir folgende Daten:<br>
-• Firmenname, Rechtsform, Adresse<br>
-• E-Mail-Adresse, Telefonnummer<br>
-• USt-ID, Steuernummer<br>
-• Länderspezifische Steuer-IDs (SIREN, Partita IVA, NIF etc.)<br>
-• Verpackungsdaten (Materialien, Gewichte, Mengen)<br>
-• Zahlungsinformationen (über Stripe, wir speichern keine Kartendaten)</p>
-<p><strong>3. Zweck der Datenverarbeitung</strong><br>
-Die Datenverarbeitung erfolgt zum Zwecke der Vertragsabwicklung, der Bereitstellung der Compliance-Dienste, der Rechnungsstellung und der Kommunikation mit dem Kunden. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
-<p><strong>4. Weitergabe von Daten</strong><br>
-Eine Weitergabe Ihrer Daten erfolgt nur an:<br>
-• Partner-Beauftragte (Authorized Representatives) im jeweiligen Zielland zur Erfüllung der gesetzlichen Pflichten<br>
-• Stripe (Zahlungsabwicklung)<br>
-• Behörden (im Rahmen der gesetzlichen Meldepflichten)<br>
-• Hosting-Dienstleister (Render, Netlify)</p>
-<p><strong>5. Speicherdauer</strong><br>
-Wir speichern Ihre Daten, solange der Vertrag besteht und darüber hinaus für die gesetzliche Aufbewahrungsfrist von 10 Jahren gemäß steuerrechtlicher Vorschriften.</p>
-<p><strong>6. Rechte der betroffenen Personen</strong><br>
-Sie haben jederzeit das Recht auf:<br>
-• Auskunft über Ihre gespeicherten Daten<br>
-• Berichtigung unrichtiger Daten<br>
-• Löschung Ihrer Daten (sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen)<br>
-• Einschränkung der Verarbeitung<br>
-• Datenübertragbarkeit<br>
-• Widerspruch gegen die Verarbeitung<br>
-• Beschwerde bei der zuständigen Datenschutzbehörde</p>
-<p><strong>7. Hosting & Server</strong><br>
-Unsere Plattform wird auf Servern von Render und Netlify in der EU gehostet. Eine Übermittlung personenbezogener Daten in Drittstaaten erfolgt nur im Rahmen der gesetzlichen Zulässigkeit.</p>
-<p><strong>8. Cookies</strong><br>
-Wir verwenden ausschließlich technisch notwendige Cookies zur Aufrechterhaltung der Session (Login-Status). Es werden keine Tracking-Cookies oder Analyse-Tools eingesetzt.</p>
-<p><strong>9. Kontakt</strong><br>
-Bei Fragen zum Datenschutz wenden Sie sich bitte an: info@holzmann-consulting.com</p>
-</div>
-
-<div id="impressum-content" style="display:none;">
-<h2>Impressum</h2>
-<p><strong>Angaben gemäß § 5 TMG und Art. 13 DSGVO</strong></p>
-<p><strong>Betreiber der Plattform „Pack2EU“:</strong><br>
-Holzmann Consulting<br>
-Inhaber: Dominik Holzmann<br>
-via Aldesago 154<br>
-CH-6974 Aldesago<br>
-Schweiz</p>
-<p><strong>Kontakt:</strong><br>
-Telefon: +49 176 61874040<br>
-E-Mail: info@holzmann-consulting.com</p>
-<p><strong>Verantwortlich für den Inhalt:</strong><br>
-Dominik Holzmann (Anschrift wie oben)</p>
-<p><strong>Plattform:</strong><br>
-Pack2EU – Verpackungs-Compliance für kleine Online-Shops<br>
-URL: https://pack2eu.netlify.app</p>
-<p><strong>Hosting:</strong><br>
-Frontend: Netlify Inc., 44 Montgomery Street, Suite 300, San Francisco, CA 94104, USA<br>
-Backend: Render Technologies Inc., 750 9th Ave, Suite 200, San Francisco, CA 94103, USA<br>
-Datenbank: SQLite (lokal auf Render-Servern)</p>
-<p><strong>Zahlungsabwicklung:</strong><br>
-Stripe Payments Europe Ltd., 1 Grand Canal Street Lower, Grand Canal Dock, Dublin 2, Ireland</p>
-<p><strong>Rechtliche Hinweise:</strong><br>
-1. Die Plattform ist ein Dienstleister, kein Rechtsanwalt.<br>
-2. Die Nutzung der Plattform ersetzt keine individuelle Rechtsberatung.<br>
-3. Für die Richtigkeit der vom Kunden eingegebenen Daten ist der Kunde selbst verantwortlich.<br>
-4. Haftung für Inhalte: Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen.</p>
-<p><strong>Haftung für Links:</strong><br>
-Unsere Seite enthält Links zu externen Websites, auf deren Inhalte wir keinen Einfluss haben. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.</p>
-<p><strong>Urheberrecht:</strong><br>
-Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem Schweizer Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers.</p>
-<p><strong>Streitschlichtung:</strong><br>
-Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie im Impressum. Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
-</div>
-
-<!-- ============================================================
-RECHTLICHE POP-UPS (Überlagerung)
-============================================================ -->
-<div id="legal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:20px;">
-    <div style="background:white; border-radius:16px; max-width:700px; width:100%; max-height:90vh; overflow-y:auto; padding:40px; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
-        <button onclick="closeLegalPopup()" style="position:sticky; top:0; float:right; background:none; border:none; font-size:28px; cursor:pointer; color:#64748B; z-index:10;">✕</button>
-        <div id="legal-content"></div>
-    </div>
-</div>
-
-<script>
-// ============================================================
-// RECHTLICHE POP-UPS
-// ============================================================
-function openLegalPopup(type) {
-    var overlay = document.getElementById('legal-overlay');
-    var content = document.getElementById('legal-content');
-
-    var contents = {
-        'agb': document.getElementById('agb-content').innerHTML,
-        'datenschutz': document.getElementById('datenschutz-content').innerHTML,
-        'impressum': document.getElementById('impressum-content').innerHTML
-    };
-
-    content.innerHTML = contents[type] || 'Inhalt nicht gefunden.';
-    overlay.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeLegalPopup() {
-    document.getElementById('legal-overlay').style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-
-// Pop-up schließen, wenn außerhalb geklickt wird
-document.getElementById('legal-overlay').addEventListener('click', function(e) {
-    if (e.target === this) closeLegalPopup();
-});
-
-// ESC-Taste schließt Pop-up
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeLegalPopup();
-});
-</script>
 
 </body>
 </html>
