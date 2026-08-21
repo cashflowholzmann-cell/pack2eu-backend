@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 router.use(requireAuth);
 
 // ============================================================
-// LAPPA-API REGISTRIERUNG (PROVIDER-AGNOSTISCH)
+// LAPPA-API REGISTRIERUNG (MOCK)
 // ============================================================
 router.post('/register', async (req, res) => {
     const { country, packaging, existing_number } = req.body;
@@ -22,8 +22,7 @@ router.post('/register', async (req, res) => {
             return res.status(404).json({ error: 'Händler nicht gefunden' });
         }
 
-        // 2. Lappa-API aufrufen (MOCK)
-        // Hier später die echte Lappa-API einbinden
+        // 2. MOCK-Antwort
         const lappaResponse = {
             status: 'success',
             epr_number: `EPR-${country}-${Date.now().toString().slice(-6)}`,
@@ -35,7 +34,7 @@ router.post('/register', async (req, res) => {
 
         console.log('🔍 Lappa-Antwort:', lappaResponse);
 
-        // 3. Aktivierung in der Datenbank AKTUALISIEREN (provider-agnostisch)
+        // 3. Aktivierung in der Datenbank AKTUALISIEREN
         const updateResult = db.prepare(`
             UPDATE activations 
             SET 
@@ -71,7 +70,6 @@ router.post('/register', async (req, res) => {
             console.log('🔍 Neue Aktivierung angelegt');
         }
 
-        // 5. Antwort an Frontend (nur die EPR-Nummer)
         res.json({
             status: lappaResponse.status,
             epr_number: lappaResponse.epr_number,
