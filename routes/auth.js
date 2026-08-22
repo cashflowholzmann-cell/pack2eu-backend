@@ -1,7 +1,7 @@
 const express = require('express');
-const bcrypt = require('bcryptjs'); // ⭐ ACHTUNG: bcryptjs, nicht bcrypt!
+const bcrypt = require('bcryptjs');
 const { z } = require('zod');
-const db = require('../db'); // ⭐ GEÄNDERT: ohne { }!
+const db = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -17,9 +17,10 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   plan: z.enum(['S', 'M', 'L']).default('M'),
+  isEU: z.boolean().optional().default(true), // ⭐ NEU
 });
 
-// ⭐ REGISTRIERUNG
+// ⭐ REGISTRIERUNG – MIT isEU UND originCountry
 router.post('/register', (req, res) => {
   console.log('🔍 Registrierungsversuch:', req.body);
 
@@ -29,35 +30,31 @@ router.post('/register', (req, res) => {
     return res.status(400).json({ error: 'Ungültige Eingabe.', details: parsed.error.flatten() });
   }
 
-  const { companyName, originCountry, contactName, email, password, plan } = parsed.data;
+  const { companyName, originCountry, contactName, email, password, plan, isEU } = parsed.data;
 
   try {
-    // Prüfen, ob E-Mail existiert
     const existing = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
     if (existing) {
       return res.status(409).json({ error: 'E-Mail existiert bereits.' });
     }
 
-    // Passwort hashen
     const passwordHash = bcrypt.hashSync(password, 12);
     
-    // Customer-Nummer generieren
     let customerNumber;
     do {
       customerNumber = generateCustomerNumber();
     } while (db.prepare('SELECT id FROM customers WHERE customer_number = ?').get(customerNumber));
 
-    // Kunden speichern
+    // ⭐ NEU: isEU und originCountry werden gespeichert
     const insert = db.prepare(`
-      INSERT INTO customers (customer_number, company_name, origin_country, contact_name, email, password_hash, plan)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO customers (customer_number, company_name, origin_country, contact_name, email, password_hash, plan, is_eu)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const result = insert.run(customerNumber, companyName, originCountry, contactName || null, email, passwordHash, plan);
+    const result = insert.run(customerNumber, companyName, originCountry, contactName || null, email, passwordHash, plan, isEU ? 1 : 0);
 
     console.log('✅ Kunde registriert:', customerNumber);
 
-    // Kunden abrufen
-    const customer = db.prepare('SELECT id, customer_number, company_name, email, plan FROM customers WHERE id = ?')
+    const customer = db.prepare('SELECT id, customer_number, company_name, origin_country, is_eu, email, plan FROM customers WHERE id = ?')
       .get(result.lastInsertRowid);
     
     const token = signToken(customer);
@@ -84,6 +81,8 @@ router.post('/login', (req, res) => {
       id: customer.id,
       customer_number: customer.customer_number,
       company_name: customer.company_name,
+      origin_country: customer.origin_country, // ⭐ NEU
+      is_eu: customer.is_eu === 1,              // ⭐ NEU
       email: customer.email,
       plan: customer.plan
     }});
@@ -93,13 +92,18 @@ router.post('/login', (req, res) => {
   }
 });
 
-// ⭐ AKTUELLEN BENUTZER ABRUFEN
+// ⭐ AKTUELLEN BENUTZER ABRUFEN – MIT originCountry, isEU, plan
 router.get('/me', requireAuth, (req, res) => {
   try {
-    const customer = db.prepare('SELECT id, customer_number, company_name, email, plan FROM customers WHERE id = ?')
+    const customer = db.prepare('SELECT id, customer_number, company_name, origin_country, is_eu, email, plan FROM customers WHERE id = ?')
       .get(req.customer.sub);
     if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
-    res.json(customer);
+    
+    // ⭐ isEU als boolean zurückgeben
+    res.json({
+      ...customer,
+      is_eu: customer.is_eu === 1
+    });
   } catch (error) {
     console.error('❌ Auth-Fehler:', error);
     res.status(500).json({ error: 'Interner Serverfehler.' });
