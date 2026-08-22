@@ -9,12 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         /* ============================================================
-           DEIN KOMPLETTES BESTEHENDES CSS (UNVERÄNDERT)
+           FARBEN – ANGEPASST AN LANDINGPAGE
            ============================================================ */
         :root {
             --primary: #0A2540;
             --primary-light: #1A3A5C;
-            --accent: #0066FF;
+            --accent: #0A2540;
             --accent-light: #E8F0FE;
             --success: #00B383;
             --warning: #F5A623;
@@ -24,7 +24,7 @@
             --text: #0F172A;
             --text-dim: #64748B;
             --border: #E2E8F0;
-            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --shadow: 0 4px 24px rgba(10,37,64,0.08);
             --radius: 16px;
             --font: 'Inter', -apple-system, sans-serif;
             --mono: 'JetBrains Mono', monospace;
@@ -32,67 +32,365 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-        .btn-primary { background: var(--primary); color: white; font-weight: 600; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; transition: all .15s ease; }
-        .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(10,37,64,0.25); }
-        .btn-outline { background: transparent; color: var(--text); font-weight: 500; padding: 10px 20px; border-radius: 10px; border: 1.5px solid var(--border); cursor: pointer; transition: all .15s ease; }
-        .btn-outline:hover { border-color: var(--text); background: var(--bg); }
-        .btn-accent { background: var(--accent); color: white; font-weight: 600; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; transition: all .15s ease; }
-        .btn-accent:hover { background: #0052CC; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,102,255,0.3); }
-        .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); padding: 24px; }
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+
+        /* ============================================================
+           BUTTONS
+           ============================================================ */
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all .15s ease;
+            font-family: var(--font);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(10,37,64,0.25);
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text);
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            cursor: pointer;
+            transition: all .15s ease;
+            font-family: var(--font);
+        }
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--bg);
+            transform: translateY(-1px);
+        }
+        .btn-accent {
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all .15s ease;
+            font-family: var(--font);
+        }
+        .btn-accent:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(10,37,64,0.25);
+        }
+        .btn-block { width: 100%; justify-content: center; }
+
+        /* ============================================================
+           KARTEN
+           ============================================================ */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            padding: 24px;
+            transition: all .2s ease;
+        }
+        .card:hover { box-shadow: 0 8px 32px rgba(10,37,64,0.10); }
+
+        .stat-card {
+            border-bottom: 3px solid var(--primary);
+            transition: all .2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(10,37,64,0.10);
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        /* ============================================================
+           BADGES
+           ============================================================ */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
         .badge-success { background: #D1FAE5; color: #065F46; }
         .badge-warning { background: #FEF3C7; color: #92400E; }
         .badge-accent { background: var(--accent-light); color: var(--accent); }
         .badge-danger { background: #FEE2E2; color: var(--danger); }
-        .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 4px 12px; border: 1.5px solid var(--border); background: var(--bg); display: inline-block; }
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-        .modal-content { background: white; border-radius: var(--radius); padding: 32px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
-        .material-group { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
-        .remove-btn { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 14px; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .badge-primary { background: var(--primary); color: white; }
+        .badge-grauzone { background: #EBF5FF; color: #1E40AF; }
+        .badge-premium { background: #D1FAE5; color: #065F46; }
+
+        /* ============================================================
+           TABS
+           ============================================================ */
+        .tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all .15s ease;
+            background: transparent;
+            border: none;
+            font-family: var(--font);
+            color: var(--text-dim);
+        }
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        .tab:not(.active):hover {
+            background: var(--accent-light);
+            color: var(--primary);
+        }
+
+        /* ============================================================
+           MODAL
+           ============================================================ */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(10,37,64,0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-content {
+            background: white;
+            border-radius: var(--radius);
+            padding: 32px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(10,37,64,0.2);
+        }
+        .modal-content h3 { color: var(--primary); }
+
+        /* ============================================================
+           FORMULAR
+           ============================================================ */
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+            font-size: 15px;
+            transition: all .15s ease;
+            font-family: var(--font);
+            color: var(--text);
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(10,37,64,0.08);
+        }
+        label {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        /* ============================================================
+           STATUS
+           ============================================================ */
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
         .status-dot.green { background: var(--success); }
         .status-dot.yellow { background: var(--warning); }
         .status-dot.red { background: var(--danger); }
         .status-dot.gray { background: var(--border); }
-        .mesh { background: radial-gradient(circle at 15% 20%, rgba(0,102,255,.04), transparent 40%), radial-gradient(circle at 85% 10%, rgba(10,37,64,.06), transparent 45%); }
-        input, select, textarea { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); font-size: 15px; transition: all .15s ease; font-family: var(--font); }
-        input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0,102,255,0.1); }
-        label { font-weight: 500; font-size: 14px; color: var(--text); margin-bottom: 4px; display: block; }
-        .fade-in { animation: fadeIn .4s ease both; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        .tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all .15s ease; background: transparent; border: none; }
-        .tab.active { background: var(--primary); color: white; }
-        .tab:not(.active) { color: var(--text-dim); }
-        .tab:not(.active):hover { background: var(--border); }
-        .lang-select { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 500; cursor: pointer; }
-        .knowledge-card { background: var(--bg); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); }
-        .knowledge-card .flag { font-size: 2rem; }
-        .knowledge-card .country-name { font-weight: 700; font-size: 1.2rem; }
-        .knowledge-card .register { color: var(--text-dim); font-size: 0.9rem; }
+        .status-dot.blue { background: var(--primary); }
+
+        /* ============================================================
+           MATERIAL-GRUPPE
+           ============================================================ */
+        .material-group {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .remove-btn {
+            color: var(--danger);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .remove-btn:hover { background: #FEE2E2; }
+
+        /* ============================================================
+           WISSENSDATENBANK
+           ============================================================ */
+        .knowledge-card {
+            background: var(--bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
         .knowledge-card ul { list-style: disc; padding-left: 1.2rem; color: var(--text-dim); font-size: 0.9rem; }
         .knowledge-card ul li { margin-bottom: 2px; }
-        .notary-warning { background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 12px; color: #991B1B; margin-top: 8px; }
-        .rep-warning { background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px; padding: 8px 12px; color: #92400E; font-size: 0.85rem; margin-top: 4px; }
-        .we-handle-box { background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
-        .we-handle-box .title { font-weight: 700; color: var(--accent); }
+
+        .we-handle-box {
+            background: var(--accent-light);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+        .we-handle-box .title {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .notary-warning {
+            background: #FEF2F2;
+            border: 1px solid #FCA5A5;
+            border-radius: 8px;
+            padding: 12px;
+            color: #991B1B;
+            margin-top: 8px;
+        }
+        .rep-warning {
+            background: #FFFBEB;
+            border: 1px solid #FCD34D;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #92400E;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        /* ============================================================
+           GRAUZONEN-INFOBOX
+           ============================================================ */
+        .infobox-grauzone {
+            background: #EBF5FF;
+            border: 1px solid #3B82F6;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #1E40AF;
+        }
+        .infobox-grauzone .title { font-weight: 700; }
+        .infobox-premium {
+            background: #D1FAE5;
+            border: 1px solid #10B981;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #065F46;
+        }
+        .infobox-premium .title { font-weight: 700; }
+        .infobox-non-eu {
+            background: #FFFBEB;
+            border: 1px solid #F59E0B;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #92400E;
+        }
+        .infobox-non-eu .title { font-weight: 700; }
+
+        /* ============================================================
+           HEADER
+           ============================================================ */
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .lang-select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: var(--font);
+            color: var(--text);
+        }
+        .lang-select:focus { outline: none; border-color: var(--primary); }
+
+        /* ============================================================
+           COMPLIANCE-AMPEL
+           ============================================================ */
+        .compliance-card {
+            border-left: 4px solid var(--primary);
+        }
+        .compliance-card.warning { border-left-color: var(--warning); }
+        .compliance-card.success { border-left-color: var(--success); }
+        .compliance-card.danger { border-left-color: var(--danger); }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
         @media (max-width: 768px) {
-            .knowledge-grid { grid-template-columns: 1fr; }
+            .container { padding: 0 16px; }
+            .modal-content { padding: 24px; margin: 10px; }
+        }
+
+        .fade-in { animation: fadeIn .4s ease both; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden { display: none !important; }
+        .mesh {
+            background: radial-gradient(circle at 15% 20%, rgba(10,37,64,.03), transparent 40%),
+                        radial-gradient(circle at 85% 10%, rgba(10,37,64,.05), transparent 45%);
         }
     </style>
 </head>
 <body>
 
     <!-- ============================================================
-    TOP BAR (UNVERÄNDERT)
+    TOP BAR
     ============================================================ -->
     <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[var(--border)]">
         <div class="container py-4 flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center text-white font-bold text-lg">P</div>
-                <span class="text-xl font-bold tracking-tight">Pack2EU</span>
+                <div class="logo-icon">P</div>
+                <span class="text-xl font-bold tracking-tight" style="color:var(--primary);">Pack2EU</span>
                 <span class="badge badge-success ml-2" id="plan-badge" data-i18n="plan_badge">Business</span>
             </div>
             <div class="flex items-center gap-4 flex-wrap">
+                <span class="text-sm text-[var(--text-dim)]" id="origin-display" data-i18n="origin_label">📍 Deutschland</span>
                 <select id="lang-select" onchange="setLang(this.value)" class="lang-select">
                     <option value="de">🇩🇪 Deutsch</option>
                     <option value="en">🇬🇧 English</option>
@@ -107,7 +405,7 @@
     </header>
 
     <!-- ============================================================
-    TABS (UNVERÄNDERT)
+    TABS
     ============================================================ -->
     <div class="container py-4">
         <div class="flex gap-2 border-b border-[var(--border)] pb-2 flex-wrap">
@@ -121,34 +419,34 @@
     ============================================================ -->
     <div id="merchant-tab" class="container py-4">
 
-        <!-- Status-Übersicht (UNVERÄNDERT) -->
+        <!-- Status-Übersicht -->
         <div class="grid md:grid-cols-4 gap-4 mb-8">
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="countries-active">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="countries-active">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_countries">Aktive Länder</div>
             </div>
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="skus-count">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="skus-count">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_skus">Produkte mit Verpackung</div>
             </div>
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="orders-count">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="orders-count">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_orders">Bestellungen verarbeitet</div>
             </div>
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="submissions-count">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="submissions-count">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_submissions">Meldungen übermittelt</div>
             </div>
         </div>
 
-        <!-- ⭐ NEU: COMPLIANCE-AMPEL -->
-        <div class="card mb-8 border-l-4 border-l-[var(--warning)]">
+        <!-- ⭐ COMPLIANCE-AMPEL -->
+        <div class="card compliance-card mb-8" id="compliance-card">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h3 class="font-bold text-lg">📊 Compliance-Ampel</h3>
                     <p class="text-sm text-[var(--text-dim)]">Fristen und offene Aufgaben auf einen Blick</p>
                 </div>
-                <div id="compliance-status" class="text-sm font-mono">
+                <div id="compliance-status">
                     <span class="badge badge-success">✅ Alles im Griff</span>
                 </div>
             </div>
@@ -158,10 +456,10 @@
         </div>
 
         <!-- ============================================================
-        LÄNDER-CHECK (UNVERÄNDERT)
+        LÄNDER-CHECK (WISSENSDATENBANK)
         ============================================================ -->
         <div class="card mb-8">
-            <h2 class="text-xl font-bold mb-4" data-i18n="country_knowledge_title">📚 Länder-Check – Was muss ich wo tun?</h2>
+            <h2 class="text-xl font-bold mb-4" style="color:var(--primary);" data-i18n="country_knowledge_title">📚 Länder-Check – Was muss ich wo tun?</h2>
             <p class="text-sm text-[var(--text-dim)] mb-4" data-i18n="country_knowledge_sub">Wähle ein Land aus und erfahre sofort, welche Schritte, Kennzeichnungen und Kosten auf dich zukommen.</p>
             <div class="grid md:grid-cols-3 gap-4">
                 <div>
@@ -189,11 +487,11 @@
         </div>
 
         <!-- ============================================================
-        LÄNDER (ERWEITERT: ANBIETER-AGNOSTISCHE FELDER)
+        LÄNDER – MIT GRAUZONEN-INFOBOX
         ============================================================ -->
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" data-i18n="countries_title">🌍 Meine Länder</h2>
+                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="countries_title">🌍 Meine Länder</h2>
                 <button onclick="openCountryModal()" class="btn-primary text-sm" data-i18n="countries_add">+ Land aktivieren</button>
             </div>
             <div id="country-list" class="space-y-3">
@@ -202,11 +500,11 @@
         </div>
 
         <!-- ============================================================
-        PRODUKTE & VERPACKUNGEN (ERWEITERT: CSV-IMPORT + SHOPIFY-SYNC + LABEL)
+        PRODUKTE & VERPACKUNGEN
         ============================================================ -->
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" data-i18n="skus_title">📦 Produkte & Verpackungen</h2>
+                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="skus_title">📦 Produkte & Verpackungen</h2>
                 <div class="flex flex-wrap gap-2">
                     <button onclick="openSkuModal()" class="btn-primary text-sm" data-i18n="skus_add">+ Neues Produkt</button>
                     <button onclick="openBulkImport()" class="btn-accent text-sm">📥 CSV-Import</button>
@@ -219,22 +517,22 @@
         </div>
 
         <!-- ============================================================
-        VERPACKUNGSSTATISTIK (UNVERÄNDERT)
+        VERPACKUNGSSTATISTIK
         ============================================================ -->
         <div class="card mb-8">
-            <h2 class="text-xl font-bold mb-4" data-i18n="stats_title">📊 Verpackungsstatistik</h2>
+            <h2 class="text-xl font-bold mb-4" style="color:var(--primary);" data-i18n="stats_title">📊 Verpackungsstatistik</h2>
             <div class="grid md:grid-cols-3 gap-4">
-                <div class="card bg-[var(--bg)]">
+                <div class="card bg-[var(--bg)] stat-card">
                     <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_total">Gesamtgewicht</div>
-                    <div class="text-2xl font-bold" id="total-weight">0 kg</div>
+                    <div class="stat-number" id="total-weight">0 kg</div>
                 </div>
-                <div class="card bg-[var(--bg)]">
+                <div class="card bg-[var(--bg)] stat-card">
                     <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_cardboard">Karton / Pappe</div>
-                    <div class="text-2xl font-bold" id="total-cardboard">0 kg</div>
+                    <div class="stat-number" id="total-cardboard">0 kg</div>
                 </div>
-                <div class="card bg-[var(--bg)]">
+                <div class="card bg-[var(--bg)] stat-card">
                     <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_plastic">Kunststoff</div>
-                    <div class="text-2xl font-bold" id="total-plastic">0 kg</div>
+                    <div class="stat-number" id="total-plastic">0 kg</div>
                 </div>
             </div>
             <div class="mt-4">
@@ -246,11 +544,11 @@
         </div>
 
         <!-- ============================================================
-        BESTELLUNGEN (UNVERÄNDERT)
+        BESTELLUNGEN
         ============================================================ -->
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" data-i18n="orders_title">📋 Bestellungen</h2>
+                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="orders_title">📋 Bestellungen</h2>
                 <button onclick="connectShopify()" class="btn-accent text-sm" id="shopify-btn" data-i18n="shopify_connect">🔗 Shopify verbinden</button>
             </div>
             <div id="orders-list" class="space-y-3">
@@ -259,11 +557,11 @@
         </div>
 
         <!-- ============================================================
-        MELDUNGEN (UNVERÄNDERT)
+        MELDUNGEN
         ============================================================ -->
         <div class="card">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" data-i18n="submissions_title">📨 Meine Meldungen</h2>
+                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="submissions_title">📨 Meine Meldungen</h2>
                 <button onclick="createReport()" class="btn-primary text-sm" data-i18n="submissions_add">+ Neue Meldung</button>
             </div>
             <div id="submissions-list" class="space-y-3">
@@ -273,26 +571,26 @@
     </div>
 
     <!-- ============================================================
-    BEAUFTRAGTEN-PORTAL (UNVERÄNDERT)
+    BEAUFTRAGTEN-PORTAL
     ============================================================ -->
     <div id="representative-tab" class="container py-4 hidden">
         <div class="grid md:grid-cols-3 gap-4 mb-8">
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="rep-total-submissions">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="rep-total-submissions">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_total_submissions">Eingehende Meldungen</div>
             </div>
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="rep-pending-submissions">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="rep-pending-submissions">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_pending_submissions">Offen / In Bearbeitung</div>
             </div>
-            <div class="card text-center">
-                <div class="text-2xl font-bold" id="rep-completed-submissions">0</div>
+            <div class="card stat-card text-center">
+                <div class="stat-number" id="rep-completed-submissions">0</div>
                 <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_completed_submissions">Erledigt</div>
             </div>
         </div>
         <div class="card">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" data-i18n="rep_incoming_title">📨 Eingehende Meldungen</h2>
+                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="rep_incoming_title">📨 Eingehende Meldungen</h2>
                 <button onclick="exportRepCSV()" class="btn-primary text-sm" data-i18n="rep_export">📊 CSV-Export</button>
             </div>
             <div id="rep-submissions-list" class="space-y-3">
@@ -302,12 +600,12 @@
     </div>
 
     <!-- ============================================================
-    COUNTRY MODAL (UNVERÄNDERT)
+    COUNTRY MODAL
     ============================================================ -->
     <div id="country-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold" data-i18n="country_modal_title">🌍 Land aktivieren</h3>
+                <h3 class="text-2xl font-bold" style="color:var(--primary);" data-i18n="country_modal_title">🌍 Land aktivieren</h3>
                 <button onclick="closeCountryModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
             <div id="country-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
@@ -334,12 +632,12 @@
     </div>
 
     <!-- ============================================================
-    SKU MODAL (ERWEITERT: LABEL-GENERATOR)
+    SKU MODAL
     ============================================================ -->
     <div id="sku-modal" class="modal-backdrop">
         <div class="modal-content" style="max-width:640px;">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold" data-i18n="sku_modal_title">📦 Produkt & Verpackung</h3>
+                <h3 class="text-2xl font-bold" style="color:var(--primary);" data-i18n="sku_modal_title">📦 Produkt & Verpackung</h3>
                 <button onclick="closeSkuModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
             <div id="sku-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
@@ -382,7 +680,7 @@
             </div>
             <button onclick="addMaterialRow()" class="btn-outline text-sm w-full mt-2" data-i18n="sku_add_material">+ Material hinzufügen</button>
 
-            <!-- ⭐ NEU: LABEL-GENERATOR -->
+            <!-- LABEL-GENERATOR -->
             <div class="mt-6 pt-4 border-t border-[var(--border)]">
                 <h4 class="font-semibold text-sm mb-2">🏷️ Recycling-Kennzeichnung generieren</h4>
                 <div class="flex items-center gap-4">
@@ -402,12 +700,12 @@
     </div>
 
     <!-- ============================================================
-    CSV-IMPORT MODAL (NEU)
+    CSV-IMPORT MODAL
     ============================================================ -->
     <div id="bulk-import-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold">📥 CSV-Massenimport</h3>
+                <h3 class="text-2xl font-bold" style="color:var(--primary);">📥 CSV-Massenimport</h3>
                 <button onclick="closeBulkImport()" class="text-2xl text-[var(--text-dim)]">✕</button>
             </div>
             <p class="text-sm text-[var(--text-dim)] mb-4">Laden Sie eine CSV-Datei mit Ihren Produkten und Verpackungsdaten hoch.</p>
@@ -425,12 +723,12 @@
     </div>
 
     <!-- ============================================================
-    SHOPIFY SYNC MODAL (NEU)
+    SHOPIFY SYNC MODAL
     ============================================================ -->
     <div id="shopify-sync-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold">🔄 Shopify Sync</h3>
+                <h3 class="text-2xl font-bold" style="color:var(--primary);">🔄 Shopify Sync</h3>
                 <button onclick="closeShopifySync()" class="text-2xl text-[var(--text-dim)]">✕</button>
             </div>
             <p class="text-sm text-[var(--text-dim)] mb-4">Synchronisieren Sie Ihre Shopify-Produkte und weisen Sie Verpackungsprofile zu.</p>
@@ -454,11 +752,40 @@
     </div>
 
     <!-- ============================================================
-    JAVASCRIPT (DEIN BESTEHENDER CODE + NEUE FUNKTIONEN)
+    JAVASCRIPT
     ============================================================ -->
     <script>
         // ============================================================
-        // 0. LÄNDER-WISSENSDATENBANK (DEIN BESTEHENDER CODE - KOMPLETT)
+        // 0. EU-LÄNDER (27)
+        // ============================================================
+        const EU_COUNTRIES = [
+            'DE', 'AT', 'BE', 'BG', 'CY', 'CZ', 'DK', 'EE', 'ES', 'FI',
+            'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT',
+            'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'
+        ];
+
+        function isEUCountry(code) {
+            return EU_COUNTRIES.includes(code);
+        }
+
+        // ============================================================
+        // 1. LÄNDER-NAMEN
+        // ============================================================
+        function getCountryName(code) {
+            const names = {
+                'DE': 'Deutschland', 'AT': 'Österreich', 'CH': 'Schweiz',
+                'FR': 'Frankreich', 'IT': 'Italien', 'ES': 'Spanien',
+                'BE': 'Belgien', 'NL': 'Niederlande', 'PL': 'Polen',
+                'SE': 'Schweden', 'DK': 'Dänemark', 'US': 'USA',
+                'CN': 'China', 'GB': 'Großbritannien', 'CA': 'Kanada',
+                'JP': 'Japan', 'AU': 'Australien', 'BR': 'Brasilien',
+                'IN': 'Indien', 'RU': 'Russland', 'ZA': 'Südafrika'
+            };
+            return names[code] || code;
+        }
+
+        // ============================================================
+        // 2. LÄNDER-WISSENSDATENBANK
         // ============================================================
         const countryKnowledge = {
             DE: {
@@ -839,13 +1166,14 @@
         };
 
         // ============================================================
-        // 1. I18N - KOMPLETTE ÜBERSETZUNGEN (Alle 5 Sprachen)
+        // 3. I18N – ALLE 5 SPRACHEN (nur die für das Dashboard relevanten)
         // ============================================================
         const i18n = {
             de: {
                 plan_badge: "Business",
                 logout: "Abmelden",
                 company_name: "Mein Shop",
+                origin_label: "📍 Deutschland",
                 loading: "Lade Daten...",
                 cancel: "Abbrechen",
                 save: "Speichern",
@@ -867,6 +1195,8 @@
                 status_signed: "Signiert",
                 status_pending: "Ausstehend",
                 status_inactive: "Inaktiv",
+                grauzone_status: "🟢 Grauzone",
+                premium_status: "🔵 Premium",
                 skus_title: "📦 Produkte & Verpackungen",
                 skus_add: "+ Neues Produkt",
                 skus_empty: "Noch keine Produkte hinterlegt.",
@@ -919,11 +1249,22 @@
                 notary_warning: '⚠️ Für dieses Land ist eine NOTARIELLE BEGLAUBIGUNG der Vollmacht erforderlich!',
                 notary_cost: '(Kosten: ca. 45 €)',
                 rep_warning: '🏛️ Bevollmächtigter vor Ort erforderlich (wird von Pack2EU organisiert).',
+                // ⭐ GRAUZONEN-INFOBOX
+                grauzone_title: "🇪🇺 EU-Grauzonen-Modus aktiv",
+                grauzone_text: "Seit dem 12.08.2026 gilt die neue EU-Verpackungsverordnung (PPWR). Als EU-Händler (Herkunft: {origin}) befinden Sie sich in der sanktionsfreien Grauzone – solange Sie Ihre Verpackungsdaten korrekt melden. Das übernimmt Pack2EU automatisch für Sie!",
+                grauzone_upgrade: "🔒 100% rechtliche Sicherheit? Buchen Sie jederzeit den physischen Bevollmächtigten für {price} € / Land als Add-on dazu.",
+                grauzone_button: "🔒 Auf Premium upgraden ({price} €)",
+                premium_title: "🔵 Premium-Modus aktiv – 100% rechtssicher",
+                premium_text: "Sie haben den physischen Bevollmächtigten für dieses Land hinzugebucht. Genießen Sie 100% rechtliche Sicherheit – wir kümmern uns um alles.",
+                non_eu_title: "🌍 Nicht-EU-Händler – Bevollmächtigter erforderlich",
+                non_eu_text: "Seit dem 12.08.2026 gilt die neue EU-Verpackungsverordnung (PPWR). Als Händler außerhalb der EU (Herkunft: {origin}) ist ein lokaler Bevollmächtigter ab dem ersten Paket zwingend gesetzlich vorgeschrieben.",
+                non_eu_button: "🏛️ Bevollmächtigten hinzubuchen ({price} €)",
             },
             en: {
                 plan_badge: "Business",
                 logout: "Logout",
                 company_name: "My Shop",
+                origin_label: "📍 Germany",
                 loading: "Loading...",
                 cancel: "Cancel",
                 save: "Save",
@@ -945,6 +1286,8 @@
                 status_signed: "Signed",
                 status_pending: "Pending",
                 status_inactive: "Inactive",
+                grauzone_status: "🟢 Gray Zone",
+                premium_status: "🔵 Premium",
                 skus_title: "📦 Products & Packaging",
                 skus_add: "+ New Product",
                 skus_empty: "No products added yet.",
@@ -997,11 +1340,21 @@
                 notary_warning: '⚠️ This country requires a NOTARIAL CERTIFICATION of the power of attorney!',
                 notary_cost: '(Cost: approx. €45)',
                 rep_warning: '🏛️ Local authorized representative required (organized by Pack2EU).',
+                grauzone_title: "🇪🇺 EU Gray Zone Mode active",
+                grauzone_text: "Since 12.08.2026, the new EU Packaging Regulation (PPWR) applies. As an EU merchant (origin: {origin}), you are in the penalty-free gray zone – as long as you correctly report your packaging data. Pack2EU does this automatically for you!",
+                grauzone_upgrade: "🔒 100% legal certainty? Book the physical authorized representative for {price} € / country as an add-on at any time.",
+                grauzone_button: "🔒 Upgrade to Premium ({price} €)",
+                premium_title: "🔵 Premium Mode active – 100% legally compliant",
+                premium_text: "You have added the physical authorized representative for this country. Enjoy 100% legal certainty – we take care of everything.",
+                non_eu_title: "🌍 Non-EU Merchant – Authorized Representative Required",
+                non_eu_text: "Since 12.08.2026, the new EU Packaging Regulation (PPWR) applies. As a merchant outside the EU (origin: {origin}), a local authorized representative is mandatory from the very first package.",
+                non_eu_button: "🏛️ Book Authorized Representative ({price} €)",
             },
             fr: {
                 plan_badge: "Entreprise",
                 logout: "Déconnexion",
                 company_name: "Ma boutique",
+                origin_label: "📍 Allemagne",
                 loading: "Chargement...",
                 cancel: "Annuler",
                 save: "Enregistrer",
@@ -1023,6 +1376,8 @@
                 status_signed: "Signé",
                 status_pending: "En attente",
                 status_inactive: "Inactif",
+                grauzone_status: "🟢 Zone grise",
+                premium_status: "🔵 Premium",
                 skus_title: "📦 Produits et emballages",
                 skus_add: "+ Nouveau produit",
                 skus_empty: "Aucun produit enregistré.",
@@ -1075,11 +1430,21 @@
                 notary_warning: '⚠️ Ce pays exige une CERTIFICATION NOTARIALE de la procuration !',
                 notary_cost: '(Coût : env. 45 €)',
                 rep_warning: '🏛️ Mandataire local requis (organisé par Pack2EU).',
+                grauzone_title: "🇪🇺 Mode zone grise UE actif",
+                grauzone_text: "Depuis le 12.08.2026, le nouveau règlement européen sur les emballages (PPWR) s'applique. En tant que commerçant de l'UE (origine: {origin}), vous vous trouvez dans la zone grise sans sanction – à condition de déclarer correctement vos données d'emballage. Pack2EU le fait automatiquement pour vous !",
+                grauzone_upgrade: "🔒 Une sécurité juridique à 100% ? Réservez à tout moment le mandataire physique pour {price} € / pays en option.",
+                grauzone_button: "🔒 Passer à Premium ({price} €)",
+                premium_title: "🔵 Mode Premium actif – 100% conforme",
+                premium_text: "Vous avez réservé le mandataire physique pour ce pays. Profitez d'une sécurité juridique à 100% – nous nous occupons de tout.",
+                non_eu_title: "🌍 Commerçant hors UE – Mandataire requis",
+                non_eu_text: "Depuis le 12.08.2026, le nouveau règlement européen sur les emballages (PPWR) s'applique. En tant que commerçant hors UE (origine: {origin}), un mandataire local est obligatoire dès le premier colis.",
+                non_eu_button: "🏛️ Réserver un mandataire ({price} €)",
             },
             it: {
                 plan_badge: "Business",
                 logout: "Disconnettersi",
                 company_name: "Il mio negozio",
+                origin_label: "📍 Germania",
                 loading: "Caricamento...",
                 cancel: "Annulla",
                 save: "Salva",
@@ -1101,6 +1466,8 @@
                 status_signed: "Firmato",
                 status_pending: "In sospeso",
                 status_inactive: "Inattivo",
+                grauzone_status: "🟢 Zona grigia",
+                premium_status: "🔵 Premium",
                 skus_title: "📦 Prodotti e imballaggi",
                 skus_add: "+ Nuovo prodotto",
                 skus_empty: "Nessun prodotto registrato.",
@@ -1153,11 +1520,21 @@
                 notary_warning: '⚠️ Questo paese richiede una CERTIFICAZIONE NOTARILE della procura!',
                 notary_cost: '(Costo: circa 45 €)',
                 rep_warning: '🏛️ Mandatario locale richiesto (organizzato da Pack2EU).',
+                grauzone_title: "🇪🇺 Modalità zona grigia UE attiva",
+                grauzone_text: "Dal 12.08.2026 si applica il nuovo regolamento UE sugli imballaggi (PPWR). Come commerciante UE (origine: {origin}), ti trovi nella zona grigia senza sanzioni – purché dichiari correttamente i tuoi dati di imballaggio. Pack2EU lo fa automaticamente per te!",
+                grauzone_upgrade: "🔒 Sicurezza giuridica al 100%? Prenota in qualsiasi momento il rappresentante fisico per {price} € / paese come aggiunta.",
+                grauzone_button: "🔒 Passa a Premium ({price} €)",
+                premium_title: "🔵 Modalità Premium attiva – 100% conforme",
+                premium_text: "Hai prenotato il rappresentante fisico per questo paese. Goditi la massima sicurezza giuridica – ci occupiamo noi di tutto.",
+                non_eu_title: "🌍 Commerciante extra UE – Rappresentante obbligatorio",
+                non_eu_text: "Dal 12.08.2026 si applica il nuovo regolamento UE sugli imballaggi (PPWR). Come commerciante extra UE (origine: {origin}), un rappresentante locale è obbligatorio dal primo pacco.",
+                non_eu_button: "🏛️ Prenota rappresentante ({price} €)",
             },
             es: {
                 plan_badge: "Negocio",
                 logout: "Cerrar sesión",
                 company_name: "Mi tienda",
+                origin_label: "📍 Alemania",
                 loading: "Cargando...",
                 cancel: "Cancelar",
                 save: "Guardar",
@@ -1179,6 +1556,8 @@
                 status_signed: "Firmado",
                 status_pending: "Pendiente",
                 status_inactive: "Inactivo",
+                grauzone_status: "🟢 Zona gris",
+                premium_status: "🔵 Premium",
                 skus_title: "📦 Productos y embalajes",
                 skus_add: "+ Nuevo producto",
                 skus_empty: "No hay productos registrados.",
@@ -1231,6 +1610,15 @@
                 notary_warning: '⚠️ ¡Este país requiere una CERTIFICACIÓN NOTARIAL del poder!',
                 notary_cost: '(Coste: aprox. 45 €)',
                 rep_warning: '🏛️ Representante local requerido (organizado por Pack2EU).',
+                grauzone_title: "🇪🇺 Modo zona gris UE activo",
+                grauzone_text: "Desde el 12.08.2026 se aplica el nuevo reglamento europeo de envases (PPWR). Como comerciante de la UE (origen: {origin}), se encuentra en la zona gris sin sanciones – siempre que declare correctamente sus datos de envase. ¡Pack2EU lo hace automáticamente por usted!",
+                grauzone_upgrade: "🔒 ¿Seguridad jurídica al 100%? Reserve en cualquier momento el representante físico por {price} € / país como complemento.",
+                grauzone_button: "🔒 Actualizar a Premium ({price} €)",
+                premium_title: "🔵 Modo Premium activo – 100% conforme",
+                premium_text: "Ha reservado el representante físico para este país. Disfrute de la máxima seguridad jurídica – nosotros nos encargamos de todo.",
+                non_eu_title: "🌍 Comerciante extra UE – Representante obligatorio",
+                non_eu_text: "Desde el 12.08.2026 se aplica el nuevo reglamento europeo de envases (PPWR). Como comerciante fuera de la UE (origen: {origin}), un representante local es obligatorio desde el primer paquete.",
+                non_eu_button: "🏛️ Reservar representante ({price} €)",
             }
         };
 
@@ -1240,25 +1628,32 @@
             return i18n[currentLang]?.[key] ?? i18n.de[key] ?? key;
         }
 
+        // ============================================================
+        // 4. SPRACHE
+        // ============================================================
         function setLang(lang) {
+            if (!i18n[lang]) return;
             currentLang = lang;
-            document.documentElement.lang = lang;
+            localStorage.setItem('pack2eu_lang', lang);
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                el.textContent = t(key);
+                if (i18n[lang] && i18n[lang][key] !== undefined) {
+                    el.textContent = i18n[lang][key];
+                }
             });
+            document.getElementById('lang-select').value = lang;
+            document.documentElement.lang = lang;
+            // Länder-Wissen neu rendern
             const selectedCountry = document.getElementById('knowledge-country-select')?.value;
             if (selectedCountry) {
                 showCountryKnowledge();
             }
-            document.querySelectorAll('select [data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                el.textContent = t(key);
-            });
+            // Länder neu rendern
+            loadDashboard();
         }
 
         // ============================================================
-        // 2. LÄNDER-CHECK / WISSENSDATENBANK
+        // 5. LÄNDER-CHECK / WISSENSDATENBANK
         // ============================================================
         function showCountryKnowledge() {
             const countryCode = document.getElementById('knowledge-country-select').value;
@@ -1292,7 +1687,7 @@
                     <span class="text-2xl">${c.flag}</span>
                     <span class="font-bold text-lg">${countryName}</span>
                     <span class="text-sm text-[var(--text-dim)]">${register}</span>
-                    ${c.registration_url ? `<a href="${c.registration_url}" target="_blank" class="text-xs text-[var(--accent)] hover:underline">🔗 ${t('to_register')}</a>` : ''}
+                    ${c.registration_url ? `<a href="${c.registration_url}" target="_blank" class="text-xs text-[var(--primary)] hover:underline">🔗 ${t('to_register')}</a>` : ''}
                 </div>
                 <div class="we-handle-box">
                     <div class="title">${t('we_handle')}</div>
@@ -1325,7 +1720,7 @@
         }
 
         // ============================================================
-        // 3. API KONFIGURATION
+        // 6. API KONFIGURATION
         // ============================================================
         const API_BASE = window.PACK2EU_API_BASE || 'https://ack2eu-backend.onrender.com/api';
 
@@ -1348,7 +1743,7 @@
         }
 
         // ============================================================
-        // 4. AUTH
+        // 7. AUTH
         // ============================================================
         function logout() {
             clearToken();
@@ -1356,7 +1751,7 @@
         }
 
         // ============================================================
-        // 5. TABS
+        // 8. TABS
         // ============================================================
         let currentTab = 'merchant';
 
@@ -1370,12 +1765,32 @@
         }
 
         // ============================================================
-        // 6. DASHBOARD LOAD
+        // 9. DASHBOARD LOAD
         // ============================================================
         async function loadDashboard() {
             try {
                 const customer = await api('/auth/me');
                 document.getElementById('company-name').textContent = customer.company_name || 'Mein Shop';
+
+                // ⭐ HERKUNFTSLAND ANZEIGEN
+                const originCountry = customer.origin_country || localStorage.getItem('pack2eu_origin_country') || 'DE';
+                const originName = getCountryName(originCountry);
+                const originEl = document.getElementById('origin-display');
+                if (originEl) {
+                    originEl.textContent = `📍 ${originName}`;
+                }
+
+                // ⭐ PLAN-BADGE AKTUALISIEREN
+                const plan = customer.plan || 'M';
+                const planNames = {
+                    'S': 'Starter',
+                    'M': 'Bestseller',
+                    'L': 'Enterprise'
+                };
+                const planBadge = document.getElementById('plan-badge');
+                if (planBadge) {
+                    planBadge.textContent = planNames[plan] || 'Business';
+                }
 
                 const countries = await api('/activations');
                 renderCountries(countries);
@@ -1395,8 +1810,6 @@
                 document.getElementById('submissions-count').textContent = submissions.length;
 
                 await loadPackagingStats();
-
-                // ⭐ NEU: COMPLIANCE-AMPEL AKTUALISIEREN
                 await updateComplianceAmpel(countries, submissions);
 
             } catch (err) {
@@ -1408,14 +1821,13 @@
         }
 
         // ============================================================
-        // 7. COMPLIANCE-AMPEL (NEU)
+        // 10. COMPLIANCE-AMPEL
         // ============================================================
         async function updateComplianceAmpel(countries, submissions) {
             const statusEl = document.getElementById('compliance-status');
             const tasksEl = document.getElementById('compliance-tasks');
 
             const upcomingDeadlines = [];
-
             submissions.forEach(sub => {
                 if (sub.status === 'pending') {
                     const daysLeft = Math.floor(Math.random() * 30) + 1;
@@ -1441,7 +1853,7 @@
         }
 
         // ============================================================
-        // 8. LÄNDER
+        // 11. LÄNDER – MIT GRAUZONEN-INFOBOX
         // ============================================================
         function renderCountries(countries) {
             const container = document.getElementById('country-list');
@@ -1449,6 +1861,11 @@
                 container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('skus_empty')}</div>`;
                 return;
             }
+
+            // ⭐ HERKUNFTSLAND (aus localStorage oder Fallback)
+            const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
+            const isEU = localStorage.getItem('pack2eu_is_eu') === 'true';
+
             container.innerHTML = countries.map(c => {
                 const statusMap = {
                     'active': { label: t('status_active'), dot: 'green' },
@@ -1457,21 +1874,76 @@
                     'inactive': { label: t('status_inactive'), dot: 'gray' }
                 };
                 const s = statusMap[c.status] || statusMap.inactive;
+
+                // ⭐ MODE (grauzone/premium)
+                const mode = c.mode || 'grauzone';
+                const isPremium = mode === 'premium';
+                const upgradePrice = 149;
+
+                // ⭐ MODE-BADGE
+                let modeBadge = '';
+                if (isPremium) {
+                    modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
+                } else {
+                    modeBadge = `<span class="badge badge-accent">${t('grauzone_status')}</span>`;
+                }
+
+                const countryIsEU = isEUCountry(c.country_code);
+
+                // ⭐ INFOBOX
+                let infobox = '';
+
+                if (isPremium) {
+                    // 🔵 Premium-Modus
+                    infobox = `
+                        <div class="infobox-premium mt-3">
+                            <div class="title">${t('premium_title')}</div>
+                            <p class="text-sm mt-1">${t('premium_text')}</p>
+                        </div>
+                    `;
+                } else if (countryIsEU && isEU) {
+                    // 🟢 GRAUZONE – EU-Händler + EU-Land
+                    const originName = getCountryName(originCountry);
+                    infobox = `
+                        <div class="infobox-grauzone mt-3">
+                            <div class="title">${t('grauzone_title')}</div>
+                            <p class="text-sm mt-1">${t('grauzone_text').replace('{origin}', originName)}</p>
+                            <p class="text-sm mt-1">${t('grauzone_upgrade').replace('{price}', upgradePrice)}</p>
+                            <button onclick="upgradeToPremium('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('grauzone_button').replace('{price}', upgradePrice)}</button>
+                        </div>
+                    `;
+                } else if (countryIsEU && !isEU) {
+                    // 🟡 NICHT-EU-HÄNDLER – Bevollmächtigter PFLICHT
+                    const originName = getCountryName(originCountry);
+                    infobox = `
+                        <div class="infobox-non-eu mt-3">
+                            <div class="title">${t('non_eu_title')}</div>
+                            <p class="text-sm mt-1">${t('non_eu_text').replace('{origin}', originName)}</p>
+                            <button onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('non_eu_button').replace('{price}', upgradePrice)}</button>
+                        </div>
+                    `;
+                }
+
                 return `
-                    <div class="flex items-center justify-between p-3 border-b border-[var(--border)]">
-                        <div>
-                            <span class="font-bold">${c.name}</span>
-                            <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
-                            ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
-                            ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
+                    <div class="country-item border rounded-lg p-4 mb-3">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                                <span class="text-2xl">${c.flag || '🌍'}</span>
+                                <span class="font-bold text-lg">${c.name}</span>
+                                <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
+                                ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
+                                ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="status-dot ${s.dot}"></span>
+                                <span class="text-sm">${s.label}</span>
+                                ${modeBadge}
+                                ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
+                                ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
+                                ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
+                            </div>
                         </div>
-                        <div>
-                            <span class="status-dot ${s.dot}"></span>
-                            <span class="text-sm">${s.label}</span>
-                            ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
-                            ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
-                            ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
-                        </div>
+                        ${infobox}
                     </div>
                 `;
             }).join('');
@@ -1487,7 +1959,7 @@
         }
 
         // ============================================================
-        // AKTIVIEREN
+        // 12. AKTIVIEREN
         // ============================================================
         async function activateCountry() {
             const code = document.getElementById('country-select').value;
@@ -1548,7 +2020,7 @@
         }
 
         // ============================================================
-        // SIGNATUR
+        // 13. SIGNATUR
         // ============================================================
         async function signActivation(code) {
             try {
@@ -1564,7 +2036,62 @@
         }
 
         // ============================================================
-        // 9. SKUS
+        // 14. UPGRADE ZU PREMIUM
+        // ============================================================
+        async function upgradeToPremium(countryCode) {
+            const price = 149;
+            if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
+
+            try {
+                // ⭐ Stripe-Session erstellen
+                const session = await api('/payments/create-upgrade-session', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        country: countryCode,
+                        price: price,
+                        type: 'premium_upgrade'
+                    })
+                });
+
+                if (session.url) {
+                    window.location.href = session.url;
+                } else {
+                    alert('Fehler bei der Zahlungsabwicklung.');
+                }
+            } catch (err) {
+                alert('Fehler: ' + err.message);
+            }
+        }
+
+        // ============================================================
+        // 15. BEVOLLMÄCHTIGTEN BUCHEN (für Nicht-EU-Händler)
+        // ============================================================
+        async function bookRepresentative(countryCode) {
+            const price = 149;
+            if (!confirm(`${t('non_eu_button').replace('{price}', price)}`)) return;
+
+            try {
+                const session = await api('/payments/create-upgrade-session', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        country: countryCode,
+                        price: price,
+                        type: 'representative_booking'
+                    })
+                });
+
+                if (session.url) {
+                    window.location.href = session.url;
+                } else {
+                    alert('Fehler bei der Zahlungsabwicklung.');
+                }
+            } catch (err) {
+                alert('Fehler: ' + err.message);
+            }
+        }
+
+        // ============================================================
+        // 16. SKUS
         // ============================================================
         function renderSkus(skus) {
             const container = document.getElementById('sku-list');
@@ -1581,7 +2108,7 @@
                             <span class="font-bold">${s.sku_name}</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${s.total_weight_grams}g</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${materialText}</span>
-                            ${s.lappa_code ? `<span class="text-xs text-[var(--accent)] ml-2">🔗 ${s.lappa_code}</span>` : ''}
+                            ${s.lappa_code ? `<span class="text-xs text-[var(--primary)] ml-2">🔗 ${s.lappa_code}</span>` : ''}
                         </div>
                         <div class="flex gap-1">
                             <button onclick="generateLabelForSku('${s.id}')" class="btn-accent text-xs py-1 px-2">🏷️ Label</button>
@@ -1675,7 +2202,7 @@
         }
 
         // ============================================================
-        // LAPPA MATERIAL CODE MAPPING
+        // 17. LAPPA MATERIAL CODE MAPPING
         // ============================================================
         function getLappaCode(materialType) {
             const mapping = {
@@ -1691,7 +2218,7 @@
         }
 
         // ============================================================
-        // PRODUKT SPEICHERN
+        // 18. PRODUKT SPEICHERN
         // ============================================================
         async function saveSku() {
             const sku_name = document.getElementById('sku-name').value.trim();
@@ -1737,7 +2264,7 @@
         }
 
         // ============================================================
-        // PRODUKT LÖSCHEN
+        // 19. PRODUKT LÖSCHEN
         // ============================================================
         async function deleteSku(id) {
             if (!confirm('Möchtest du dieses Produkt wirklich löschen?')) return;
@@ -1750,7 +2277,7 @@
         }
 
         // ============================================================
-        // 10. CSV-MASSENIMPORT (NEU)
+        // 20. CSV-MASSENIMPORT
         // ============================================================
         function openBulkImport() {
             document.getElementById('bulk-import-modal').style.display = 'flex';
@@ -1847,7 +2374,7 @@
         }
 
         // ============================================================
-        // 11. SHOPIFY SYNC (NEU)
+        // 21. SHOPIFY SYNC
         // ============================================================
         function openShopifySync() {
             document.getElementById('shopify-sync-modal').style.display = 'flex';
@@ -1877,7 +2404,7 @@
         }
 
         // ============================================================
-        // 12. KENNZEICHNUNG GENERIEREN (NEU)
+        // 22. KENNZEICHNUNG GENERIEREN
         // ============================================================
         function generateLabel() {
             const status = document.getElementById('label-status');
@@ -1916,7 +2443,7 @@
         }
 
         // ============================================================
-        // 13. VERPACKUNGSSTATISTIK
+        // 23. VERPACKUNGSSTATISTIK
         // ============================================================
         async function loadPackagingStats() {
             try {
@@ -1975,7 +2502,7 @@
         }
 
         // ============================================================
-        // 14. BESTELLUNGEN
+        // 24. BESTELLUNGEN
         // ============================================================
         function renderOrders(orders) {
             const container = document.getElementById('orders-list');
@@ -2002,7 +2529,7 @@
         }
 
         // ============================================================
-        // 15. MELDUNGEN
+        // 25. MELDUNGEN
         // ============================================================
         function renderSubmissions(submissions) {
             const container = document.getElementById('submissions-list');
@@ -2029,7 +2556,7 @@
         }
 
         // ============================================================
-        // 16. BEAUFTRAGTEN-PORTAL
+        // 26. BEAUFTRAGTEN-PORTAL
         // ============================================================
         async function loadRepresentativeDashboard() {
             try {
@@ -2094,7 +2621,7 @@
         }
 
         // ============================================================
-        // 17. INIT
+        // 27. INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
             const token = getToken();
@@ -2102,7 +2629,11 @@
                 window.location.href = '/index.html';
                 return;
             }
-            setLang('de');
+
+            // Sprache setzen
+            const savedLang = localStorage.getItem('pack2eu_lang') || 'de';
+            setLang(savedLang);
+
             loadDashboard();
             document.getElementById('knowledge-display').innerHTML =
                 `<div class="text-sm text-[var(--text-dim)]">${t('knowledge_select_hint')}</div>`;
