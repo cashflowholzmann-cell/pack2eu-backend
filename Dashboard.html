@@ -8,9 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* ============================================================
-           FARBEN – ANGEPASST AN LANDINGPAGE
-           ============================================================ */
         :root {
             --primary: #0A2540;
             --primary-light: #1A3A5C;
@@ -33,9 +30,6 @@
         body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
-        /* ============================================================
-           BUTTONS
-           ============================================================ */
         .btn-primary {
             background: var(--primary);
             color: white;
@@ -90,9 +84,6 @@
         }
         .btn-block { width: 100%; justify-content: center; }
 
-        /* ============================================================
-           KARTEN
-           ============================================================ */
         .card {
             background: var(--card);
             border-radius: var(--radius);
@@ -117,9 +108,6 @@
             color: var(--primary);
         }
 
-        /* ============================================================
-           BADGES
-           ============================================================ */
         .badge {
             display: inline-block;
             padding: 4px 12px;
@@ -135,9 +123,6 @@
         .badge-grauzone { background: #EBF5FF; color: #1E40AF; }
         .badge-premium { background: #D1FAE5; color: #065F46; }
 
-        /* ============================================================
-           TABS
-           ============================================================ */
         .tab {
             padding: 8px 16px;
             border-radius: 8px;
@@ -158,9 +143,6 @@
             color: var(--primary);
         }
 
-        /* ============================================================
-           MODAL
-           ============================================================ */
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -184,9 +166,6 @@
         }
         .modal-content h3 { color: var(--primary); }
 
-        /* ============================================================
-           FORMULAR
-           ============================================================ */
         input, select, textarea {
             width: 100%;
             padding: 12px 16px;
@@ -211,9 +190,6 @@
             display: block;
         }
 
-        /* ============================================================
-           STATUS
-           ============================================================ */
         .status-dot {
             width: 12px;
             height: 12px;
@@ -227,9 +203,6 @@
         .status-dot.gray { background: var(--border); }
         .status-dot.blue { background: var(--primary); }
 
-        /* ============================================================
-           MATERIAL-GRUPPE
-           ============================================================ */
         .material-group {
             background: var(--bg);
             border: 1px solid var(--border);
@@ -248,9 +221,6 @@
         }
         .remove-btn:hover { background: #FEE2E2; }
 
-        /* ============================================================
-           WISSENSDATENBANK
-           ============================================================ */
         .knowledge-card {
             background: var(--bg);
             border-radius: var(--radius);
@@ -290,9 +260,6 @@
             margin-top: 4px;
         }
 
-        /* ============================================================
-           GRAUZONEN-INFOBOX
-           ============================================================ */
         .infobox-grauzone {
             background: #EBF5FF;
             border: 1px solid #3B82F6;
@@ -317,10 +284,14 @@
             color: #92400E;
         }
         .infobox-non-eu .title { font-weight: 700; }
+        .infobox-upgrade {
+            background: #FEF3C7;
+            border: 1px solid #F59E0B;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #92400E;
+        }
 
-        /* ============================================================
-           HEADER
-           ============================================================ */
         .logo-icon {
             width: 36px;
             height: 36px;
@@ -346,9 +317,6 @@
         }
         .lang-select:focus { outline: none; border-color: var(--primary); }
 
-        /* ============================================================
-           COMPLIANCE-AMPEL
-           ============================================================ */
         .compliance-card {
             border-left: 4px solid var(--primary);
         }
@@ -356,9 +324,6 @@
         .compliance-card.success { border-left-color: var(--success); }
         .compliance-card.danger { border-left-color: var(--danger); }
 
-        /* ============================================================
-           RESPONSIVE
-           ============================================================ */
         @media (max-width: 768px) {
             .container { padding: 0 16px; }
             .modal-content { padding: 24px; margin: 10px; }
@@ -371,26 +336,20 @@
         }
 
         .hidden { display: none !important; }
-        .mesh {
-            background: radial-gradient(circle at 15% 20%, rgba(10,37,64,.03), transparent 40%),
-                        radial-gradient(circle at 85% 10%, rgba(10,37,64,.05), transparent 45%);
-        }
     </style>
 </head>
 <body>
 
-    <!-- ============================================================
-    TOP BAR
-    ============================================================ -->
+    <!-- TOP BAR -->
     <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[var(--border)]">
         <div class="container py-4 flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-3">
                 <div class="logo-icon">P</div>
                 <span class="text-xl font-bold tracking-tight" style="color:var(--primary);">Pack2EU</span>
-                <span class="badge badge-success ml-2" id="plan-badge" data-i18n="plan_badge">Business</span>
+                <span class="badge badge-success ml-2" id="plan-badge">Bestseller</span>
             </div>
             <div class="flex items-center gap-4 flex-wrap">
-                <span class="text-sm text-[var(--text-dim)]" id="origin-display" data-i18n="origin_label">📍 Deutschland</span>
+                <span class="text-sm text-[var(--text-dim)]" id="origin-display">📍 Japan</span>
                 <select id="lang-select" onchange="setLang(this.value)" class="lang-select">
                     <option value="de">🇩🇪 Deutsch</option>
                     <option value="en">🇬🇧 English</option>
@@ -398,49 +357,45 @@
                     <option value="it">🇮🇹 Italiano</option>
                     <option value="es">🇪🇸 Español</option>
                 </select>
-                <span class="text-sm text-[var(--text-dim)]" id="company-name" data-i18n="company_name">Mein Shop</span>
-                <button onclick="logout()" class="btn-outline text-sm py-1 px-4" data-i18n="logout">Abmelden</button>
+                <span class="text-sm text-[var(--text-dim)]" id="company-name">Mein Shop</span>
+                <button onclick="logout()" class="btn-outline text-sm py-1 px-4">Abmelden</button>
             </div>
         </div>
     </header>
 
-    <!-- ============================================================
-    TABS
-    ============================================================ -->
+    <!-- TABS -->
     <div class="container py-4">
         <div class="flex gap-2 border-b border-[var(--border)] pb-2 flex-wrap">
-            <button onclick="switchTab('merchant')" id="tab-merchant" class="tab active" data-i18n="tab_merchant">📦 Händler-Dashboard</button>
-            <button onclick="switchTab('representative')" id="tab-representative" class="tab" data-i18n="tab_representative">🏛️ Beauftragten-Portal</button>
+            <button onclick="switchTab('merchant')" id="tab-merchant" class="tab active">📦 Händler-Dashboard</button>
+            <button onclick="switchTab('representative')" id="tab-representative" class="tab">🏛️ Beauftragten-Portal</button>
         </div>
     </div>
 
-    <!-- ============================================================
-    HÄNDLER-DASHBOARD
-    ============================================================ -->
+    <!-- HÄNDLER-DASHBOARD -->
     <div id="merchant-tab" class="container py-4">
 
         <!-- Status-Übersicht -->
         <div class="grid md:grid-cols-4 gap-4 mb-8">
             <div class="card stat-card text-center">
                 <div class="stat-number" id="countries-active">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_countries">Aktive Länder</div>
+                <div class="text-sm text-[var(--text-dim)]">Aktive Länder</div>
             </div>
             <div class="card stat-card text-center">
                 <div class="stat-number" id="skus-count">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_skus">Produkte mit Verpackung</div>
+                <div class="text-sm text-[var(--text-dim)]">Produkte mit Verpackung</div>
             </div>
             <div class="card stat-card text-center">
                 <div class="stat-number" id="orders-count">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_orders">Bestellungen verarbeitet</div>
+                <div class="text-sm text-[var(--text-dim)]">Bestellungen verarbeitet</div>
             </div>
             <div class="card stat-card text-center">
                 <div class="stat-number" id="submissions-count">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_submissions">Meldungen übermittelt</div>
+                <div class="text-sm text-[var(--text-dim)]">Meldungen übermittelt</div>
             </div>
         </div>
 
-        <!-- ⭐ COMPLIANCE-AMPEL -->
-        <div class="card compliance-card mb-8" id="compliance-card">
+        <!-- Compliance-Ampel -->
+        <div class="card compliance-card mb-8">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h3 class="font-bold text-lg">📊 Compliance-Ampel</h3>
@@ -455,15 +410,13 @@
             </div>
         </div>
 
-        <!-- ============================================================
-        LÄNDER-CHECK (WISSENSDATENBANK)
-        ============================================================ -->
+        <!-- Länder-Check -->
         <div class="card mb-8">
-            <h2 class="text-xl font-bold mb-4" style="color:var(--primary);" data-i18n="country_knowledge_title">📚 Länder-Check – Was muss ich wo tun?</h2>
-            <p class="text-sm text-[var(--text-dim)] mb-4" data-i18n="country_knowledge_sub">Wähle ein Land aus und erfahre sofort, welche Schritte, Kennzeichnungen und Kosten auf dich zukommen.</p>
+            <h2 class="text-xl font-bold mb-4" style="color:var(--primary);">📚 Länder-Check – Was muss ich wo tun?</h2>
+            <p class="text-sm text-[var(--text-dim)] mb-4">Wähle ein Land aus und erfahre sofort, welche Schritte, Kennzeichnungen und Kosten auf dich zukommen.</p>
             <div class="grid md:grid-cols-3 gap-4">
                 <div>
-                    <label data-i18n="country_select">Land auswählen</label>
+                    <label>Land auswählen</label>
                     <select id="knowledge-country-select" onchange="showCountryKnowledge()" class="w-full">
                         <option value="">— Bitte wählen —</option>
                         <option value="DE">🇩🇪 Deutschland</option>
@@ -480,136 +433,122 @@
                 </div>
                 <div class="md:col-span-2">
                     <div id="knowledge-display" class="knowledge-card min-h-[100px]">
-                        <div class="text-sm text-[var(--text-dim)]" data-i18n="knowledge_select_hint">Wähle ein Land aus, um die Anforderungen zu sehen.</div>
+                        <div class="text-sm text-[var(--text-dim)]">Wähle ein Land aus, um die Anforderungen zu sehen.</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ============================================================
-        LÄNDER – MIT GRAUZONEN-INFOBOX
-        ============================================================ -->
+        <!-- Meine Länder -->
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="countries_title">🌍 Meine Länder</h2>
-                <button onclick="openCountryModal()" class="btn-primary text-sm" data-i18n="countries_add">+ Land aktivieren</button>
+                <h2 class="text-xl font-bold" style="color:var(--primary);">🌍 Meine Länder</h2>
+                <button onclick="openCountryModal()" class="btn-primary text-sm">+ Land aktivieren</button>
             </div>
             <div id="country-list" class="space-y-3">
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="loading">Lade Länder...</div>
+                <div class="text-sm text-[var(--text-dim)]">Lade Länder...</div>
             </div>
         </div>
 
-        <!-- ============================================================
-        PRODUKTE & VERPACKUNGEN
-        ============================================================ -->
+        <!-- Produkte & Verpackungen -->
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="skus_title">📦 Produkte & Verpackungen</h2>
+                <h2 class="text-xl font-bold" style="color:var(--primary);">📦 Produkte & Verpackungen</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="openSkuModal()" class="btn-primary text-sm" data-i18n="skus_add">+ Neues Produkt</button>
+                    <button onclick="openSkuModal()" class="btn-primary text-sm">+ Neues Produkt</button>
                     <button onclick="openBulkImport()" class="btn-accent text-sm">📥 CSV-Import</button>
                     <button onclick="openShopifySync()" class="btn-outline text-sm">🔄 Shopify Sync</button>
                 </div>
             </div>
             <div id="sku-list" class="space-y-3">
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="skus_empty">Noch keine Produkte hinterlegt.</div>
+                <div class="text-sm text-[var(--text-dim)]">Noch keine Produkte hinterlegt.</div>
             </div>
         </div>
 
-        <!-- ============================================================
-        VERPACKUNGSSTATISTIK
-        ============================================================ -->
+        <!-- Verpackungsstatistik -->
         <div class="card mb-8">
-            <h2 class="text-xl font-bold mb-4" style="color:var(--primary);" data-i18n="stats_title">📊 Verpackungsstatistik</h2>
+            <h2 class="text-xl font-bold mb-4" style="color:var(--primary);">📊 Verpackungsstatistik</h2>
             <div class="grid md:grid-cols-3 gap-4">
                 <div class="card bg-[var(--bg)] stat-card">
-                    <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_total">Gesamtgewicht</div>
+                    <div class="text-sm text-[var(--text-dim)]">Gesamtgewicht</div>
                     <div class="stat-number" id="total-weight">0 kg</div>
                 </div>
                 <div class="card bg-[var(--bg)] stat-card">
-                    <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_cardboard">Karton / Pappe</div>
+                    <div class="text-sm text-[var(--text-dim)]">Karton / Pappe</div>
                     <div class="stat-number" id="total-cardboard">0 kg</div>
                 </div>
                 <div class="card bg-[var(--bg)] stat-card">
-                    <div class="text-sm text-[var(--text-dim)]" data-i18n="stats_plastic">Kunststoff</div>
+                    <div class="text-sm text-[var(--text-dim)]">Kunststoff</div>
                     <div class="stat-number" id="total-plastic">0 kg</div>
                 </div>
             </div>
             <div class="mt-4">
-                <h4 class="font-semibold mb-2" data-i18n="stats_by_country">📦 Pro Land</h4>
+                <h4 class="font-semibold mb-2">📦 Pro Land</h4>
                 <div id="country-stats" class="space-y-2">
-                    <div class="text-sm text-[var(--text-dim)]" data-i18n="loading">Lade Statistik...</div>
+                    <div class="text-sm text-[var(--text-dim)]">Lade Statistik...</div>
                 </div>
             </div>
         </div>
 
-        <!-- ============================================================
-        BESTELLUNGEN
-        ============================================================ -->
+        <!-- Bestellungen -->
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="orders_title">📋 Bestellungen</h2>
-                <button onclick="connectShopify()" class="btn-accent text-sm" id="shopify-btn" data-i18n="shopify_connect">🔗 Shopify verbinden</button>
+                <h2 class="text-xl font-bold" style="color:var(--primary);">📋 Bestellungen</h2>
+                <button onclick="connectShopify()" class="btn-accent text-sm" id="shopify-btn">🔗 Shopify verbinden</button>
             </div>
             <div id="orders-list" class="space-y-3">
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="orders_empty">Noch keine Bestellungen.</div>
+                <div class="text-sm text-[var(--text-dim)]">Noch keine Bestellungen.</div>
             </div>
         </div>
 
-        <!-- ============================================================
-        MELDUNGEN
-        ============================================================ -->
+        <!-- Meldungen -->
         <div class="card">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="submissions_title">📨 Meine Meldungen</h2>
-                <button onclick="createReport()" class="btn-primary text-sm" data-i18n="submissions_add">+ Neue Meldung</button>
+                <h2 class="text-xl font-bold" style="color:var(--primary);">📨 Meine Meldungen</h2>
+                <button onclick="createReport()" class="btn-primary text-sm">+ Neue Meldung</button>
             </div>
             <div id="submissions-list" class="space-y-3">
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="submissions_empty">Noch keine Meldungen erstellt.</div>
+                <div class="text-sm text-[var(--text-dim)]">Noch keine Meldungen erstellt.</div>
             </div>
         </div>
     </div>
 
-    <!-- ============================================================
-    BEAUFTRAGTEN-PORTAL
-    ============================================================ -->
+    <!-- BEAUFTRAGTEN-PORTAL -->
     <div id="representative-tab" class="container py-4 hidden">
         <div class="grid md:grid-cols-3 gap-4 mb-8">
             <div class="card stat-card text-center">
                 <div class="stat-number" id="rep-total-submissions">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_total_submissions">Eingehende Meldungen</div>
+                <div class="text-sm text-[var(--text-dim)]">Eingehende Meldungen</div>
             </div>
             <div class="card stat-card text-center">
                 <div class="stat-number" id="rep-pending-submissions">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_pending_submissions">Offen / In Bearbeitung</div>
+                <div class="text-sm text-[var(--text-dim)]">Offen / In Bearbeitung</div>
             </div>
             <div class="card stat-card text-center">
                 <div class="stat-number" id="rep-completed-submissions">0</div>
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_completed_submissions">Erledigt</div>
+                <div class="text-sm text-[var(--text-dim)]">Erledigt</div>
             </div>
         </div>
         <div class="card">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold" style="color:var(--primary);" data-i18n="rep_incoming_title">📨 Eingehende Meldungen</h2>
-                <button onclick="exportRepCSV()" class="btn-primary text-sm" data-i18n="rep_export">📊 CSV-Export</button>
+                <h2 class="text-xl font-bold" style="color:var(--primary);">📨 Eingehende Meldungen</h2>
+                <button onclick="exportRepCSV()" class="btn-primary text-sm">📊 CSV-Export</button>
             </div>
             <div id="rep-submissions-list" class="space-y-3">
-                <div class="text-sm text-[var(--text-dim)]" data-i18n="rep_incoming_empty">Noch keine eingehenden Meldungen.</div>
+                <div class="text-sm text-[var(--text-dim)]">Noch keine eingehenden Meldungen.</div>
             </div>
         </div>
     </div>
 
-    <!-- ============================================================
-    COUNTRY MODAL
-    ============================================================ -->
+    <!-- COUNTRY MODAL -->
     <div id="country-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold" style="color:var(--primary);" data-i18n="country_modal_title">🌍 Land aktivieren</h3>
+                <h3 class="text-2xl font-bold" style="color:var(--primary);">🌍 Land aktivieren</h3>
                 <button onclick="closeCountryModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
             <div id="country-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
-            <label data-i18n="country_select">Zielland *</label>
+            <label>Zielland *</label>
             <select id="country-select">
                 <option value="FR">🇫🇷 Frankreich</option>
                 <option value="DE">🇩🇪 Deutschland</option>
@@ -622,54 +561,52 @@
                 <option value="SE">🇸🇪 Schweden</option>
                 <option value="DK">🇩🇰 Dänemark</option>
             </select>
-            <label class="mt-4" data-i18n="country_existing">Hast du bereits eine EPR-Nummer für dieses Land?</label>
+            <label class="mt-4">Hast du bereits eine EPR-Nummer für dieses Land?</label>
             <input id="existing-number" type="text" placeholder="z.B. FR123456789 (optional)">
             <div class="flex justify-between mt-6 pt-4 border-t border-[var(--border)]">
-                <button onclick="closeCountryModal()" class="btn-outline text-sm" data-i18n="cancel">Abbrechen</button>
-                <button onclick="activateCountry()" class="btn-primary text-sm" data-i18n="activate">Aktivieren</button>
+                <button onclick="closeCountryModal()" class="btn-outline text-sm">Abbrechen</button>
+                <button onclick="activateCountry()" class="btn-primary text-sm">Aktivieren</button>
             </div>
         </div>
     </div>
 
-    <!-- ============================================================
-    SKU MODAL
-    ============================================================ -->
+    <!-- SKU MODAL -->
     <div id="sku-modal" class="modal-backdrop">
         <div class="modal-content" style="max-width:640px;">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold" style="color:var(--primary);" data-i18n="sku_modal_title">📦 Produkt & Verpackung</h3>
+                <h3 class="text-2xl font-bold" style="color:var(--primary);">📦 Produkt & Verpackung</h3>
                 <button onclick="closeSkuModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
             </div>
             <div id="sku-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
-            <label data-i18n="sku_name">Produktname *</label>
+            <label>Produktname *</label>
             <input id="sku-name" placeholder="z.B. Hoodie">
-            <label class="mt-4" data-i18n="sku_shopify">Shopify-Produkt-ID (optional)</label>
+            <label class="mt-4">Shopify-Produkt-ID (optional)</label>
             <input id="sku-shopify-id" placeholder="z.B. 1234567890">
-            <label class="mt-4 font-bold" data-i18n="sku_materials">Verpackungsmaterialien</label>
+            <label class="mt-4 font-bold">Verpackungsmaterialien</label>
             <div id="sku-materials" class="space-y-2 mt-2">
                 <div class="material-group">
                     <div class="grid grid-cols-12 gap-2 items-end">
                         <div class="col-span-5">
-                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]" data-i18n="sku_material">Material</label>
+                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Material</label>
                             <select class="material-type">
-                                <option value="karton" data-i18n="material_karton">Karton/Pappe</option>
-                                <option value="kunststoff" data-i18n="material_plastic">Kunststoff</option>
-                                <option value="papier" data-i18n="material_paper">Papier</option>
-                                <option value="glas" data-i18n="material_glass">Glas</option>
-                                <option value="metall" data-i18n="material_metal">Metall</option>
-                                <option value="holz" data-i18n="material_wood">Holz</option>
-                                <option value="sonstige" data-i18n="material_other">Sonstige</option>
+                                <option value="karton">Karton/Pappe</option>
+                                <option value="kunststoff">Kunststoff</option>
+                                <option value="papier">Papier</option>
+                                <option value="glas">Glas</option>
+                                <option value="metall">Metall</option>
+                                <option value="holz">Holz</option>
+                                <option value="sonstige">Sonstige</option>
                             </select>
                         </div>
                         <div class="col-span-3">
-                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]" data-i18n="sku_weight">Gewicht (g)</label>
+                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Gewicht (g)</label>
                             <input type="number" class="material-weight" placeholder="245" value="245">
                         </div>
                         <div class="col-span-3">
-                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]" data-i18n="sku_recyclable">Recycelbar?</label>
+                            <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Recycelbar?</label>
                             <select class="material-recyclable">
-                                <option value="1" data-i18n="yes">Ja</option>
-                                <option value="0" data-i18n="no">Nein</option>
+                                <option value="1">Ja</option>
+                                <option value="0">Nein</option>
                             </select>
                         </div>
                         <div class="col-span-1">
@@ -678,9 +615,8 @@
                     </div>
                 </div>
             </div>
-            <button onclick="addMaterialRow()" class="btn-outline text-sm w-full mt-2" data-i18n="sku_add_material">+ Material hinzufügen</button>
+            <button onclick="addMaterialRow()" class="btn-outline text-sm w-full mt-2">+ Material hinzufügen</button>
 
-            <!-- LABEL-GENERATOR -->
             <div class="mt-6 pt-4 border-t border-[var(--border)]">
                 <h4 class="font-semibold text-sm mb-2">🏷️ Recycling-Kennzeichnung generieren</h4>
                 <div class="flex items-center gap-4">
@@ -693,15 +629,13 @@
             </div>
 
             <div class="flex justify-between mt-6 pt-4 border-t border-[var(--border)]">
-                <button onclick="closeSkuModal()" class="btn-outline text-sm" data-i18n="cancel">Abbrechen</button>
-                <button onclick="saveSku()" class="btn-primary text-sm" data-i18n="save">Speichern</button>
+                <button onclick="closeSkuModal()" class="btn-outline text-sm">Abbrechen</button>
+                <button onclick="saveSku()" class="btn-primary text-sm">Speichern</button>
             </div>
         </div>
     </div>
 
-    <!-- ============================================================
-    CSV-IMPORT MODAL
-    ============================================================ -->
+    <!-- CSV-IMPORT MODAL -->
     <div id="bulk-import-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
@@ -722,9 +656,7 @@
         </div>
     </div>
 
-    <!-- ============================================================
-    SHOPIFY SYNC MODAL
-    ============================================================ -->
+    <!-- SHOPIFY SYNC MODAL -->
     <div id="shopify-sync-modal" class="modal-backdrop">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
@@ -749,10 +681,8 @@
                 <button onclick="startShopifySync()" class="btn-primary text-sm">Sync starten</button>
             </div>
         </div>
-    </div>
-
-    <!-- ============================================================
-    JAVASCRIPT
+    </div>    <!-- ============================================================
+    JAVASCRIPT – KOMPLETT
     ============================================================ -->
     <script>
         // ============================================================
@@ -1166,7 +1096,7 @@
         };
 
         // ============================================================
-        // 3. I18N – ALLE 5 SPRACHEN (nur die für das Dashboard relevanten)
+        // 3. I18N – ALLE 5 SPRACHEN
         // ============================================================
         const i18n = {
             de: {
@@ -1249,7 +1179,6 @@
                 notary_warning: '⚠️ Für dieses Land ist eine NOTARIELLE BEGLAUBIGUNG der Vollmacht erforderlich!',
                 notary_cost: '(Kosten: ca. 45 €)',
                 rep_warning: '🏛️ Bevollmächtigter vor Ort erforderlich (wird von Pack2EU organisiert).',
-                // ⭐ GRAUZONEN-INFOBOX
                 grauzone_title: "🇪🇺 EU-Grauzonen-Modus aktiv",
                 grauzone_text: "Seit dem 12.08.2026 gilt die neue EU-Verpackungsverordnung (PPWR). Als EU-Händler (Herkunft: {origin}) befinden Sie sich in der sanktionsfreien Grauzone – solange Sie Ihre Verpackungsdaten korrekt melden. Das übernimmt Pack2EU automatisch für Sie!",
                 grauzone_upgrade: "🔒 100% rechtliche Sicherheit? Buchen Sie jederzeit den physischen Bevollmächtigten für {price} € / Land als Add-on dazu.",
@@ -1628,9 +1557,6 @@
             return i18n[currentLang]?.[key] ?? i18n.de[key] ?? key;
         }
 
-        // ============================================================
-        // 4. SPRACHE
-        // ============================================================
         function setLang(lang) {
             if (!i18n[lang]) return;
             currentLang = lang;
@@ -1643,17 +1569,15 @@
             });
             document.getElementById('lang-select').value = lang;
             document.documentElement.lang = lang;
-            // Länder-Wissen neu rendern
             const selectedCountry = document.getElementById('knowledge-country-select')?.value;
             if (selectedCountry) {
                 showCountryKnowledge();
             }
-            // Länder neu rendern
             loadDashboard();
         }
 
         // ============================================================
-        // 5. LÄNDER-CHECK / WISSENSDATENBANK
+        // 4. LÄNDER-CHECK / WISSENSDATENBANK
         // ============================================================
         function showCountryKnowledge() {
             const countryCode = document.getElementById('knowledge-country-select').value;
@@ -1720,7 +1644,7 @@
         }
 
         // ============================================================
-        // 6. API KONFIGURATION
+        // 5. API KONFIGURATION
         // ============================================================
         const API_BASE = window.PACK2EU_API_BASE || 'https://ack2eu-backend.onrender.com/api';
 
@@ -1743,7 +1667,7 @@
         }
 
         // ============================================================
-        // 7. AUTH
+        // 6. AUTH
         // ============================================================
         function logout() {
             clearToken();
@@ -1751,7 +1675,7 @@
         }
 
         // ============================================================
-        // 8. TABS
+        // 7. TABS
         // ============================================================
         let currentTab = 'merchant';
 
@@ -1765,32 +1689,29 @@
         }
 
         // ============================================================
-        // 9. DASHBOARD LOAD
+        // 8. DASHBOARD LOAD
         // ============================================================
         async function loadDashboard() {
             try {
                 const customer = await api('/auth/me');
                 document.getElementById('company-name').textContent = customer.company_name || 'Mein Shop';
 
-                // ⭐ HERKUNFTSLAND ANZEIGEN
                 const originCountry = customer.origin_country || localStorage.getItem('pack2eu_origin_country') || 'DE';
                 const originName = getCountryName(originCountry);
                 const originEl = document.getElementById('origin-display');
                 if (originEl) {
                     originEl.textContent = `📍 ${originName}`;
                 }
+                localStorage.setItem('pack2eu_origin_country', originCountry);
+                localStorage.setItem('pack2eu_is_eu', customer.is_eu ? 'true' : 'false');
 
-                // ⭐ PLAN-BADGE AKTUALISIEREN
                 const plan = customer.plan || 'M';
-                const planNames = {
-                    'S': 'Starter',
-                    'M': 'Bestseller',
-                    'L': 'Enterprise'
-                };
+                const planNames = { 'S': 'Starter', 'M': 'Bestseller', 'L': 'Enterprise' };
                 const planBadge = document.getElementById('plan-badge');
                 if (planBadge) {
                     planBadge.textContent = planNames[plan] || 'Business';
                 }
+                localStorage.setItem('pack2eu_plan', plan);
 
                 const countries = await api('/activations');
                 renderCountries(countries);
@@ -1821,7 +1742,7 @@
         }
 
         // ============================================================
-        // 10. COMPLIANCE-AMPEL
+        // 9. COMPLIANCE-AMPEL
         // ============================================================
         async function updateComplianceAmpel(countries, submissions) {
             const statusEl = document.getElementById('compliance-status');
@@ -1851,104 +1772,130 @@
                 tasksEl.innerHTML = `<div class="text-[var(--text-dim)]">Keine anstehenden Aufgaben.</div>`;
             }
         }
+      // ============================================================
+      // 10. LÄNDER RENDERN – KORRIGIERTE GRAUZONEN-LOGIK
+      // ============================================================
+function renderCountries(countries) {
+    const container = document.getElementById('country-list');
+    if (!countries || countries.length === 0) {
+        container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Länder aktiviert.</div>`;
+        return;
+    }
 
-        // ============================================================
-        // 11. LÄNDER – MIT GRAUZONEN-INFOBOX
-        // ============================================================
-        function renderCountries(countries) {
-            const container = document.getElementById('country-list');
-            if (!countries || countries.length === 0) {
-                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('skus_empty')}</div>`;
-                return;
-            }
+    const plan = localStorage.getItem('pack2eu_plan') || 'M';
+    const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
+    const maxCountries = planLimits[plan] || 27;
+    const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
+    const isEU = localStorage.getItem('pack2eu_is_eu') === 'true'; // ⬅️ WICHTIG: === 'true'
+    const upgradePrice = 149;
 
-            // ⭐ HERKUNFTSLAND (aus localStorage oder Fallback)
-            const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
-            const isEU = localStorage.getItem('pack2eu_is_eu') === 'true';
+    console.log('📍 renderCountries - isEU:', isEU, 'origin:', originCountry); // DEBUG
 
-            container.innerHTML = countries.map(c => {
-                const statusMap = {
-                    'active': { label: t('status_active'), dot: 'green' },
-                    'signed': { label: t('status_signed'), dot: 'green' },
-                    'pending': { label: t('status_pending'), dot: 'yellow' },
-                    'inactive': { label: t('status_inactive'), dot: 'gray' }
-                };
-                const s = statusMap[c.status] || statusMap.inactive;
+    const visibleCountries = countries.slice(0, maxCountries);
+    const hasMoreCountries = countries.length > maxCountries;
 
-                // ⭐ MODE (grauzone/premium)
-                const mode = c.mode || 'grauzone';
-                const isPremium = mode === 'premium';
-                const upgradePrice = 149;
+    container.innerHTML = visibleCountries.map(c => {
+        const statusMap = {
+            'active': { label: t('status_active'), dot: 'green' },
+            'signed': { label: t('status_active'), dot: 'green' },
+            'pending': { label: t('status_pending'), dot: 'yellow' },
+            'inactive': { label: t('status_inactive'), dot: 'gray' }
+        };
+        const s = statusMap[c.status] || statusMap.inactive;
 
-                // ⭐ MODE-BADGE
-                let modeBadge = '';
-                if (isPremium) {
-                    modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
-                } else {
-                    modeBadge = `<span class="badge badge-accent">${t('grauzone_status')}</span>`;
-                }
+        // ⭐ KORRIGIERTE MODUS-LOGIK
+        let mode = 'grauzone'; // Standard
+        if (c.mode) {
+            mode = c.mode;
+        } else if (isEU === true) {
+            mode = 'grauzone';
+        } else {
+            mode = 'premium';
+        }
+        const isPremium = mode === 'premium';
 
-                const countryIsEU = isEUCountry(c.country_code);
+        console.log(`📍 ${c.country_code} - mode: ${mode}, isPremium: ${isPremium}`); // DEBUG
 
-                // ⭐ INFOBOX
-                let infobox = '';
-
-                if (isPremium) {
-                    // 🔵 Premium-Modus
-                    infobox = `
-                        <div class="infobox-premium mt-3">
-                            <div class="title">${t('premium_title')}</div>
-                            <p class="text-sm mt-1">${t('premium_text')}</p>
-                        </div>
-                    `;
-                } else if (countryIsEU && isEU) {
-                    // 🟢 GRAUZONE – EU-Händler + EU-Land
-                    const originName = getCountryName(originCountry);
-                    infobox = `
-                        <div class="infobox-grauzone mt-3">
-                            <div class="title">${t('grauzone_title')}</div>
-                            <p class="text-sm mt-1">${t('grauzone_text').replace('{origin}', originName)}</p>
-                            <p class="text-sm mt-1">${t('grauzone_upgrade').replace('{price}', upgradePrice)}</p>
-                            <button onclick="upgradeToPremium('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('grauzone_button').replace('{price}', upgradePrice)}</button>
-                        </div>
-                    `;
-                } else if (countryIsEU && !isEU) {
-                    // 🟡 NICHT-EU-HÄNDLER – Bevollmächtigter PFLICHT
-                    const originName = getCountryName(originCountry);
-                    infobox = `
-                        <div class="infobox-non-eu mt-3">
-                            <div class="title">${t('non_eu_title')}</div>
-                            <p class="text-sm mt-1">${t('non_eu_text').replace('{origin}', originName)}</p>
-                            <button onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('non_eu_button').replace('{price}', upgradePrice)}</button>
-                        </div>
-                    `;
-                }
-
-                return `
-                    <div class="country-item border rounded-lg p-4 mb-3">
-                        <div class="flex items-center justify-between flex-wrap gap-2">
-                            <div>
-                                <span class="text-2xl">${c.flag || '🌍'}</span>
-                                <span class="font-bold text-lg">${c.name}</span>
-                                <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
-                                ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
-                                ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
-                            </div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="status-dot ${s.dot}"></span>
-                                <span class="text-sm">${s.label}</span>
-                                ${modeBadge}
-                                ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
-                                ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
-                                ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
-                            </div>
-                        </div>
-                        ${infobox}
-                    </div>
-                `;
-            }).join('');
+        let modeBadge = '';
+        if (isPremium) {
+            modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
+        } else {
+            modeBadge = `<span class="badge badge-accent">${t('grauzone_status')}</span>`;
         }
 
+        const countryIsEU = isEUCountry(c.country_code);
+        let infobox = '';
+
+        if (isPremium) {
+            infobox = `
+                <div class="infobox-premium mt-3">
+                    <div class="title">${t('premium_title')}</div>
+                    <p class="text-sm mt-1">${t('premium_text')}</p>
+                </div>
+            `;
+        } else if (countryIsEU && isEU) {
+            const originName = getCountryName(originCountry);
+            infobox = `
+                <div class="infobox-grauzone mt-3">
+                    <div class="title">${t('grauzone_title')}</div>
+                    <p class="text-sm mt-1">${t('grauzone_text').replace('{origin}', originName)}</p>
+                    <p class="text-sm mt-1">${t('grauzone_upgrade').replace('{price}', upgradePrice)}</p>
+                    <button onclick="upgradeToPremium('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('grauzone_button').replace('{price}', upgradePrice)}</button>
+                </div>
+            `;
+        } else if (countryIsEU && !isEU) {
+            const originName = getCountryName(originCountry);
+            infobox = `
+                <div class="infobox-non-eu mt-3">
+                    <div class="title">${t('non_eu_title')}</div>
+                    <p class="text-sm mt-1">${t('non_eu_text').replace('{origin}', originName)}</p>
+                    <button onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('non_eu_button').replace('{price}', upgradePrice)}</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="country-item border rounded-lg p-4 mb-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <span class="text-2xl">${c.flag || '🌍'}</span>
+                        <span class="font-bold text-lg">${c.name}</span>
+                        <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
+                        ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
+                        ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="status-dot ${s.dot}"></span>
+                        <span class="text-sm">${s.label}</span>
+                        ${modeBadge}
+                        ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
+                        ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
+                        ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
+                    </div>
+                </div>
+                ${infobox}
+            </div>
+        `;
+    }).join('');
+
+    if (hasMoreCountries && plan === 'S') {
+        const lockedCount = countries.length - maxCountries;
+        container.innerHTML += `
+            <div class="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                    📦 Sie haben das Starter-Paket (max. 2 Länder). ${lockedCount} weitere Länder sind gesperrt.
+                </p>
+                <button onclick="upgradePlan('M')" class="btn-primary text-xs mt-2 py-1 px-3">
+                    ➡️ Auf Bestseller upgraden (49 €/Monat)
+                </button>
+            </div>
+        `;
+    }
+}
+
+        // ============================================================
+        // 11. COUNTRY MODAL
+        // ============================================================
         function openCountryModal() {
             document.getElementById('country-modal').style.display = 'flex';
             document.getElementById('country-error').classList.add('hidden');
@@ -1959,7 +1906,7 @@
         }
 
         // ============================================================
-        // 12. AKTIVIEREN
+        // 12. LAND AKTIVIEREN
         // ============================================================
         async function activateCountry() {
             const code = document.getElementById('country-select').value;
@@ -1967,7 +1914,18 @@
             const error = document.getElementById('country-error');
             error.classList.add('hidden');
 
+            const plan = localStorage.getItem('pack2eu_plan') || 'M';
+            const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
+            const maxCountries = planLimits[plan] || 27;
+
             try {
+                const countries = await api('/activations');
+                if (countries.length >= maxCountries) {
+                    error.textContent = `❌ Ihr Plan (${plan === 'S' ? 'Starter' : plan}) erlaubt maximal ${maxCountries} Länder. Bitte upgraden Sie für mehr Länder.`;
+                    error.classList.remove('hidden');
+                    return;
+                }
+
                 const skus = await api('/skus');
                 let packagingData = [];
                 skus.forEach(sku => {
@@ -2043,7 +2001,6 @@
             if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
 
             try {
-                // ⭐ Stripe-Session erstellen
                 const session = await api('/payments/create-upgrade-session', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -2064,7 +2021,7 @@
         }
 
         // ============================================================
-        // 15. BEVOLLMÄCHTIGTEN BUCHEN (für Nicht-EU-Händler)
+        // 15. BEVOLLMÄCHTIGTEN BUCHEN
         // ============================================================
         async function bookRepresentative(countryCode) {
             const price = 149;
@@ -2091,7 +2048,31 @@
         }
 
         // ============================================================
-        // 16. SKUS
+        // 16. PLAN UPGRADE
+        // ============================================================
+        async function upgradePlan(newPlan) {
+            const planNames = { 'S': 'Starter', 'M': 'Bestseller', 'L': 'Enterprise' };
+            const prices = { 'S': 15, 'M': 49, 'L': 149 };
+            const currentPlan = localStorage.getItem('pack2eu_plan') || 'M';
+
+            if (!confirm(`Möchten Sie von ${planNames[currentPlan]} auf ${planNames[newPlan]} upgraden? (${prices[newPlan]} €/Monat)`)) return;
+
+            try {
+                const session = await api('/payments/create-checkout-session', {
+                    method: 'POST',
+                    body: JSON.stringify({ plan: newPlan })
+                });
+
+                if (session.url) {
+                    window.location.href = session.url;
+                }
+            } catch (err) {
+                alert('Fehler beim Upgrade: ' + err.message);
+            }
+        }
+
+        // ============================================================
+        // 17. SKUS
         // ============================================================
         function renderSkus(skus) {
             const container = document.getElementById('sku-list');
@@ -2108,7 +2089,6 @@
                             <span class="font-bold">${s.sku_name}</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${s.total_weight_grams}g</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${materialText}</span>
-                            ${s.lappa_code ? `<span class="text-xs text-[var(--primary)] ml-2">🔗 ${s.lappa_code}</span>` : ''}
                         </div>
                         <div class="flex gap-1">
                             <button onclick="generateLabelForSku('${s.id}')" class="btn-accent text-xs py-1 px-2">🏷️ Label</button>
@@ -2155,26 +2135,26 @@
             row.innerHTML = `
                 <div class="grid grid-cols-12 gap-2 items-end">
                     <div class="col-span-5">
-                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">${t('sku_material')}</label>
+                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Material</label>
                         <select class="material-type">
-                            <option value="karton" ${material === 'karton' ? 'selected' : ''}>${t('material_karton')}</option>
-                            <option value="kunststoff" ${material === 'kunststoff' ? 'selected' : ''}>${t('material_plastic')}</option>
-                            <option value="papier" ${material === 'papier' ? 'selected' : ''}>${t('material_paper')}</option>
-                            <option value="glas" ${material === 'glas' ? 'selected' : ''}>${t('material_glass')}</option>
-                            <option value="metall" ${material === 'metall' ? 'selected' : ''}>${t('material_metal')}</option>
-                            <option value="holz" ${material === 'holz' ? 'selected' : ''}>${t('material_wood')}</option>
-                            <option value="sonstige" ${material === 'sonstige' ? 'selected' : ''}>${t('material_other')}</option>
+                            <option value="karton" ${material === 'karton' ? 'selected' : ''}>Karton/Pappe</option>
+                            <option value="kunststoff" ${material === 'kunststoff' ? 'selected' : ''}>Kunststoff</option>
+                            <option value="papier" ${material === 'papier' ? 'selected' : ''}>Papier</option>
+                            <option value="glas" ${material === 'glas' ? 'selected' : ''}>Glas</option>
+                            <option value="metall" ${material === 'metall' ? 'selected' : ''}>Metall</option>
+                            <option value="holz" ${material === 'holz' ? 'selected' : ''}>Holz</option>
+                            <option value="sonstige" ${material === 'sonstige' ? 'selected' : ''}>Sonstige</option>
                         </select>
                     </div>
                     <div class="col-span-3">
-                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">${t('sku_weight')}</label>
+                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Gewicht (g)</label>
                         <input type="number" class="material-weight" placeholder="245" value="${weight}">
                     </div>
                     <div class="col-span-3">
-                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">${t('sku_recyclable')}</label>
+                        <label class="font-mono text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Recycelbar?</label>
                         <select class="material-recyclable">
-                            <option value="1" ${recyclable == 1 ? 'selected' : ''}>${t('yes')}</option>
-                            <option value="0" ${recyclable == 0 ? 'selected' : ''}>${t('no')}</option>
+                            <option value="1" ${recyclable == 1 ? 'selected' : ''}>Ja</option>
+                            <option value="0" ${recyclable == 0 ? 'selected' : ''}>Nein</option>
                         </select>
                     </div>
                     <div class="col-span-1">
@@ -2201,25 +2181,14 @@
             })).filter(m => m.weight_grams > 0);
         }
 
-        // ============================================================
-        // 17. LAPPA MATERIAL CODE MAPPING
-        // ============================================================
         function getLappaCode(materialType) {
             const mapping = {
-                'karton': 'S',
-                'papier': 'S',
-                'kunststoff': 'B',
-                'glas': 'A',
-                'metall': 'T',
-                'holz': 'F',
-                'sonstige': 'G'
+                'karton': 'S', 'papier': 'S', 'kunststoff': 'B',
+                'glas': 'A', 'metall': 'T', 'holz': 'F', 'sonstige': 'G'
             };
             return mapping[materialType] || 'G';
         }
 
-        // ============================================================
-        // 18. PRODUKT SPEICHERN
-        // ============================================================
         async function saveSku() {
             const sku_name = document.getElementById('sku-name').value.trim();
             const shopify_product_id = document.getElementById('sku-shopify-id').value.trim();
@@ -2263,9 +2232,6 @@
             }
         }
 
-        // ============================================================
-        // 19. PRODUKT LÖSCHEN
-        // ============================================================
         async function deleteSku(id) {
             if (!confirm('Möchtest du dieses Produkt wirklich löschen?')) return;
             try {
@@ -2277,7 +2243,7 @@
         }
 
         // ============================================================
-        // 20. CSV-MASSENIMPORT
+        // 18. CSV-IMPORT
         // ============================================================
         function openBulkImport() {
             document.getElementById('bulk-import-modal').style.display = 'flex';
@@ -2288,19 +2254,6 @@
         function closeBulkImport() {
             document.getElementById('bulk-import-modal').style.display = 'none';
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const fileInput = document.getElementById('csv-file');
-            if (fileInput) {
-                fileInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        document.getElementById('csv-filename').textContent = file.name;
-                        previewCSV(file);
-                    }
-                });
-            }
-        });
 
         function previewCSV(file) {
             const reader = new FileReader();
@@ -2374,7 +2327,7 @@
         }
 
         // ============================================================
-        // 21. SHOPIFY SYNC
+        // 19. SHOPIFY SYNC
         // ============================================================
         function openShopifySync() {
             document.getElementById('shopify-sync-modal').style.display = 'flex';
@@ -2404,7 +2357,7 @@
         }
 
         // ============================================================
-        // 22. KENNZEICHNUNG GENERIEREN
+        // 20. LABEL GENERIEREN
         // ============================================================
         function generateLabel() {
             const status = document.getElementById('label-status');
@@ -2443,12 +2396,11 @@
         }
 
         // ============================================================
-        // 23. VERPACKUNGSSTATISTIK
+        // 21. VERPACKUNGSSTATISTIK
         // ============================================================
         async function loadPackagingStats() {
             try {
                 const orders = await api('/shopify/orders');
-                const skus = await api('/skus');
 
                 let totalWeight = 0;
                 let totalCardboard = 0;
@@ -2483,7 +2435,7 @@
                 const container = document.getElementById('country-stats');
                 const countryEntries = Object.entries(countryStats);
                 if (countryEntries.length === 0) {
-                    container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('stats_by_country')}</div>`;
+                    container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Bestellungen importiert.</div>`;
                     return;
                 }
                 container.innerHTML = countryEntries.map(([country, stats]) => `
@@ -2502,12 +2454,12 @@
         }
 
         // ============================================================
-        // 24. BESTELLUNGEN
+        // 22. BESTELLUNGEN
         // ============================================================
         function renderOrders(orders) {
             const container = document.getElementById('orders-list');
             if (!orders || orders.length === 0) {
-                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('orders_empty')}</div>`;
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Bestellungen.</div>`;
                 return;
             }
             container.innerHTML = orders.map(o => `
@@ -2518,7 +2470,7 @@
                         <span class="text-xs text-[var(--text-dim)] ml-2">${o.total_weight_grams}g</span>
                     </div>
                     <div>
-                        <span class="badge badge-success">${t('processed')}</span>
+                        <span class="badge badge-success">Verarbeitet</span>
                     </div>
                 </div>
             `).join('');
@@ -2529,12 +2481,12 @@
         }
 
         // ============================================================
-        // 25. MELDUNGEN
+        // 23. MELDUNGEN
         // ============================================================
         function renderSubmissions(submissions) {
             const container = document.getElementById('submissions-list');
             if (!submissions || submissions.length === 0) {
-                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('submissions_empty')}</div>`;
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Meldungen erstellt.</div>`;
                 return;
             }
             container.innerHTML = submissions.map(s => `
@@ -2556,7 +2508,7 @@
         }
 
         // ============================================================
-        // 26. BEAUFTRAGTEN-PORTAL
+        // 24. BEAUFTRAGTEN-PORTAL
         // ============================================================
         async function loadRepresentativeDashboard() {
             try {
@@ -2583,7 +2535,7 @@
         function renderRepresentativeSubmissions(submissions) {
             const container = document.getElementById('rep-submissions-list');
             if (!submissions || submissions.length === 0) {
-                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">${t('rep_incoming_empty')}</div>`;
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine eingehenden Meldungen.</div>`;
                 return;
             }
             container.innerHTML = submissions.map(s => {
@@ -2595,7 +2547,6 @@
                             <span class="font-bold">${s.customer_number || 'Unbekannt'}</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${s.company_name}</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${s.destination}</span>
-                            <span class="text-xs text-[var(--text-dim)] ml-2">${s.length_cm}×${s.width_cm}×${s.height_cm} cm</span>
                             <span class="text-xs text-[var(--text-dim)] ml-2">${materialText}</span>
                         </div>
                         <div>
@@ -2621,7 +2572,7 @@
         }
 
         // ============================================================
-        // 27. INIT
+        // 25. INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
             const token = getToken();
@@ -2630,13 +2581,21 @@
                 return;
             }
 
-            // Sprache setzen
             const savedLang = localStorage.getItem('pack2eu_lang') || 'de';
             setLang(savedLang);
 
             loadDashboard();
+
             document.getElementById('knowledge-display').innerHTML =
-                `<div class="text-sm text-[var(--text-dim)]">${t('knowledge_select_hint')}</div>`;
+                `<div class="text-sm text-[var(--text-dim)]">Wähle ein Land aus, um die Anforderungen zu sehen.</div>`;
+
+            document.getElementById('csv-file')?.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    document.getElementById('csv-filename').textContent = file.name;
+                    previewCSV(file);
+                }
+            });
         });
     </script>
 
