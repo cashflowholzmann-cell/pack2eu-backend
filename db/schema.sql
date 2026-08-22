@@ -1,8 +1,8 @@
 -- ================================================================
--- PACK2EU – Vollständiges Datenbankschema
+-- PACK2EU – Vollständiges Datenbankschema (ERWEITERT)
 -- ================================================================
 
--- Kunden
+-- Kunden (ERWEITERT mit is_eu)
 CREATE TABLE IF NOT EXISTS customers (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_number         TEXT UNIQUE NOT NULL,
@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS customers (
   email                   TEXT UNIQUE NOT NULL,
   password_hash           TEXT NOT NULL,
   plan                    TEXT NOT NULL DEFAULT 'M',
+  is_eu                   INTEGER NOT NULL DEFAULT 1, -- ⭐ NEU: 1 = EU, 0 = Nicht-EU
   stripe_customer_id      TEXT UNIQUE,
   stripe_subscription_id  TEXT UNIQUE,
   subscription_status     TEXT NOT NULL DEFAULT 'inactive',
@@ -21,13 +22,12 @@ CREATE TABLE IF NOT EXISTS customers (
   updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- ⭐ LÄNDER (ERWEITERT)
+-- Länder (ERWEITERT mit flag)
 CREATE TABLE IF NOT EXISTS countries (
   code            TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
   register_body   TEXT NOT NULL,
   labeling_reqs   TEXT NOT NULL DEFAULT '[]',
-  -- ⭐ NEU: LÄNDER-DETAILS FÜR DIE ANZEIGE
   requirements_json TEXT NOT NULL DEFAULT '[]',
   labeling_json    TEXT NOT NULL DEFAULT '[]',
   eco_fee          TEXT,
@@ -39,18 +39,19 @@ CREATE TABLE IF NOT EXISTS countries (
   flag              TEXT DEFAULT '🇪🇺'
 );
 
--- Aktivierungen (Länder, die der Kunde aktiviert hat)
+-- Aktivierungen (ERWEITERT mit mode)
 CREATE TABLE IF NOT EXISTS activations(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     country_code TEXT NOT NULL REFERENCES countries(code),
     status TEXT NOT NULL DEFAULT 'pending', -- pending|signed|active
-    existing_number TEXT, -- bestehende EPR-Nummer
-    -- ⭐ ANBIETER-AGNOSTISCHE FELDER
-    provider_id TEXT, -- z.B. 'lappa', 'ecosistant', 'pro_de'
-    provider_epr_number TEXT, -- Von Provider gelieferte EPR-Nummer
-    provider_status TEXT DEFAULT 'pending', -- pending|success|failed
-    provider_data TEXT, -- JSON mit vollständiger Provider-Antwort
+    existing_number TEXT,
+    provider_id TEXT,
+    provider_epr_number TEXT,
+    provider_status TEXT DEFAULT 'pending',
+    provider_data TEXT,
+    mode TEXT DEFAULT 'grauzone', -- ⭐ NEU: grauzone | premium
+    mode_updated_at TEXT,          -- ⭐ NEU: Zeitpunkt des Upgrades
     signed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(customer_id, country_code)
@@ -66,7 +67,6 @@ CREATE TABLE IF NOT EXISTS product_packaging (
   materials_json      TEXT NOT NULL,
   total_weight_grams  INTEGER NOT NULL,
   packaging_type      TEXT,
-  -- ⭐ FÜR KÜNFTIGE ANBIETER-ERWEITERUNG
   provider_codes_json TEXT,
   created_at          TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Beauftragte (für Partner-Portal)
+-- Beauftragte
 CREATE TABLE IF NOT EXISTS representatives (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   country_code    TEXT NOT NULL REFERENCES countries(code),
@@ -116,3 +116,4 @@ CREATE TABLE IF NOT EXISTS representatives (
 CREATE INDEX IF NOT EXISTS idx_product_packaging_customer ON product_packaging(customer_id);
 CREATE INDEX IF NOT EXISTS idx_shopify_orders_customer ON shopify_orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_activations_customer ON activations(customer_id);
+CREATE INDEX IF NOT EXISTS idx_activations_mode ON activations(mode); -- ⭐ NEU
