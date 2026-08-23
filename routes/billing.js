@@ -1,13 +1,13 @@
 const express = require('express');
 const Stripe = require('stripe');
-const db = require('../DB');  // ⭐ ORIGINAL: So hat es funktioniert!
+const db = require('../DB');
 const { requireAuth } = require('../Middleware/auth');
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ============================================================
-// CHECKOUT SESSION FÜR ABO (PLAN-UPGRADE)
+// CHECKOUT SESSION FÜR ABO
 // ============================================================
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   const { plan } = req.body;
@@ -45,7 +45,7 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
-// PREMIUM-UPGRADE ZAHLUNG (149 € pro Land)
+// PREMIUM-UPGRADE
 // ============================================================
 router.post('/create-upgrade-session', requireAuth, async (req, res) => {
   const { country, price, type } = req.body;
@@ -105,7 +105,7 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
-// ⭐ STRIPE WEBHOOK
+// STRIPE WEBHOOK
 // ============================================================
 router.post('/webhooks/stripe', async (req, res) => {
   const sig = req.headers['stripe-signature'];
