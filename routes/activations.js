@@ -164,7 +164,7 @@ router.get('/:countryCode/status', (req, res) => {
 });
 
 // ============================================================
-// ⭐ NEU: MODE ZURÜCKSETZEN (NUR FÜR TESTS!)
+// ⭐ MODE ZURÜCKSETZEN (NUR FÜR TESTS!)
 // ============================================================
 router.post('/reset-mode', requireAuth, (req, res) => {
   try {
