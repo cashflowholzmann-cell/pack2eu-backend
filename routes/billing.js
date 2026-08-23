@@ -1,6 +1,6 @@
 const express = require('express');
 const Stripe = require('stripe');
-const db = require('../DB');  // ⭐ DB/index.js laden
+const db = require('../DB');  // ⭐ ORIGINAL: So hat es funktioniert!
 const { requireAuth } = require('../Middleware/auth');
 
 const router = express.Router();
