@@ -32,6 +32,16 @@ function init() {
       console.log('ℹ️ provider_codes_json existiert bereits');
     }
 
+    // ⭐ NEU: Lappa-Spalten für Repräsentanten
+    try {
+      db.exec(`ALTER TABLE activations ADD COLUMN lappa_representative_id TEXT`);
+      db.exec(`ALTER TABLE activations ADD COLUMN lappa_status TEXT DEFAULT 'pending'`);
+      db.exec(`ALTER TABLE activations ADD COLUMN lappa_data TEXT`);
+      console.log('✅ Lappa-Spalten zu activations hinzugefügt');
+    } catch (err) {
+      console.log('ℹ️ Lappa-Spalten existieren bereits');
+    }
+
     // 3. Länder seeden (mit ALLEN Daten)
     const count = db.prepare('SELECT COUNT(*) AS n FROM countries').get().n;
     if (count === 0) {
