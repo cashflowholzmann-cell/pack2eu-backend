@@ -4,12 +4,10 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// ⭐ GEÄNDERT: db (klein) statt DB (groß)
 const db = require('./db');
 const { init } = db;
 init();
 
-// Routes
 const authRoutes = require('./routes/auth');
 const countryRoutes = require('./routes/countries');
 const activationRoutes = require('./routes/activations');
@@ -24,7 +22,9 @@ const lappaRoutes = require('./routes/lappa');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ⭐ Webhook MUSS VOR express.json() kommen!
 app.use('/api/billing/webhooks/stripe', express.raw({ type: 'application/json' }));
+
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '500kb' }));
 
