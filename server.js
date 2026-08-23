@@ -4,7 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// ⭐ GEÄNDERT: db (klein) statt DB (groß)!
+// ⭐ GEÄNDERT: db (klein) statt DB (groß)
 const db = require('./db');
 const { init } = db;
 init();
