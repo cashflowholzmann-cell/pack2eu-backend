@@ -57,7 +57,6 @@ app.post('/api/reset-mode', async (req, res) => {
     
     console.log(`🔍 Reset-Versuch: E-Mail=${email}, Land=${countryCode}`);
     
-    // Kunde anhand der E-Mail finden
     const customer = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
     if (!customer) {
       return res.status(404).json({ error: 'Kunde nicht gefunden.' });
@@ -65,7 +64,6 @@ app.post('/api/reset-mode', async (req, res) => {
     
     console.log(`✅ Kunde gefunden: ID=${customer.id}`);
     
-    // Prüfen ob Aktivierung existiert
     const activation = db.prepare(
       'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
     ).get(customer.id, countryCode);
@@ -76,7 +74,6 @@ app.post('/api/reset-mode', async (req, res) => {
     
     console.log(`ℹ️ Aktueller Mode: ${activation.mode}`);
     
-    // Mode zurücksetzen
     db.prepare(`
       UPDATE activations 
       SET mode = 'grauzone', mode_updated_at = datetime('now')
