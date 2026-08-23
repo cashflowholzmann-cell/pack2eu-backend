@@ -4,7 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// ⭐ ORIGINAL: So hat es funktioniert!
+// ⭐ GANZ EINFACH: DB-Ordner laden
 const db = require('./DB');
 const { init } = db;
 init();
@@ -24,9 +24,7 @@ const lappaRoutes = require('./Strecken/lappa');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Webhook-Route mit raw-Body-Parser
 app.use('/api/billing/webhooks/stripe', express.raw({ type: 'application/json' }));
-
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '500kb' }));
 
