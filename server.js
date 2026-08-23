@@ -48,6 +48,79 @@ app.use('/api/representatives', representativeRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/lappa', lappaRoutes);
 
+// ============================================================
+// ⭐ NOTFALL: MODE MANUELL ZURÜCKSETZEN (NUR FÜR TESTS!)
+// ============================================================
+app.post('/api/reset-mode', async (req, res) => {
+  try {
+    const { email, countryCode } = req.body;
+    
+    console.log(`🔍 Reset-Versuch: E-Mail=${email}, Land=${countryCode}`);
+    
+    // Kunde anhand der E-Mail finden
+    const customer = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
+    if (!customer) {
+      return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    }
+    
+    console.log(`✅ Kunde gefunden: ID=${customer.id}`);
+    
+    // Prüfen ob Aktivierung existiert
+    const activation = db.prepare(
+      'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
+    ).get(customer.id, countryCode);
+    
+    if (!activation) {
+      return res.status(404).json({ error: 'Land nicht aktiviert.' });
+    }
+    
+    console.log(`ℹ️ Aktueller Mode: ${activation.mode}`);
+    
+    // Mode zurücksetzen
+    db.prepare(`
+      UPDATE activations 
+      SET mode = 'grauzone', mode_updated_at = datetime('now')
+      WHERE customer_id = ? AND country_code = ?
+    `).run(customer.id, countryCode);
+    
+    console.log(`✅ Mode für ${countryCode} auf grauzone zurückgesetzt!`);
+    
+    res.json({ 
+      success: true, 
+      message: `✅ Mode für ${countryCode} auf grauzone zurückgesetzt!`
+    });
+  } catch (error) {
+    console.error('❌ Fehler beim Reset:', error);
+    res.status(500).json({ error: 'Fehler beim Zurücksetzen: ' + error.message });
+  }
+});
+
+// ============================================================
+// ⭐ NOTFALL: MODE ANZEIGEN (NUR FÜR TESTS!)
+// ============================================================
+app.get('/api/check-mode/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    const customer = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
+    if (!customer) {
+      return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    }
+    
+    const activations = db.prepare(`
+      SELECT country_code, mode FROM activations WHERE customer_id = ?
+    `).all(customer.id);
+    
+    res.json({ 
+      email, 
+      customerId: customer.id,
+      activations 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpunkt nicht gefunden.' });
 });
@@ -61,4 +134,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Pack2EU Backend läuft auf Port ${PORT}`);
   console.log(`📡 Webhook-URL: http://localhost:${PORT}/api/billing/webhooks/stripe`);
   console.log(`🌐 Dashboard: http://localhost:${PORT}/Dashboard.html`);
+  console.log(`🔧 Reset-Endpoint: POST /api/reset-mode`);
 });
