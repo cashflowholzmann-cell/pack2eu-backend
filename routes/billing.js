@@ -1,7 +1,7 @@
 const express = require('express');
 const Stripe = require('stripe');
-const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const db = require('../DB');  // ⭐ ÄNDERUNG: DB (groß) statt db
+const { requireAuth } = require('../Middleware/auth'); // ⭐ ÄNDERUNG: Middleware (groß)
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -32,7 +32,7 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     mode: 'subscription',
     customer: stripeCustomerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.APP_URL}/dashboard.html?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${process.env.APP_URL}/Dashboard.html?session_id={CHECKOUT_SESSION_ID}`, // ⭐ Dashboard.html (groß)
     cancel_url: `${process.env.APP_URL}/index.html`,
     metadata: {
       user_id: customer.id,
@@ -94,8 +94,8 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
       },
       quantity: 1,
     }],
-    success_url: `${process.env.APP_URL}/dashboard.html?upgrade=success&country=${country}`,
-    cancel_url: `${process.env.APP_URL}/dashboard.html?upgrade=cancel`,
+    success_url: `${process.env.APP_URL}/Dashboard.html?upgrade=success&country=${country}`, // ⭐ Dashboard.html (groß)
+    cancel_url: `${process.env.APP_URL}/Dashboard.html?upgrade=cancel`, // ⭐ Dashboard.html (groß)
     metadata: {
       user_id: customerId,
       country: country,
@@ -107,19 +107,14 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
-// ⭐ STRIPE WEBHOOK (OHNE express.raw() – das kommt aus server.js)
+// ⭐ STRIPE WEBHOOK
 // ============================================================
 router.post('/webhooks/stripe', async (req, res) => {
-  // ⭐ ACHTUNG: req.body ist bereits der RAW-Buffer von express.raw()
-  // Der Buffer muss in einen String konvertiert werden, bevor stripe.webhooks.constructEvent ihn verarbeitet
-  
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
-    // ⭐ WICHTIG: req.body ist ein Buffer, aber stripe.webhooks.constructEvent erwartet einen String
-    // Lösung: req.body.toString() oder einfach req.body (wenn es schon ein Buffer ist)
-    const rawBody = req.body.toString(); // Buffer → String
+    const rawBody = req.body.toString();
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.log(`⚠️ Webhook-Signaturfehler: ${err.message}`);
@@ -164,8 +159,6 @@ router.post('/webhooks/stripe', async (req, res) => {
 
     } catch (err) {
       console.error('❌ Fehler beim DB-Update:', err);
-      // ⭐ NICHT throwen – Stripe soll keinen Retry bekommen
-      // Wir loggen den Fehler nur
     }
   }
 
