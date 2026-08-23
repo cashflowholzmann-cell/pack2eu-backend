@@ -171,7 +171,6 @@ router.post('/reset-mode', requireAuth, (req, res) => {
     const { countryCode } = req.body;
     const customerId = req.customer.sub;
 
-    // Prüfen ob Aktivierung existiert
     const activation = db.prepare(
       'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
     ).get(customerId, countryCode);
@@ -184,7 +183,6 @@ router.post('/reset-mode', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Bereits im Grauzonen-Modus.' });
     }
 
-    // ⭐ mode auf 'grauzone' zurücksetzen
     db.prepare(`
       UPDATE activations 
       SET mode = 'grauzone', mode_updated_at = datetime('now')
