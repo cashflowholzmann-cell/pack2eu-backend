@@ -7,7 +7,7 @@ const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ============================================================
-// CHECKOUT SESSION FÜR ABO
+// CHECKOUT SESSION FÜR ABO (PLAN-UPGRADE)
 // ============================================================
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   const { plan } = req.body;
@@ -34,13 +34,18 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${process.env.APP_URL}/dashboard.html?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.APP_URL}/index.html`,
+    metadata: {
+      user_id: customer.id,
+      plan: plan,
+      type: 'plan_upgrade'
+    }
   });
 
   res.json({ url: session.url });
 });
 
 // ============================================================
-// ⭐ NEU: PREMIUM-UPGRADE ZAHLUNG (149 €)
+// PREMIUM-UPGRADE ZAHLUNG (149 € pro Land)
 // ============================================================
 router.post('/create-upgrade-session', requireAuth, async (req, res) => {
   const { country, price, type } = req.body;
@@ -73,7 +78,7 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
     db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
   }
 
-  // ⭐ Stripe-Session für einmalige Zahlung (149 €)
+  // Stripe-Session für einmalige Zahlung (149 €)
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer: stripeCustomerId,
@@ -102,44 +107,65 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
-// ⭐ NEU: STRIPE WEBHOOK (FÜR ERFOLGREICHE ZAHLUNG)
+// ⭐ STRIPE WEBHOOK (OHNE express.raw() – das kommt aus server.js)
 // ============================================================
-router.post('/webhooks/stripe', express.raw({type: 'application/json'}), async (req, res) => {
+router.post('/webhooks/stripe', async (req, res) => {
+  // ⭐ ACHTUNG: req.body ist bereits der RAW-Buffer von express.raw()
+  // Der Buffer muss in einen String konvertiert werden, bevor stripe.webhooks.constructEvent ihn verarbeitet
+  
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    // ⭐ WICHTIG: req.body ist ein Buffer, aber stripe.webhooks.constructEvent erwartet einen String
+    // Lösung: req.body.toString() oder einfach req.body (wenn es schon ein Buffer ist)
+    const rawBody = req.body.toString(); // Buffer → String
+    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.log(`⚠️ Webhook-Signaturfehler: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // ⭐ Erfolgreiche Zahlung verarbeiten
+  // Erfolgreiche Zahlung verarbeiten
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const { user_id, country, type } = session.metadata;
+    const { user_id, country, type, plan } = session.metadata || {};
 
-    console.log(`✅ Zahlung erfolgreich: User ${user_id}, Land ${country}, Typ ${type}`);
+    console.log(`✅ Zahlung erfolgreich: User ${user_id}, Land ${country}, Typ ${type}, Plan ${plan}`);
 
-    if (type === 'premium_upgrade' || type === 'representative_booking') {
-      try {
-        // ⭐ mode auf 'premium' setzen
-        db.prepare(`
-          UPDATE activations 
-          SET mode = 'premium', mode_updated_at = datetime('now')
-          WHERE customer_id = ? AND country_code = ?
-        `).run(parseInt(user_id), country);
+    try {
+      // ⭐ Fall 1: Premium-Upgrade für ein Land
+      if (type === 'premium_upgrade' || type === 'representative_booking') {
+        if (country && user_id) {
+          db.prepare(`
+            UPDATE activations 
+            SET mode = 'premium', mode_updated_at = datetime('now')
+            WHERE customer_id = ? AND country_code = ?
+          `).run(parseInt(user_id), country);
 
-        console.log(`✅ Premium-Modus für ${country} aktiviert`);
-
-        // ⭐ Lappa-API für Bevollmächtigten aufrufen
-        // (wird später implementiert)
-        // await callLappaAPI(user_id, country);
-
-      } catch (err) {
-        console.error('❌ Fehler beim Upgrade:', err);
+          console.log(`✅ Premium-Modus für ${country} aktiviert (User ${user_id})`);
+        } else {
+          console.warn(`⚠️ Kein Land oder user_id in Metadata:`, session.metadata);
+        }
       }
+
+      // ⭐ Fall 2: Plan-Upgrade
+      if (type === 'plan_upgrade' && plan && user_id) {
+        db.prepare('UPDATE customers SET plan = ? WHERE id = ?').run(plan, parseInt(user_id));
+        console.log(`✅ Plan auf ${plan} geupgradet (User ${user_id})`);
+      }
+
+      // ⭐ Fall 3: Subscription (Plan-Upgrade mit Abo)
+      if (type === 'subscription' && plan && user_id) {
+        db.prepare('UPDATE customers SET plan = ?, subscription_status = "active" WHERE id = ?')
+          .run(plan, parseInt(user_id));
+        console.log(`✅ Abo auf ${plan} aktiviert (User ${user_id})`);
+      }
+
+    } catch (err) {
+      console.error('❌ Fehler beim DB-Update:', err);
+      // ⭐ NICHT throwen – Stripe soll keinen Retry bekommen
+      // Wir loggen den Fehler nur
     }
   }
 
