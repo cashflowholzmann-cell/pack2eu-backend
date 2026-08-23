@@ -29,7 +29,6 @@ router.get('/', (req, res) => {
       WHERE a.customer_id = ?
     `).all(req.customer.sub);
     
-    // ⭐ mode auf grauzone setzen falls nicht vorhanden
     const result = rows.map(row => ({
       ...row,
       mode: row.mode || 'grauzone'
@@ -63,7 +62,6 @@ router.post('/:countryCode', (req, res) => {
 
     const status = existing_number ? 'active' : 'pending';
     
-    // ⭐ NEU: mode = 'grauzone' als Standard
     db.prepare(`
       INSERT INTO activations (customer_id, country_code, status, existing_number, mode)
       VALUES (?, ?, ?, ?, ?)
@@ -98,14 +96,13 @@ router.post('/:countryCode/sign', (req, res) => {
 });
 
 // ============================================================
-// ⭐ NEU: UPGRADE ZU PREMIUM
+// UPGRADE ZU PREMIUM
 // ============================================================
 router.post('/:countryCode/upgrade', (req, res) => {
   try {
     const { countryCode } = req.params;
     const customerId = req.customer.sub;
 
-    // Prüfen ob Aktivierung existiert
     const activation = db.prepare(
       'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
     ).get(customerId, countryCode);
@@ -118,7 +115,6 @@ router.post('/:countryCode/upgrade', (req, res) => {
       return res.status(400).json({ error: 'Bereits im Premium-Modus.' });
     }
 
-    // ⭐ mode auf 'premium' setzen
     db.prepare(`
       UPDATE activations 
       SET mode = 'premium', mode_updated_at = datetime('now')
@@ -139,7 +135,7 @@ router.post('/:countryCode/upgrade', (req, res) => {
 });
 
 // ============================================================
-// ⭐ NEU: STATUS ABFRAGEN (für Dashboard)
+// STATUS ABFRAGEN (für Dashboard)
 // ============================================================
 router.get('/:countryCode/status', (req, res) => {
   try {
@@ -164,6 +160,47 @@ router.get('/:countryCode/status', (req, res) => {
   } catch (error) {
     console.error('❌ Fehler beim Status:', error);
     res.status(500).json({ error: 'Fehler beim Abrufen des Status.' });
+  }
+});
+
+// ============================================================
+// ⭐ NEU: MODE ZURÜCKSETZEN (NUR FÜR TESTS!)
+// ============================================================
+router.post('/reset-mode', requireAuth, (req, res) => {
+  try {
+    const { countryCode } = req.body;
+    const customerId = req.customer.sub;
+
+    // Prüfen ob Aktivierung existiert
+    const activation = db.prepare(
+      'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
+    ).get(customerId, countryCode);
+
+    if (!activation) {
+      return res.status(404).json({ error: 'Land nicht aktiviert.' });
+    }
+
+    if (activation.mode === 'grauzone') {
+      return res.status(400).json({ error: 'Bereits im Grauzonen-Modus.' });
+    }
+
+    // ⭐ mode auf 'grauzone' zurücksetzen
+    db.prepare(`
+      UPDATE activations 
+      SET mode = 'grauzone', mode_updated_at = datetime('now')
+      WHERE customer_id = ? AND country_code = ?
+    `).run(customerId, countryCode);
+
+    res.json({ 
+      success: true, 
+      countryCode, 
+      mode: 'grauzone',
+      message: '✅ Mode erfolgreich auf grauzone zurückgesetzt!'
+    });
+
+  } catch (error) {
+    console.error('❌ Fehler beim Reset:', error);
+    res.status(500).json({ error: 'Fehler beim Zurücksetzen: ' + error.message });
   }
 });
 
