@@ -4,7 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// ⭐ GANZ EINFACH: DB-Ordner laden
+// ⭐ GANZ WICHTIG: SO HAT ES FUNKTIONIERT!
 const db = require('./DB');
 const { init } = db;
 init();
