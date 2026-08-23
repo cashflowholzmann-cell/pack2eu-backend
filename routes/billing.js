@@ -1,7 +1,7 @@
 const express = require('express');
 const Stripe = require('stripe');
-const db = require('../db');  // ⭐ GEÄNDERT: db (klein)
-const { requireAuth } = require('../middleware/auth');  // ⭐ GEÄNDERT: middleware (klein)
+const db = require('../db');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -105,7 +105,7 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
-// ⭐ STRIPE WEBHOOK
+// ⭐ STRIPE WEBHOOK (MIT LAPPA-PLATZHALTER)
 // ============================================================
 router.post('/webhooks/stripe', async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -126,18 +126,23 @@ router.post('/webhooks/stripe', async (req, res) => {
     console.log(`✅ Zahlung erfolgreich: User ${user_id}, Land ${country}, Typ ${type}, Plan ${plan}`);
 
     try {
+      // ⭐ Fall 1: Premium-Upgrade für ein Land
       if (type === 'premium_upgrade' || type === 'representative_booking') {
         if (country && user_id) {
+          // 1. Datenbank updaten
           db.prepare(`
             UPDATE activations 
             SET mode = 'premium', mode_updated_at = datetime('now')
             WHERE customer_id = ? AND country_code = ?
           `).run(parseInt(user_id), country);
-
           console.log(`✅ Premium-Modus für ${country} aktiviert (User ${user_id})`);
+
+          // ⭐ 2. LAPPA-API AUFRUFEN (Platzhalter)
+          await registerRepresentativeWithLappa(parseInt(user_id), country);
         }
       }
 
+      // ⭐ Fall 2: Plan-Upgrade
       if (type === 'plan_upgrade' && plan && user_id) {
         db.prepare('UPDATE customers SET plan = ? WHERE id = ?').run(plan, parseInt(user_id));
         console.log(`✅ Plan auf ${plan} geupgradet (User ${user_id})`);
@@ -150,6 +155,51 @@ router.post('/webhooks/stripe', async (req, res) => {
 
   res.json({ received: true });
 });
+
+// ============================================================
+// ⭐ LAPPA-API PLATZHALTER (MORGEN IMPLEMENTIEREN)
+// ============================================================
+async function registerRepresentativeWithLappa(userId, countryCode) {
+  console.log(`📞 LAPPA-API AUFRUF: User ${userId}, Land ${countryCode}`);
+  
+  try {
+    // ⭐ MORGEN HIER DIE ECHTE LAPPA-API IMPLEMENTIEREN
+    // const response = await fetch('https://api.lappa.io/v1/representatives', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${process.env.LAPPA_API_KEY}`,
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify({
+    //     customerId: userId,
+    //     countryCode: countryCode,
+    //     // Weitere Felder laut Lappa-Dokumentation
+    //   })
+    // });
+    // const data = await response.json();
+    // 
+    // // Lappa-Response in der DB speichern
+    // db.prepare(`
+    //   UPDATE activations 
+    //   SET provider_id = ?, provider_status = 'registered', provider_data = ?
+    //   WHERE customer_id = ? AND country_code = ?
+    // `).run(data.representativeId, JSON.stringify(data), userId, countryCode);
+    
+    // console.log(`✅ Lappa-Registrierung für ${countryCode} erfolgreich`);
+
+    // ⭐ PLATZHALTER: Nur Log-Ausgabe
+    console.log(`ℹ️ LAPPA-API (Platzhalter): Registrierung für ${countryCode} würde jetzt erfolgen.`);
+    
+    // Simuliere erfolgreiche Registrierung
+    return { success: true, representativeId: 'lappa_placeholder_' + Date.now() };
+    
+  } catch (error) {
+    console.error(`❌ Fehler bei Lappa-API:`, error.message);
+    // ⭐ WICHTIG: Fehler nur loggen – mode bleibt auf premium!
+    // Der Händler hat bezahlt, die Registrierung wird später nachgeholt
+    return { success: false, error: error.message };
+  }
+}
 
 // ============================================================
 // ABO-STATUS
