@@ -82,6 +82,22 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 16px rgba(10,37,64,0.25);
         }
+        .btn-success {
+            background: var(--success);
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all .15s ease;
+            font-family: var(--font);
+        }
+        .btn-success:hover {
+            background: #009970;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,179,131,0.3);
+        }
         .btn-block { width: 100%; justify-content: center; }
 
         .card {
@@ -122,6 +138,9 @@
         .badge-primary { background: var(--primary); color: white; }
         .badge-grauzone { background: #EBF5FF; color: #1E40AF; }
         .badge-premium { background: #D1FAE5; color: #065F46; }
+        .badge-starter { background: #F3F4F6; color: #374151; }
+        .badge-bestseller { background: #D1FAE5; color: #065F46; }
+        .badge-enterprise { background: #DBEAFE; color: #1E40AF; }
 
         .tab {
             padding: 8px 16px;
@@ -261,11 +280,11 @@
         }
 
         .infobox-grauzone {
-            background: #EBF5FF;
-            border: 1px solid #3B82F6;
+            background: #FFFBEB;
+            border: 1px solid #F59E0B;
             border-radius: 8px;
             padding: 12px 16px;
-            color: #1E40AF;
+            color: #92400E;
         }
         .infobox-grauzone .title { font-weight: 700; }
         .infobox-premium {
@@ -277,11 +296,11 @@
         }
         .infobox-premium .title { font-weight: 700; }
         .infobox-non-eu {
-            background: #FFFBEB;
-            border: 1px solid #F59E0B;
+            background: #FEF2F2;
+            border: 1px solid #F87171;
             border-radius: 8px;
             padding: 12px 16px;
-            color: #92400E;
+            color: #991B1B;
         }
         .infobox-non-eu .title { font-weight: 700; }
         .infobox-upgrade {
@@ -324,6 +343,44 @@
         .compliance-card.success { border-left-color: var(--success); }
         .compliance-card.danger { border-left-color: var(--danger); }
 
+        /* ⭐ PLAN-FEATURES SIDEBAR */
+        .plan-features {
+            background: var(--bg);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .plan-features .plan-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+        .plan-features .feature-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .plan-features .feature-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: white;
+            border: 1px solid var(--border);
+        }
+        .plan-features .feature-item.active {
+            background: var(--accent-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .plan-features .feature-item.locked {
+            opacity: 0.5;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 0 16px; }
             .modal-content { padding: 24px; margin: 10px; }
@@ -349,7 +406,7 @@
                 <span class="badge badge-success ml-2" id="plan-badge">Bestseller</span>
             </div>
             <div class="flex items-center gap-4 flex-wrap">
-                <span class="text-sm text-[var(--text-dim)]" id="origin-display">📍 Japan</span>
+                <span class="text-sm text-[var(--text-dim)]" id="origin-display">📍 Deutschland</span>
                 <select id="lang-select" onchange="setLang(this.value)" class="lang-select">
                     <option value="de">🇩🇪 Deutsch</option>
                     <option value="en">🇬🇧 English</option>
@@ -363,8 +420,29 @@
         </div>
     </header>
 
+    <!-- ⭐ PLAN-FEATURES SIDEBAR / INFO -->
+    <div class="container py-2">
+        <div class="plan-features" id="plan-features">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                    <span class="plan-name" id="plan-name-display">📦 Bestseller</span>
+                    <span class="text-xs text-[var(--text-dim)] ml-2" id="plan-price-display">49 € / Monat</span>
+                </div>
+                <div class="feature-list" id="feature-list">
+                    <span class="feature-item active">✅ Basis-Dashboard</span>
+                    <span class="feature-item active" id="feature-shopify">✅ Shopify-Integration</span>
+                    <span class="feature-item active" id="feature-notary">✅ Notar-Integration (AT)</span>
+                    <span class="feature-item locked" id="feature-audit">❌ Audit-Berichte</span>
+                    <span class="feature-item locked" id="feature-api">❌ API-Zugang</span>
+                    <span class="feature-item locked" id="feature-support">❌ Dedizierter Support</span>
+                    <button onclick="upgradePlan('L')" class="btn-primary text-xs py-1 px-3 hidden" id="upgrade-enterprise-btn">⬆️ Enterprise</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- TABS -->
-    <div class="container py-4">
+    <div class="container py-2">
         <div class="flex gap-2 border-b border-[var(--border)] pb-2 flex-wrap">
             <button onclick="switchTab('merchant')" id="tab-merchant" class="tab active">📦 Händler-Dashboard</button>
             <button onclick="switchTab('representative')" id="tab-representative" class="tab">🏛️ Beauftragten-Portal</button>
@@ -457,7 +535,7 @@
                 <div class="flex flex-wrap gap-2">
                     <button onclick="openSkuModal()" class="btn-primary text-sm">+ Neues Produkt</button>
                     <button onclick="openBulkImport()" class="btn-accent text-sm">📥 CSV-Import</button>
-                    <button onclick="openShopifySync()" class="btn-outline text-sm">🔄 Shopify Sync</button>
+                    <button onclick="openShopifySync()" class="btn-outline text-sm" id="shopify-sync-btn">🔄 Shopify Sync</button>
                 </div>
             </div>
             <div id="sku-list" class="space-y-3">
@@ -494,7 +572,7 @@
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h2 class="text-xl font-bold" style="color:var(--primary);">📋 Bestellungen</h2>
-                <button onclick="connectShopify()" class="btn-accent text-sm" id="shopify-btn">🔗 Shopify verbinden</button>
+                <button onclick="connectShopify()" class="btn-accent text-sm" id="shopify-connect-btn">🔗 Shopify verbinden</button>
             </div>
             <div id="orders-list" class="space-y-3">
                 <div class="text-sm text-[var(--text-dim)]">Noch keine Bestellungen.</div>
@@ -681,7 +759,9 @@
                 <button onclick="startShopifySync()" class="btn-primary text-sm">Sync starten</button>
             </div>
         </div>
-    </div>    <!-- ============================================================
+    </div>
+
+    <!-- ============================================================
     JAVASCRIPT – KOMPLETT
     ============================================================ -->
     <script>
@@ -715,7 +795,7 @@
         }
 
         // ============================================================
-        // 2. LÄNDER-WISSENSDATENBANK
+        // 2. LÄNDER-WISSENSDATENBANK (gekürzt für die Übersicht)
         // ============================================================
         const countryKnowledge = {
             DE: {
@@ -725,13 +805,6 @@
                 registration_url: 'https://lucid.verpackungsregister.org',
                 representative_required: false,
                 notary_required: false,
-                representative_note: {
-                    de: 'In Deutschland ist kein externer Bevollmächtigter erforderlich, wenn Sie selbst in Deutschland ansässig sind. Für ausländische Händler ist ein Bevollmächtigter seit 12.08.2026 Pflicht.',
-                    en: 'In Germany, no external representative is required if you are based in Germany. For foreign merchants, a representative has been mandatory since 12.08.2026.',
-                    fr: 'En Allemagne, aucun représentant externe n\'est requis si vous êtes basé en Allemagne. Pour les commerçants étrangers, un représentant est obligatoire depuis le 12.08.2026.',
-                    it: 'In Germania, non è richiesto un rappresentante esterno se si è residenti in Germania. Per i commercianti stranieri, un rappresentante è obbligatorio dal 12.08.2026.',
-                    es: 'En Alemania, no se requiere un representante externo si tiene su sede en Alemania. Para comerciantes extranjeros, un representante es obligatorio desde el 12.08.2026.'
-                },
                 requirements: {
                     de: ['Registrierung im LUCID-Verpackungsregister (kostenlos)', 'Systembeteiligung bei einem dualen System (z.B. Grüner Punkt)', 'Jährliche Mengenmeldung'],
                     en: ['Registration in LUCID packaging register (free)', 'System participation with a dual system (e.g. Green Dot)', 'Annual quantity reporting'],
@@ -949,13 +1022,6 @@
                 registration_url: 'https://www.verpakkingen.nl',
                 representative_required: false,
                 notary_required: false,
-                representative_note: {
-                    de: 'Die Niederlande haben eine Bagatellgrenze von 50t bis Ende 2026 – vorerst ist kein Bevollmächtigter erforderlich.',
-                    en: 'The Netherlands have a bagatelle limit of 50t until the end of 2026 – no representative is required for now.',
-                    fr: 'Les Pays-Bas ont une limite de 50t jusqu\'à fin 2026 – aucun représentant n\'est requis pour l\'instant.',
-                    it: 'I Paesi Bassi hanno un limite di 50t fino a fine 2026 – per ora non è richiesto un rappresentante.',
-                    es: 'Los Países Bajos tienen un límite de 50t hasta finales de 2026 – por ahora no se requiere representante.'
-                },
                 requirements: {
                     de: ['Registrierung im niederländischen System', 'Bagatellgrenze 50t bis Ende 2026', 'Jährliche Mengenmeldung'],
                     en: ['Registration in the Dutch system', 'Bagatelle limit 50t until end of 2026', 'Annual quantity reporting'],
@@ -1096,7 +1162,7 @@
         };
 
         // ============================================================
-        // 3. I18N – ALLE 5 SPRACHEN
+        // 3. I18N – ALLE 5 SPRACHEN (vollständig)
         // ============================================================
         const i18n = {
             de: {
@@ -1125,8 +1191,9 @@
                 status_signed: "Signiert",
                 status_pending: "Ausstehend",
                 status_inactive: "Inaktiv",
-                grauzone_status: "🟢 Grauzone",
+                grauzone_status: "🟠 Grauzone",
                 premium_status: "🔵 Premium",
+                rep_required_status: "🔴 Bevollmächtigter nötig",
                 skus_title: "📦 Produkte & Verpackungen",
                 skus_add: "+ Neues Produkt",
                 skus_empty: "Noch keine Produkte hinterlegt.",
@@ -1181,7 +1248,7 @@
                 rep_warning: '🏛️ Bevollmächtigter vor Ort erforderlich (wird von Pack2EU organisiert).',
                 grauzone_title: "🇪🇺 EU-Grauzonen-Modus aktiv",
                 grauzone_text: "Seit dem 12.08.2026 gilt die neue EU-Verpackungsverordnung (PPWR). Als EU-Händler (Herkunft: {origin}) befinden Sie sich in der sanktionsfreien Grauzone – solange Sie Ihre Verpackungsdaten korrekt melden. Das übernimmt Pack2EU automatisch für Sie!",
-                grauzone_upgrade: "🔒 100% rechtliche Sicherheit? Buchen Sie jederzeit den physischen Bevollmächtigten für {price} € / Land als Add-on dazu.",
+                grauzone_upgrade: "🔒 100% rechtliche Sicherheit oder bei großen Verpackungsvolumina? Buchen Sie jederzeit den physischen Bevollmächtigten für {price} € / Land als Add-on dazu.",
                 grauzone_button: "🔒 Auf Premium upgraden ({price} €)",
                 premium_title: "🔵 Premium-Modus aktiv – 100% rechtssicher",
                 premium_text: "Sie haben den physischen Bevollmächtigten für dieses Land hinzugebucht. Genießen Sie 100% rechtliche Sicherheit – wir kümmern uns um alles.",
@@ -1215,8 +1282,9 @@
                 status_signed: "Signed",
                 status_pending: "Pending",
                 status_inactive: "Inactive",
-                grauzone_status: "🟢 Gray Zone",
+                grauzone_status: "🟠 Gray Zone",
                 premium_status: "🔵 Premium",
+                rep_required_status: "🔴 Representative required",
                 skus_title: "📦 Products & Packaging",
                 skus_add: "+ New Product",
                 skus_empty: "No products added yet.",
@@ -1271,7 +1339,7 @@
                 rep_warning: '🏛️ Local authorized representative required (organized by Pack2EU).',
                 grauzone_title: "🇪🇺 EU Gray Zone Mode active",
                 grauzone_text: "Since 12.08.2026, the new EU Packaging Regulation (PPWR) applies. As an EU merchant (origin: {origin}), you are in the penalty-free gray zone – as long as you correctly report your packaging data. Pack2EU does this automatically for you!",
-                grauzone_upgrade: "🔒 100% legal certainty? Book the physical authorized representative for {price} € / country as an add-on at any time.",
+                grauzone_upgrade: "🔒 100% legal certainty or high packaging volumes? Book the physical authorized representative for {price} € / country as an add-on at any time.",
                 grauzone_button: "🔒 Upgrade to Premium ({price} €)",
                 premium_title: "🔵 Premium Mode active – 100% legally compliant",
                 premium_text: "You have added the physical authorized representative for this country. Enjoy 100% legal certainty – we take care of everything.",
@@ -1305,8 +1373,9 @@
                 status_signed: "Signé",
                 status_pending: "En attente",
                 status_inactive: "Inactif",
-                grauzone_status: "🟢 Zone grise",
+                grauzone_status: "🟠 Zone grise",
                 premium_status: "🔵 Premium",
+                rep_required_status: "🔴 Mandataire requis",
                 skus_title: "📦 Produits et emballages",
                 skus_add: "+ Nouveau produit",
                 skus_empty: "Aucun produit enregistré.",
@@ -1361,7 +1430,7 @@
                 rep_warning: '🏛️ Mandataire local requis (organisé par Pack2EU).',
                 grauzone_title: "🇪🇺 Mode zone grise UE actif",
                 grauzone_text: "Depuis le 12.08.2026, le nouveau règlement européen sur les emballages (PPWR) s'applique. En tant que commerçant de l'UE (origine: {origin}), vous vous trouvez dans la zone grise sans sanction – à condition de déclarer correctement vos données d'emballage. Pack2EU le fait automatiquement pour vous !",
-                grauzone_upgrade: "🔒 Une sécurité juridique à 100% ? Réservez à tout moment le mandataire physique pour {price} € / pays en option.",
+                grauzone_upgrade: "🔒 Une sécurité juridique à 100% ou de gros volumes d'emballage ? Réservez à tout moment le mandataire physique pour {price} € / pays en option.",
                 grauzone_button: "🔒 Passer à Premium ({price} €)",
                 premium_title: "🔵 Mode Premium actif – 100% conforme",
                 premium_text: "Vous avez réservé le mandataire physique pour ce pays. Profitez d'une sécurité juridique à 100% – nous nous occupons de tout.",
@@ -1395,8 +1464,9 @@
                 status_signed: "Firmato",
                 status_pending: "In sospeso",
                 status_inactive: "Inattivo",
-                grauzone_status: "🟢 Zona grigia",
+                grauzone_status: "🟠 Zona grigia",
                 premium_status: "🔵 Premium",
+                rep_required_status: "🔴 Rappresentante richiesto",
                 skus_title: "📦 Prodotti e imballaggi",
                 skus_add: "+ Nuovo prodotto",
                 skus_empty: "Nessun prodotto registrato.",
@@ -1451,7 +1521,7 @@
                 rep_warning: '🏛️ Mandatario locale richiesto (organizzato da Pack2EU).',
                 grauzone_title: "🇪🇺 Modalità zona grigia UE attiva",
                 grauzone_text: "Dal 12.08.2026 si applica il nuovo regolamento UE sugli imballaggi (PPWR). Come commerciante UE (origine: {origin}), ti trovi nella zona grigia senza sanzioni – purché dichiari correttamente i tuoi dati di imballaggio. Pack2EU lo fa automaticamente per te!",
-                grauzone_upgrade: "🔒 Sicurezza giuridica al 100%? Prenota in qualsiasi momento il rappresentante fisico per {price} € / paese come aggiunta.",
+                grauzone_upgrade: "🔒 Sicurezza giuridica al 100% o grandi volumi di imballaggio? Prenota in qualsiasi momento il rappresentante fisico per {price} € / paese come aggiunta.",
                 grauzone_button: "🔒 Passa a Premium ({price} €)",
                 premium_title: "🔵 Modalità Premium attiva – 100% conforme",
                 premium_text: "Hai prenotato il rappresentante fisico per questo paese. Goditi la massima sicurezza giuridica – ci occupiamo noi di tutto.",
@@ -1485,8 +1555,9 @@
                 status_signed: "Firmado",
                 status_pending: "Pendiente",
                 status_inactive: "Inactivo",
-                grauzone_status: "🟢 Zona gris",
+                grauzone_status: "🟠 Zona gris",
                 premium_status: "🔵 Premium",
+                rep_required_status: "🔴 Representante requerido",
                 skus_title: "📦 Productos y embalajes",
                 skus_add: "+ Nuevo producto",
                 skus_empty: "No hay productos registrados.",
@@ -1541,7 +1612,7 @@
                 rep_warning: '🏛️ Representante local requerido (organizado por Pack2EU).',
                 grauzone_title: "🇪🇺 Modo zona gris UE activo",
                 grauzone_text: "Desde el 12.08.2026 se aplica el nuevo reglamento europeo de envases (PPWR). Como comerciante de la UE (origen: {origin}), se encuentra en la zona gris sin sanciones – siempre que declare correctamente sus datos de envase. ¡Pack2EU lo hace automáticamente por usted!",
-                grauzone_upgrade: "🔒 ¿Seguridad jurídica al 100%? Reserve en cualquier momento el representante físico por {price} € / país como complemento.",
+                grauzone_upgrade: "🔒 ¿Seguridad jurídica al 100% o grandes volúmenes de envasado? Reserve en cualquier momento el representante físico por {price} € / país como complemento.",
                 grauzone_button: "🔒 Actualizar a Premium ({price} €)",
                 premium_title: "🔵 Modo Premium activo – 100% conforme",
                 premium_text: "Ha reservado el representante físico para este país. Disfrute de la máxima seguridad jurídica – nosotros nos encargamos de todo.",
@@ -1557,6 +1628,9 @@
             return i18n[currentLang]?.[key] ?? i18n.de[key] ?? key;
         }
 
+        // ============================================================
+        // 4. SPRACHE
+        // ============================================================
         function setLang(lang) {
             if (!i18n[lang]) return;
             currentLang = lang;
@@ -1577,7 +1651,7 @@
         }
 
         // ============================================================
-        // 4. LÄNDER-CHECK / WISSENSDATENBANK
+        // 5. LÄNDER-CHECK / WISSENSDATENBANK
         // ============================================================
         function showCountryKnowledge() {
             const countryCode = document.getElementById('knowledge-country-select').value;
@@ -1644,7 +1718,7 @@
         }
 
         // ============================================================
-        // 5. API KONFIGURATION
+        // 6. API KONFIGURATION
         // ============================================================
         const API_BASE = window.PACK2EU_API_BASE || 'https://ack2eu-backend.onrender.com/api';
 
@@ -1667,7 +1741,7 @@
         }
 
         // ============================================================
-        // 6. AUTH
+        // 7. AUTH
         // ============================================================
         function logout() {
             clearToken();
@@ -1675,7 +1749,7 @@
         }
 
         // ============================================================
-        // 7. TABS
+        // 8. TABS
         // ============================================================
         let currentTab = 'merchant';
 
@@ -1689,7 +1763,7 @@
         }
 
         // ============================================================
-        // 8. DASHBOARD LOAD
+        // 9. DASHBOARD LOAD + PLAN UI
         // ============================================================
         async function loadDashboard() {
             try {
@@ -1712,6 +1786,9 @@
                     planBadge.textContent = planNames[plan] || 'Business';
                 }
                 localStorage.setItem('pack2eu_plan', plan);
+
+                // ⭐ PLAN-BASIERTE UI
+                applyPlanUI(plan);
 
                 const countries = await api('/activations');
                 renderCountries(countries);
@@ -1742,7 +1819,103 @@
         }
 
         // ============================================================
-        // 9. COMPLIANCE-AMPEL
+        // 10. PLAN-BASIERTE UI (NEU)
+        // ============================================================
+        function applyPlanUI(plan) {
+            const planNames = { 'S': 'Starter', 'M': 'Bestseller', 'L': 'Enterprise' };
+            const planPrices = { 'S': '15 € / Monat', 'M': '49 € / Monat', 'L': '149 € / Monat' };
+            const planEmojis = { 'S': '📦', 'M': '⭐', 'L': '🏢' };
+
+            // Plan-Namen anzeigen
+            const nameDisplay = document.getElementById('plan-name-display');
+            if (nameDisplay) {
+                nameDisplay.textContent = `${planEmojis[plan] || '📦'} ${planNames[plan] || 'Business'}`;
+            }
+
+            const priceDisplay = document.getElementById('plan-price-display');
+            if (priceDisplay) {
+                priceDisplay.textContent = planPrices[plan] || '';
+            }
+
+            // Feature-Liste
+            const featureShopify = document.getElementById('feature-shopify');
+            const featureNotary = document.getElementById('feature-notary');
+            const featureAudit = document.getElementById('feature-audit');
+            const featureApi = document.getElementById('feature-api');
+            const featureSupport = document.getElementById('feature-support');
+            const upgradeBtn = document.getElementById('upgrade-enterprise-btn');
+
+            // Alle Features zurücksetzen
+            const allFeatures = [featureShopify, featureNotary, featureAudit, featureApi, featureSupport];
+            allFeatures.forEach(f => {
+                if (f) {
+                    f.className = 'feature-item locked';
+                    f.textContent = f.textContent.replace('✅', '❌');
+                }
+            });
+
+            // Plan-spezifische Features aktivieren
+            if (plan === 'S') {
+                // Starter: Nur Basis
+                // Keine zusätzlichen Features
+            } else if (plan === 'M') {
+                // Bestseller: Shopify + Notar
+                if (featureShopify) {
+                    featureShopify.className = 'feature-item active';
+                    featureShopify.textContent = '✅ Shopify-Integration';
+                }
+                if (featureNotary) {
+                    featureNotary.className = 'feature-item active';
+                    featureNotary.textContent = '✅ Notar-Integration (AT)';
+                }
+                // Enterprise-Upgrade-Button für Bestseller
+                if (upgradeBtn) {
+                    upgradeBtn.classList.remove('hidden');
+                    upgradeBtn.textContent = '⬆️ Enterprise (149 €)';
+                    upgradeBtn.onclick = () => upgradePlan('L');
+                }
+            } else if (plan === 'L') {
+                // Enterprise: Alle Features
+                if (featureShopify) {
+                    featureShopify.className = 'feature-item active';
+                    featureShopify.textContent = '✅ Shopify-Integration';
+                }
+                if (featureNotary) {
+                    featureNotary.className = 'feature-item active';
+                    featureNotary.textContent = '✅ Notar-Integration (AT)';
+                }
+                if (featureAudit) {
+                    featureAudit.className = 'feature-item active';
+                    featureAudit.textContent = '✅ Audit-Berichte';
+                }
+                if (featureApi) {
+                    featureApi.className = 'feature-item active';
+                    featureApi.textContent = '✅ API-Zugang';
+                }
+                if (featureSupport) {
+                    featureSupport.className = 'feature-item active';
+                    featureSupport.textContent = '✅ Dedizierter Support';
+                }
+                if (upgradeBtn) {
+                    upgradeBtn.classList.add('hidden');
+                }
+            }
+
+            // Shopify-Buttons sichtbar/nicht sichtbar
+            const shopifySyncBtn = document.getElementById('shopify-sync-btn');
+            const shopifyConnectBtn = document.getElementById('shopify-connect-btn');
+
+            if (plan === 'S') {
+                if (shopifySyncBtn) shopifySyncBtn.style.display = 'none';
+                if (shopifyConnectBtn) shopifyConnectBtn.style.display = 'none';
+            } else {
+                if (shopifySyncBtn) shopifySyncBtn.style.display = 'inline-flex';
+                if (shopifyConnectBtn) shopifyConnectBtn.style.display = 'inline-flex';
+            }
+        }
+
+        // ============================================================
+        // 11. COMPLIANCE-AMPEL
         // ============================================================
         async function updateComplianceAmpel(countries, submissions) {
             const statusEl = document.getElementById('compliance-status');
@@ -1772,10 +1945,11 @@
                 tasksEl.innerHTML = `<div class="text-[var(--text-dim)]">Keine anstehenden Aufgaben.</div>`;
             }
         }
-      // ============================================================
-      // 10. LÄNDER RENDERN – KORRIGIERTE GRAUZONEN-LOGIK
-      // ============================================================
-function renderCountries(countries) {
+
+        // ============================================================
+        // 12. LÄNDER RENDERN – MIT GRAUZONEN-INFOBOX (GEFIXT ✅)
+        // ============================================================
+        function renderCountries(countries) {
     const container = document.getElementById('country-list');
     if (!countries || countries.length === 0) {
         container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Länder aktiviert.</div>`;
@@ -1786,10 +1960,8 @@ function renderCountries(countries) {
     const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
     const maxCountries = planLimits[plan] || 27;
     const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
-    const isEU = localStorage.getItem('pack2eu_is_eu') === 'true'; // ⬅️ WICHTIG: === 'true'
+    const isEU = localStorage.getItem('pack2eu_is_eu') === 'true';
     const upgradePrice = 149;
-
-    console.log('📍 renderCountries - isEU:', isEU, 'origin:', originCountry); // DEBUG
 
     const visibleCountries = countries.slice(0, maxCountries);
     const hasMoreCountries = countries.length > maxCountries;
@@ -1803,27 +1975,20 @@ function renderCountries(countries) {
         };
         const s = statusMap[c.status] || statusMap.inactive;
 
-        // ⭐ KORRIGIERTE MODUS-LOGIK
-        let mode = 'grauzone'; // Standard
-        if (c.mode) {
-            mode = c.mode;
-        } else if (isEU === true) {
-            mode = 'grauzone';
-        } else {
-            mode = 'premium';
-        }
+        // ⭐ NUR DAS BACKEND DARF 'premium' SETZEN!
+        const mode = c.mode === 'premium' ? 'premium' : 'grauzone';
         const isPremium = mode === 'premium';
-
-        console.log(`📍 ${c.country_code} - mode: ${mode}, isPremium: ${isPremium}`); // DEBUG
+        const countryIsEU = isEUCountry(c.country_code);
 
         let modeBadge = '';
         if (isPremium) {
             modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
+        } else if (countryIsEU && !isEU) {
+            modeBadge = `<span class="badge badge-danger">${t('rep_required_status')}</span>`;
         } else {
-            modeBadge = `<span class="badge badge-accent">${t('grauzone_status')}</span>`;
+            modeBadge = `<span class="badge badge-warning">${t('grauzone_status')}</span>`;
         }
 
-        const countryIsEU = isEUCountry(c.country_code);
         let infobox = '';
 
         if (isPremium) {
@@ -1894,7 +2059,7 @@ function renderCountries(countries) {
 }
 
         // ============================================================
-        // 11. COUNTRY MODAL
+        // 13. COUNTRY MODAL
         // ============================================================
         function openCountryModal() {
             document.getElementById('country-modal').style.display = 'flex';
@@ -1906,7 +2071,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 12. LAND AKTIVIEREN
+        // 14. LAND AKTIVIEREN
         // ============================================================
         async function activateCountry() {
             const code = document.getElementById('country-select').value;
@@ -1978,7 +2143,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 13. SIGNATUR
+        // 15. SIGNATUR
         // ============================================================
         async function signActivation(code) {
             try {
@@ -1994,61 +2159,61 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 14. UPGRADE ZU PREMIUM
+        // 16. UPGRADE ZU PREMIUM
         // ============================================================
         async function upgradeToPremium(countryCode) {
-            const price = 149;
-            if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
+    const price = 149;
+    if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
 
-            try {
-                const session = await api('/payments/create-upgrade-session', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        country: countryCode,
-                        price: price,
-                        type: 'premium_upgrade'
-                    })
-                });
+    try {
+        const session = await api('/payments/create-upgrade-session', {
+            method: 'POST',
+            body: JSON.stringify({
+                country: countryCode,
+                price: price,
+                type: 'premium_upgrade'
+            })
+        });
 
-                if (session.url) {
-                    window.location.href = session.url;
-                } else {
-                    alert('Fehler bei der Zahlungsabwicklung.');
-                }
-            } catch (err) {
-                alert('Fehler: ' + err.message);
-            }
+        if (session.url) {
+            window.location.href = session.url;
+        } else {
+            alert('Fehler bei der Zahlungsabwicklung.');
         }
+    } catch (err) {
+        alert('Fehler: ' + err.message);
+    }
+}
 
         // ============================================================
-        // 15. BEVOLLMÄCHTIGTEN BUCHEN
+        // 17. BEVOLLMÄCHTIGTEN BUCHEN
         // ============================================================
         async function bookRepresentative(countryCode) {
-            const price = 149;
-            if (!confirm(`${t('non_eu_button').replace('{price}', price)}`)) return;
+    const price = 149;
+    if (!confirm(`${t('non_eu_button').replace('{price}', price)}`)) return;
 
-            try {
-                const session = await api('/payments/create-upgrade-session', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        country: countryCode,
-                        price: price,
-                        type: 'representative_booking'
-                    })
-                });
+    try {
+        const session = await api('/payments/create-upgrade-session', {
+            method: 'POST',
+            body: JSON.stringify({
+                country: countryCode,
+                price: price,
+                type: 'representative_booking'
+            })
+        });
 
-                if (session.url) {
-                    window.location.href = session.url;
-                } else {
-                    alert('Fehler bei der Zahlungsabwicklung.');
-                }
-            } catch (err) {
-                alert('Fehler: ' + err.message);
-            }
+        if (session.url) {
+            window.location.href = session.url;
+        } else {
+            alert('Fehler bei der Zahlungsabwicklung.');
         }
+    } catch (err) {
+        alert('Fehler: ' + err.message);
+    }
+}
 
         // ============================================================
-        // 16. PLAN UPGRADE
+        // 18. PLAN UPGRADE
         // ============================================================
         async function upgradePlan(newPlan) {
             const planNames = { 'S': 'Starter', 'M': 'Bestseller', 'L': 'Enterprise' };
@@ -2072,7 +2237,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 17. SKUS
+        // 19. SKUS
         // ============================================================
         function renderSkus(skus) {
             const container = document.getElementById('sku-list');
@@ -2243,7 +2408,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 18. CSV-IMPORT
+        // 20. CSV-IMPORT
         // ============================================================
         function openBulkImport() {
             document.getElementById('bulk-import-modal').style.display = 'flex';
@@ -2327,7 +2492,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 19. SHOPIFY SYNC
+        // 21. SHOPIFY SYNC
         // ============================================================
         function openShopifySync() {
             document.getElementById('shopify-sync-modal').style.display = 'flex';
@@ -2357,7 +2522,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 20. LABEL GENERIEREN
+        // 22. LABEL GENERIEREN
         // ============================================================
         function generateLabel() {
             const status = document.getElementById('label-status');
@@ -2396,7 +2561,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 21. VERPACKUNGSSTATISTIK
+        // 23. VERPACKUNGSSTATISTIK
         // ============================================================
         async function loadPackagingStats() {
             try {
@@ -2454,7 +2619,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 22. BESTELLUNGEN
+        // 24. BESTELLUNGEN
         // ============================================================
         function renderOrders(orders) {
             const container = document.getElementById('orders-list');
@@ -2481,7 +2646,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 23. MELDUNGEN
+        // 25. MELDUNGEN
         // ============================================================
         function renderSubmissions(submissions) {
             const container = document.getElementById('submissions-list');
@@ -2508,7 +2673,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 24. BEAUFTRAGTEN-PORTAL
+        // 26. BEAUFTRAGTEN-PORTAL
         // ============================================================
         async function loadRepresentativeDashboard() {
             try {
@@ -2572,7 +2737,7 @@ function renderCountries(countries) {
         }
 
         // ============================================================
-        // 25. INIT
+        // 27. INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
             const token = getToken();
