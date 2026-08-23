@@ -4,12 +4,13 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const db = require('./DB');  // ⭐ ÄNDERUNG: DB (groß) statt db
+// ⭐ WICHTIG: DB/index.js laden
+const db = require('./DB');  // Lädt automatisch ./DB/index.js
 const { init } = db;
 init();
 
 // Routes (von "Strecken" importieren!)
-const authRoutes = require('./Strecken/auth');  // ⭐ ÄNDERUNG: Strecken statt routes
+const authRoutes = require('./Strecken/auth');
 const countryRoutes = require('./Strecken/countries');
 const activationRoutes = require('./Strecken/activations');
 const submissionRoutes = require('./Strecken/submissions');
