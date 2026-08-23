@@ -4,22 +4,22 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// ⭐ GANZ WICHTIG: SO HAT ES FUNKTIONIERT!
-const db = require('./DB');
+// ⭐ GEÄNDERT: db (klein) statt DB (groß)!
+const db = require('./db');
 const { init } = db;
 init();
 
 // Routes
-const authRoutes = require('./Strecken/auth');
-const countryRoutes = require('./Strecken/countries');
-const activationRoutes = require('./Strecken/activations');
-const submissionRoutes = require('./Strecken/submissions');
-const exportRoutes = require('./Strecken/exports');
-const skusRoutes = require('./Strecken/skus');
-const shopifyRoutes = require('./Strecken/shopify');
-const representativeRoutes = require('./Strecken/representatives');
-const billingRoutes = require('./Strecken/billing');
-const lappaRoutes = require('./Strecken/lappa');
+const authRoutes = require('./routes/auth');
+const countryRoutes = require('./routes/countries');
+const activationRoutes = require('./routes/activations');
+const submissionRoutes = require('./routes/submissions');
+const exportRoutes = require('./routes/exports');
+const skusRoutes = require('./routes/skus');
+const shopifyRoutes = require('./routes/shopify');
+const representativeRoutes = require('./routes/representatives');
+const billingRoutes = require('./routes/billing');
+const lappaRoutes = require('./routes/lappa');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
