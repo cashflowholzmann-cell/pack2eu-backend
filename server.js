@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -6,7 +7,16 @@ const path = require('path');
 
 const db = require('./db');
 const { init } = db;
+
+// ============================================================
+// DATENBANK
+// ============================================================
+
 init();
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 const authRoutes = require('./routes/auth');
 const countryRoutes = require('./routes/countries');
@@ -19,60 +29,198 @@ const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
 const lappaRoutes = require('./routes/lappa');
 
+// ⭐ NEU: zentrale Compliance-Logik
+const complianceRoutes = require('./routes/compliance');
+
+// ============================================================
+// APP
+// ============================================================
+
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 
-// ⭐ Webhook MUSS VOR express.json() kommen!
-app.use('/api/billing/webhooks/stripe', express.raw({ type: 'application/json' }));
+// ============================================================
+// STRIPE WEBHOOK
+// ============================================================
+//
+// WICHTIG:
+// Stripe benötigt den ORIGINALEN Request Body.
+// Deshalb muss express.raw() VOR express.json()
+// für genau diese Route registriert werden.
+//
 
-app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '500kb' }));
+app.use(
+  '/api/billing/webhooks/stripe',
+  express.raw({ type: 'application/json' })
+);
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
-app.use('/api/auth', authLimiter);
+// ============================================================
+// CORS
+// ============================================================
+
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean)
+  : ['*'];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Requests ohne Origin (z.B. Postman, Server-to-Server)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Entwicklung / Wildcard
+      if (allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(
+        new Error('CORS: Origin nicht erlaubt.')
+      );
+    },
+    credentials: true
+  })
+);
+
+// ============================================================
+// JSON BODY
+// ============================================================
+
+app.use(
+  express.json({
+    limit: '500kb'
+  })
+);
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Zu viele Anfragen. Bitte später erneut versuchen.'
+  }
+});
+
+const complianceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Zu viele Compliance-Anfragen. Bitte später erneut versuchen.'
+  }
+});
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), service: 'Pack2EU' });
+  res.json({
+    status: 'ok',
+    service: 'Pack2EU',
+    version: '2.0.0',
+    time: new Date().toISOString()
+  });
 });
+
+// ============================================================
+// STATISCHE DATEIEN
+// ============================================================
 
 app.use(express.static(path.join(__dirname, '/')));
 
-app.use('/api/auth', authRoutes);
+// ============================================================
+// API ROUTES
+// ============================================================
+
+app.use('/api/auth', authLimiter, authRoutes);
+
 app.use('/api/countries', countryRoutes);
+
 app.use('/api/activations', activationRoutes);
+
 app.use('/api/submissions', submissionRoutes);
+
 app.use('/api/exports', exportRoutes);
+
 app.use('/api/skus', skusRoutes);
+
 app.use('/api/shopify', shopifyRoutes);
+
 app.use('/api/representatives', representativeRoutes);
+
 app.use('/api/billing', billingRoutes);
+
 app.use('/api/lappa', lappaRoutes);
 
+// ⭐ NEU
+// Zentrale Compliance-Entscheidung
+app.use(
+  '/api/compliance',
+  complianceLimiter,
+  complianceRoutes
+);
+
 // ============================================================
-// ⚠️ ENTFERNT: /api/reset-mode und /api/check-mode/:email
-// Diese beiden Endpunkte liefen OHNE Authentifizierung und
-// erlaubten es JEDER Person mit einer Kunden-E-Mail, den
-// Compliance-Status zu lesen oder zurückzusetzen. Das ist ein
-// direkter Weg, einen zahlenden Premium-Kunden kostenlos auf
-// "Grauzone" zurückzuwerfen oder Kundendaten auszuspähen.
-//
-// Falls ihr für Tests einen Reset-Weg braucht: baut das als
-// authentifizierte Admin-Route mit eigenem Passwort/Secret-Header,
-// niemals offen erreichbar. Sag Bescheid, dann bau ich euch das
-// sauber mit einem ADMIN_SECRET aus der .env.
+// 404
 // ============================================================
 
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpunkt nicht gefunden.' });
+  res.status(404).json({
+    error: 'Endpunkt nicht gefunden.'
+  });
 });
+
+// ============================================================
+// GLOBALER ERROR HANDLER
+// ============================================================
 
 app.use((err, req, res, next) => {
   console.error('❌ Serverfehler:', err);
-  res.status(500).json({ error: 'Interner Serverfehler.' });
+
+  // CORS-Fehler
+  if (err.message && err.message.startsWith('CORS:')) {
+    return res.status(403).json({
+      error: 'Zugriff von dieser Herkunft nicht erlaubt.'
+    });
+  }
+
+  res.status(500).json({
+    error: 'Interner Serverfehler.'
+  });
 });
 
+// ============================================================
+// SERVER START
+// ============================================================
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Pack2EU Backend läuft auf Port ${PORT}`);
-  console.log(`📡 Webhook-URL: http://localhost:${PORT}/api/billing/webhooks/stripe`);
+  console.log('');
+  console.log('==============================================');
+  console.log('🚀 PACK2EU BACKEND');
+  console.log('==============================================');
+  console.log(`📡 Port: ${PORT}`);
   console.log(`🌐 Dashboard: http://localhost:${PORT}/Dashboard.html`);
+  console.log(`❤️ Health: http://localhost:${PORT}/api/health`);
+  console.log(`⚖️ Compliance: http://localhost:${PORT}/api/compliance`);
+  console.log(
+    `💳 Stripe Webhook: http://localhost:${PORT}/api/billing/webhooks/stripe`
+  );
+  console.log('==============================================');
+  console.log('');
 });
