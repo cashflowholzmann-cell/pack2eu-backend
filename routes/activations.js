@@ -96,43 +96,17 @@ router.post('/:countryCode/sign', (req, res) => {
 });
 
 // ============================================================
-// UPGRADE ZU PREMIUM
+// ⚠️ ENTFERNT: POST /:countryCode/upgrade
+// Dieser Endpunkt setzte mode = 'premium' direkt, OHNE jede
+// Stripe-Zahlungsprüfung. Jeder eingeloggte Kunde hätte sich
+// damit (z.B. über die Browser-Konsole) kostenlos auf
+// "100% rechtssicher" setzen können.
+//
+// Die EINZIGE Stelle, die mode = 'premium' setzen darf, ist
+// der Stripe-Webhook in routes/billing.js (nach bestätigter
+// Zahlung). Das Dashboard ruft dafür bereits korrekt
+// /api/billing/create-upgrade-session auf.
 // ============================================================
-router.post('/:countryCode/upgrade', (req, res) => {
-  try {
-    const { countryCode } = req.params;
-    const customerId = req.customer.sub;
-
-    const activation = db.prepare(
-      'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
-    ).get(customerId, countryCode);
-
-    if (!activation) {
-      return res.status(404).json({ error: 'Land nicht aktiviert.' });
-    }
-
-    if (activation.mode === 'premium') {
-      return res.status(400).json({ error: 'Bereits im Premium-Modus.' });
-    }
-
-    db.prepare(`
-      UPDATE activations 
-      SET mode = 'premium', mode_updated_at = datetime('now')
-      WHERE customer_id = ? AND country_code = ?
-    `).run(customerId, countryCode);
-
-    res.json({ 
-      success: true, 
-      countryCode, 
-      mode: 'premium',
-      message: '✅ Upgrade zu Premium erfolgreich!'
-    });
-
-  } catch (error) {
-    console.error('❌ Fehler beim Upgrade:', error);
-    res.status(500).json({ error: 'Fehler beim Upgrade: ' + error.message });
-  }
-});
 
 // ============================================================
 // STATUS ABFRAGEN (für Dashboard)
@@ -160,45 +134,6 @@ router.get('/:countryCode/status', (req, res) => {
   } catch (error) {
     console.error('❌ Fehler beim Status:', error);
     res.status(500).json({ error: 'Fehler beim Abrufen des Status.' });
-  }
-});
-
-// ============================================================
-// ⭐ MODE ZURÜCKSETZEN (NUR FÜR TESTS!)
-// ============================================================
-router.post('/reset-mode', requireAuth, (req, res) => {
-  try {
-    const { countryCode } = req.body;
-    const customerId = req.customer.sub;
-
-    const activation = db.prepare(
-      'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
-    ).get(customerId, countryCode);
-
-    if (!activation) {
-      return res.status(404).json({ error: 'Land nicht aktiviert.' });
-    }
-
-    if (activation.mode === 'grauzone') {
-      return res.status(400).json({ error: 'Bereits im Grauzonen-Modus.' });
-    }
-
-    db.prepare(`
-      UPDATE activations 
-      SET mode = 'grauzone', mode_updated_at = datetime('now')
-      WHERE customer_id = ? AND country_code = ?
-    `).run(customerId, countryCode);
-
-    res.json({ 
-      success: true, 
-      countryCode, 
-      mode: 'grauzone',
-      message: '✅ Mode erfolgreich auf grauzone zurückgesetzt!'
-    });
-
-  } catch (error) {
-    console.error('❌ Fehler beim Reset:', error);
-    res.status(500).json({ error: 'Fehler beim Zurücksetzen: ' + error.message });
   }
 });
 
