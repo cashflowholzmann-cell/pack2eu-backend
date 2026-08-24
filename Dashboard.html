@@ -1950,113 +1950,119 @@
         // 12. LÄNDER RENDERN – MIT GRAUZONEN-INFOBOX (GEFIXT ✅)
         // ============================================================
         function renderCountries(countries) {
-    const container = document.getElementById('country-list');
-    if (!countries || countries.length === 0) {
-        container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Länder aktiviert.</div>`;
-        return;
-    }
+            const container = document.getElementById('country-list');
+            if (!countries || countries.length === 0) {
+                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Länder aktiviert.</div>`;
+                return;
+            }
 
-    const plan = localStorage.getItem('pack2eu_plan') || 'M';
-    const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
-    const maxCountries = planLimits[plan] || 27;
-    const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
-    const isEU = localStorage.getItem('pack2eu_is_eu') === 'true';
-    const upgradePrice = 149;
+            const plan = localStorage.getItem('pack2eu_plan') || 'M';
+            const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
+            const maxCountries = planLimits[plan] || 27;
+            const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
+            const isEU = localStorage.getItem('pack2eu_is_eu') === 'true';
+            const upgradePrice = 149;
 
-    const visibleCountries = countries.slice(0, maxCountries);
-    const hasMoreCountries = countries.length > maxCountries;
+            const visibleCountries = countries.slice(0, maxCountries);
+            const hasMoreCountries = countries.length > maxCountries;
 
-    container.innerHTML = visibleCountries.map(c => {
-        const statusMap = {
-            'active': { label: t('status_active'), dot: 'green' },
-            'signed': { label: t('status_active'), dot: 'green' },
-            'pending': { label: t('status_pending'), dot: 'yellow' },
-            'inactive': { label: t('status_inactive'), dot: 'gray' }
-        };
-        const s = statusMap[c.status] || statusMap.inactive;
+            container.innerHTML = visibleCountries.map(c => {
+                const statusMap = {
+                    'active': { label: t('status_active'), dot: 'green' },
+                    'signed': { label: t('status_active'), dot: 'green' },
+                    'pending': { label: t('status_pending'), dot: 'yellow' },
+                    'inactive': { label: t('status_inactive'), dot: 'gray' }
+                };
+                const s = statusMap[c.status] || statusMap.inactive;
 
-        // ⭐ NUR DAS BACKEND DARF 'premium' SETZEN!
-        const mode = c.mode === 'premium' ? 'premium' : 'grauzone';
-        const isPremium = mode === 'premium';
-        const countryIsEU = isEUCountry(c.country_code);
+                // ⭐ FIX: "premium" darf NIE geraten werden. Nur wenn das Backend es
+                // für DIESES Land explizit bestätigt (= Bevollmächtigter bezahlt & aktiv),
+                // gilt der Status als "premium". Sonst immer "grauzone" als Ausgangspunkt.
+                const mode = c.mode === 'premium' ? 'premium' : 'grauzone';
+                const isPremium = mode === 'premium';
+                const countryIsEU = isEUCountry(c.country_code);
 
-        let modeBadge = '';
-        if (isPremium) {
-            modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
-        } else if (countryIsEU && !isEU) {
-            modeBadge = `<span class="badge badge-danger">${t('rep_required_status')}</span>`;
-        } else {
-            modeBadge = `<span class="badge badge-warning">${t('grauzone_status')}</span>`;
-        }
+                let modeBadge = '';
+                if (isPremium) {
+                    modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
+                } else if (countryIsEU && !isEU) {
+                    // Nicht-EU-Händler ohne gebuchten Bevollmächtigten -> klar als "erforderlich" markieren
+                    modeBadge = `<span class="badge badge-danger">${t('rep_required_status')}</span>`;
+                } else {
+                    // EU-Händler in der sanktionsfreien Grauzone -> orange
+                    modeBadge = `<span class="badge badge-warning">${t('grauzone_status')}</span>`;
+                }
 
-        let infobox = '';
+                let infobox = '';
 
-        if (isPremium) {
-            infobox = `
-                <div class="infobox-premium mt-3">
-                    <div class="title">${t('premium_title')}</div>
-                    <p class="text-sm mt-1">${t('premium_text')}</p>
-                </div>
-            `;
-        } else if (countryIsEU && isEU) {
-            const originName = getCountryName(originCountry);
-            infobox = `
-                <div class="infobox-grauzone mt-3">
-                    <div class="title">${t('grauzone_title')}</div>
-                    <p class="text-sm mt-1">${t('grauzone_text').replace('{origin}', originName)}</p>
-                    <p class="text-sm mt-1">${t('grauzone_upgrade').replace('{price}', upgradePrice)}</p>
-                    <button onclick="upgradeToPremium('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('grauzone_button').replace('{price}', upgradePrice)}</button>
-                </div>
-            `;
-        } else if (countryIsEU && !isEU) {
-            const originName = getCountryName(originCountry);
-            infobox = `
-                <div class="infobox-non-eu mt-3">
-                    <div class="title">${t('non_eu_title')}</div>
-                    <p class="text-sm mt-1">${t('non_eu_text').replace('{origin}', originName)}</p>
-                    <button onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('non_eu_button').replace('{price}', upgradePrice)}</button>
-                </div>
-            `;
-        }
+                if (isPremium) {
+                    infobox = `
+                        <div class="infobox-premium mt-3">
+                            <div class="title">${t('premium_title')}</div>
+                            <p class="text-sm mt-1">${t('premium_text')}</p>
+                        </div>
+                    `;
+                } else if (countryIsEU && isEU) {
+                    // EU-Händler, EU-Zielland, kein Premium -> Grauzonen-Hinweis (orange)
+                    const originName = getCountryName(originCountry);
+                    infobox = `
+                        <div class="infobox-grauzone mt-3">
+                            <div class="title">${t('grauzone_title')}</div>
+                            <p class="text-sm mt-1">${t('grauzone_text').replace('{origin}', originName)}</p>
+                            <p class="text-sm mt-1">${t('grauzone_upgrade').replace('{price}', upgradePrice)}</p>
+                            <button onclick="upgradeToPremium('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('grauzone_button').replace('{price}', upgradePrice)}</button>
+                        </div>
+                    `;
+                } else if (countryIsEU && !isEU) {
+                    // Nicht-EU-Händler -> Bevollmächtigter ist PFLICHT, nicht optional
+                    const originName = getCountryName(originCountry);
+                    infobox = `
+                        <div class="infobox-non-eu mt-3">
+                            <div class="title">${t('non_eu_title')}</div>
+                            <p class="text-sm mt-1">${t('non_eu_text').replace('{origin}', originName)}</p>
+                            <button onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('non_eu_button').replace('{price}', upgradePrice)}</button>
+                        </div>
+                    `;
+                }
 
-        return `
-            <div class="country-item border rounded-lg p-4 mb-3">
-                <div class="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                        <span class="text-2xl">${c.flag || '🌍'}</span>
-                        <span class="font-bold text-lg">${c.name}</span>
-                        <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
-                        ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
-                        ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
+                return `
+                    <div class="country-item border rounded-lg p-4 mb-3">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                                <span class="text-2xl">${c.flag || '🌍'}</span>
+                                <span class="font-bold text-lg">${c.name}</span>
+                                <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
+                                ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
+                                ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="status-dot ${s.dot}"></span>
+                                <span class="text-sm">${s.label}</span>
+                                ${modeBadge}
+                                ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
+                                ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
+                                ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
+                            </div>
+                        </div>
+                        ${infobox}
                     </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="status-dot ${s.dot}"></span>
-                        <span class="text-sm">${s.label}</span>
-                        ${modeBadge}
-                        ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
-                        ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
-                        ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
-                    </div>
-                </div>
-                ${infobox}
-            </div>
-        `;
-    }).join('');
+                `;
+            }).join('');
 
-    if (hasMoreCountries && plan === 'S') {
-        const lockedCount = countries.length - maxCountries;
-        container.innerHTML += `
-            <div class="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-                <p class="text-sm text-yellow-800">
-                    📦 Sie haben das Starter-Paket (max. 2 Länder). ${lockedCount} weitere Länder sind gesperrt.
-                </p>
-                <button onclick="upgradePlan('M')" class="btn-primary text-xs mt-2 py-1 px-3">
-                    ➡️ Auf Bestseller upgraden (49 €/Monat)
-                </button>
-            </div>
-        `;
-    }
-}
+            if (hasMoreCountries && plan === 'S') {
+                const lockedCount = countries.length - maxCountries;
+                container.innerHTML += `
+                    <div class="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            📦 Sie haben das Starter-Paket (max. 2 Länder). ${lockedCount} weitere Länder sind gesperrt.
+                        </p>
+                        <button onclick="upgradePlan('M')" class="btn-primary text-xs mt-2 py-1 px-3">
+                            ➡️ Auf Bestseller upgraden (49 €/Monat)
+                        </button>
+                    </div>
+                `;
+            }
+        }
 
         // ============================================================
         // 13. COUNTRY MODAL
@@ -2162,55 +2168,55 @@
         // 16. UPGRADE ZU PREMIUM
         // ============================================================
         async function upgradeToPremium(countryCode) {
-    const price = 149;
-    if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
+            const price = 149;
+            if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
 
-    try {
-        const session = await api('/payments/create-upgrade-session', {
-            method: 'POST',
-            body: JSON.stringify({
-                country: countryCode,
-                price: price,
-                type: 'premium_upgrade'
-            })
-        });
+            try {
+                const session = await api('/billing/create-upgrade-session', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        country: countryCode,
+                        price: price,
+                        type: 'premium_upgrade'
+                    })
+                });
 
-        if (session.url) {
-            window.location.href = session.url;
-        } else {
-            alert('Fehler bei der Zahlungsabwicklung.');
+                if (session.url) {
+                    window.location.href = session.url;
+                } else {
+                    alert('Fehler bei der Zahlungsabwicklung.');
+                }
+            } catch (err) {
+                alert('Fehler: ' + err.message);
+            }
         }
-    } catch (err) {
-        alert('Fehler: ' + err.message);
-    }
-}
 
         // ============================================================
         // 17. BEVOLLMÄCHTIGTEN BUCHEN
         // ============================================================
         async function bookRepresentative(countryCode) {
-    const price = 149;
-    if (!confirm(`${t('non_eu_button').replace('{price}', price)}`)) return;
+            const price = 149;
+            if (!confirm(`${t('non_eu_button').replace('{price}', price)}`)) return;
 
-    try {
-        const session = await api('/payments/create-upgrade-session', {
-            method: 'POST',
-            body: JSON.stringify({
-                country: countryCode,
-                price: price,
-                type: 'representative_booking'
-            })
-        });
+            try {
+                const session = await api('/billing/create-upgrade-session', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        country: countryCode,
+                        price: price,
+                        type: 'representative_booking'
+                    })
+                });
 
-        if (session.url) {
-            window.location.href = session.url;
-        } else {
-            alert('Fehler bei der Zahlungsabwicklung.');
+                if (session.url) {
+                    window.location.href = session.url;
+                } else {
+                    alert('Fehler bei der Zahlungsabwicklung.');
+                }
+            } catch (err) {
+                alert('Fehler: ' + err.message);
+            }
         }
-    } catch (err) {
-        alert('Fehler: ' + err.message);
-    }
-}
 
         // ============================================================
         // 18. PLAN UPGRADE
@@ -2223,7 +2229,7 @@
             if (!confirm(`Möchten Sie von ${planNames[currentPlan]} auf ${planNames[newPlan]} upgraden? (${prices[newPlan]} €/Monat)`)) return;
 
             try {
-                const session = await api('/payments/create-checkout-session', {
+                const session = await api('/billing/create-checkout-session', {
                     method: 'POST',
                     body: JSON.stringify({ plan: newPlan })
                 });
