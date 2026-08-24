@@ -1,3 +1,5 @@
+===== frontend/dashboard.html =====
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -161,6 +163,43 @@
             background: var(--accent-light);
             color: var(--primary);
         }
+
+        .choice-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .choice-card {
+            position: relative;
+            display: block;
+            cursor: pointer;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            background: #fff;
+            padding: 14px;
+            transition: all .15s ease;
+        }
+        .choice-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+        .choice-card:has(input:checked) {
+            border-color: var(--primary);
+            background: var(--accent-light);
+            box-shadow: 0 0 0 2px rgba(10,37,64,.08);
+        }
+        .choice-card input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .choice-card-content { display: flex; align-items: flex-start; gap: 10px; }
+        .choice-card-icon {
+            width: 28px; height: 28px; flex: 0 0 28px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 999px; background: var(--bg); color: var(--primary);
+            font-weight: 800;
+        }
+        .choice-card strong { display:block; font-size:14px; line-height:1.35; color:var(--text); }
+        .choice-card small { display:block; margin-top:4px; color:var(--text-dim); font-size:12px; line-height:1.4; }
+        @media (max-width: 640px) { .choice-grid { grid-template-columns: 1fr; } }
 
         .modal-backdrop {
             position: fixed;
@@ -521,7 +560,7 @@
         <div class="card mb-8">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h2 class="text-xl font-bold" style="color:var(--primary);">🌍 Meine Länder</h2>
-                <button onclick="openCountryModal()" class="btn-primary text-sm">+ Land aktivieren</button>
+                <button type="button" id="activate-country-top-btn" class="btn-primary text-sm">+ Land aktivieren</button>
             </div>
             <div id="country-list" class="space-y-3">
                 <div class="text-sm text-[var(--text-dim)]">Lade Länder...</div>
@@ -533,7 +572,7 @@
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h2 class="text-xl font-bold" style="color:var(--primary);">📦 Produkte & Verpackungen</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="openSkuModal()" class="btn-primary text-sm">+ Neues Produkt</button>
+                    <button type="button" id="new-product-btn" class="btn-primary text-sm">+ Neues Produkt</button>
                     <button onclick="openBulkImport()" class="btn-accent text-sm">📥 CSV-Import</button>
                     <button onclick="openShopifySync()" class="btn-outline text-sm" id="shopify-sync-btn">🔄 Shopify Sync</button>
                 </div>
@@ -619,31 +658,108 @@
     </div>
 
     <!-- COUNTRY MODAL -->
-    <div id="country-modal" class="modal-backdrop">
-        <div class="modal-content">
+    <div id="country-modal" class="modal-backdrop" aria-hidden="true">
+        <div class="modal-content" style="max-width:720px;">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-2xl font-bold" style="color:var(--primary);">🌍 Land aktivieren</h3>
-                <button onclick="closeCountryModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+                <button type="button" onclick="closeCountryModal()" class="text-2xl text-[var(--text-dim)] hover:text-[var(--text)]" aria-label="Schließen">✕</button>
             </div>
+
             <div id="country-error" class="hidden text-sm mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600"></div>
-            <label>Zielland *</label>
-            <select id="country-select">
-                <option value="FR">🇫🇷 Frankreich</option>
-                <option value="DE">🇩🇪 Deutschland</option>
-                <option value="IT">🇮🇹 Italien</option>
-                <option value="ES">🇪🇸 Spanien</option>
-                <option value="AT">🇦🇹 Österreich</option>
-                <option value="BE">🇧🇪 Belgien</option>
-                <option value="NL">🇳🇱 Niederlande</option>
-                <option value="PL">🇵🇱 Polen</option>
-                <option value="SE">🇸🇪 Schweden</option>
-                <option value="DK">🇩🇰 Dänemark</option>
+
+            <label for="country-select">Zielland *</label>
+            <select id="country-select" onchange="previewCountryActivation()">
+                <option value="">— Zielland auswählen —</option>
             </select>
-            <label class="mt-4">Hast du bereits eine EPR-Nummer für dieses Land?</label>
-            <input id="existing-number" type="text" placeholder="z.B. FR123456789 (optional)">
+
+            <div id="activation-preview" class="mt-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)]">
+                <div class="text-sm text-[var(--text-dim)]">Wähle ein Land. Pack2EU zeigt dir dann die relevanten Schritte.</div>
+            </div>
+
+            <div class="mt-5">
+                <label>Hast du bereits eine EPR-Nummer für dieses Land?</label>
+                <div class="choice-grid mt-2">
+                    <label class="choice-card" id="epr-choice-yes">
+                        <input type="radio" name="epr-status" value="yes" onchange="updateEprStatus()">
+                        <span class="choice-card-content">
+                            <span class="choice-card-icon">✓</span>
+                            <span>
+                                <strong>Ja, ich habe bereits eine EPR-Nummer</strong>
+                                <small>Ich trage meine bestehende Nummer ein.</small>
+                            </span>
+                        </span>
+                    </label>
+                    <label class="choice-card" id="epr-choice-no">
+                        <input type="radio" name="epr-status" value="no" checked onchange="updateEprStatus()">
+                        <span class="choice-card-content">
+                            <span class="choice-card-icon">＋</span>
+                            <span>
+                                <strong>Noch keine EPR-Nummer</strong>
+                                <small>Pack2EU zeigt dir den passenden Register-Prozess.</small>
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="epr-number-wrapper" class="hidden mt-4">
+                <label for="existing-number">Bestehende EPR-Nummer *</label>
+                <input id="existing-number" type="text" placeholder="z.B. FR123456789" autocomplete="off">
+            </div>
+
+            <div id="epr-register-wrapper" class="hidden mt-4 p-4 rounded-xl border border-blue-100 bg-blue-50">
+                <div class="font-semibold">Noch keine EPR-Nummer?</div>
+                <p class="text-sm text-[var(--text-dim)] mt-1">Du kannst das zuständige Register direkt aufrufen.</p>
+                <a id="epr-register-link" href="#" target="_blank" rel="noopener" class="inline-flex items-center mt-2 font-semibold text-[var(--primary)] hover:underline">→ Zum EPR-Register</a>
+            </div>
+
+            <div class="mt-5">
+                <label>Hast du bereits einen Bevollmächtigten für dieses Land?</label>
+                <div class="choice-grid mt-2">
+                    <label class="choice-card" id="rep-choice-yes">
+                        <input type="radio" name="representative-status" value="yes" onchange="updateRepresentativeStatus()">
+                        <span class="choice-card-content">
+                            <span class="choice-card-icon">✓</span>
+                            <span>
+                                <strong>Ja, ich habe bereits einen Bevollmächtigten</strong>
+                                <small>Die vorhandenen Daten werden bei diesem Land gespeichert.</small>
+                            </span>
+                        </span>
+                    </label>
+                    <label class="choice-card" id="rep-choice-no">
+                        <input type="radio" name="representative-status" value="no" checked onchange="updateRepresentativeStatus()">
+                        <span class="choice-card-content">
+                            <span class="choice-card-icon">＋</span>
+                            <span>
+                                <strong>Noch keinen Bevollmächtigten</strong>
+                                <small>Falls erforderlich, kannst du ihn später über Pack2EU buchen.</small>
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="representative-fields" class="hidden mt-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)]">
+                <div class="font-semibold mb-3">🏛️ Daten des vorhandenen Bevollmächtigten</div>
+                <div class="grid md:grid-cols-2 gap-3">
+                    <div>
+                        <label for="representative-name">Name *</label>
+                        <input id="representative-name" type="text" placeholder="Vor- und Nachname" autocomplete="off">
+                    </div>
+                    <div>
+                        <label for="representative-company">Unternehmen / Kanzlei</label>
+                        <input id="representative-company" type="text" placeholder="Unternehmen oder Kanzlei" autocomplete="off">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="representative-email">E-Mail</label>
+                        <input id="representative-email" type="email" placeholder="bevollmaechtigter@beispiel.de" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-between mt-6 pt-4 border-t border-[var(--border)]">
-                <button onclick="closeCountryModal()" class="btn-outline text-sm">Abbrechen</button>
-                <button onclick="activateCountry()" class="btn-primary text-sm">Aktivieren</button>
+                <button type="button" onclick="closeCountryModal()" class="btn-outline text-sm">Abbrechen</button>
+                <button type="button" id="activate-country-btn" onclick="activateCountry()" class="btn-primary text-sm" disabled>Land aktivieren</button>
             </div>
         </div>
     </div>
@@ -764,7 +880,18 @@
     <!-- ============================================================
     JAVASCRIPT – KOMPLETT
     ============================================================ -->
-    <script>
+    
+    <section class="container mt-8 mb-8">
+      <div class="card">
+        <div class="flex items-center justify-between gap-4 mb-3">
+          <div><h3 class="text-lg font-bold">📊 Monatsreports</h3><p class="text-sm text-[var(--text-dim)]">Pack2EU sammelt deine Verpackungsdaten automatisch je Zielland.</p></div>
+          <button class="btn-outline text-sm" onclick="loadMonthlyReports()">Aktualisieren</button>
+        </div>
+        <div id="monthly-reports"></div>
+      </div>
+    </section>
+
+<script>
         // ============================================================
         // 0. EU-LÄNDER (27)
         // ============================================================
@@ -1166,10 +1293,13 @@
         // ============================================================
         const i18n = {
             de: {
+                registration_required: "Registrierung erforderlich", registration_title: "Registrierung erforderlich", registration_text: "Für dieses Zielland ist eine Registrierung erforderlich. Pack2EU führt dich durch die notwendigen Schritte.",
+                rep_required_title: "Bevollmächtigter erforderlich", rep_required_text: "Für deinen Herkunfts-/Ziellandfall ist ein Bevollmächtigter erforderlich.", representative_active: "Bevollmächtigter aktiv", representative_active_text: "Der Bevollmächtigte ist aktiv.",
+                not_activated: "Land aktiviert", rep_next: "Weiterer Schritt erforderlich", starter_limit: "Starter enthält maximal 2 Länder.", activation_rep_next: "Die Aktivierung wurde angelegt. Als Nächstes kümmern wir uns um den Bevollmächtigten.", activation_success: "Die Aktivierung wurde angelegt.", rep_confirm: "Bevollmächtigten jetzt prüfen?", book_rep: "Bevollmächtigter erforderlich", rep_processing: "Bevollmächtigung wird bearbeitet",
                 plan_badge: "Business",
                 logout: "Abmelden",
                 company_name: "Mein Shop",
-                origin_label: "📍 Deutschland",
+                origin_label: "📍 Herkunftsland",
                 loading: "Lade Daten...",
                 cancel: "Abbrechen",
                 save: "Speichern",
@@ -1191,9 +1321,16 @@
                 status_signed: "Signiert",
                 status_pending: "Ausstehend",
                 status_inactive: "Inaktiv",
-                grauzone_status: "🟠 Grauzone",
-                premium_status: "🔵 Premium",
+                grauzone_status: "🟠 Prüfung erforderlich",
+                premium_status: "🟢 Bevollmächtigter aktiv",
                 rep_required_status: "🔴 Bevollmächtigter nötig",
+                review_required_status: "🟠 Nationale Regel prüfen",
+                review_required_title: "Nationale Regel wird geprüft",
+                review_required_text: "Für diesen Fall liegt in Pack2EU noch keine verifizierte nationale Regel vor. Wir zeigen deshalb bewusst keine pauschale Pflicht und keine rechtliche Garantie an.",
+                eu_internal_status: "🟠 Registrierung erforderlich",
+                eu_internal_title: "EU-interne Registrierung",
+                eu_internal_text: "Eine Registrierung kann erforderlich sein. Die Frage des Bevollmächtigten wird nach der aktuellen EU-Übergangsregelung und der nationalen Umsetzung behandelt.",
+                data_needs_review: "Daten werden noch verifiziert",
                 skus_title: "📦 Produkte & Verpackungen",
                 skus_add: "+ Neues Produkt",
                 skus_empty: "Noch keine Produkte hinterlegt.",
@@ -1246,17 +1383,20 @@
                 notary_warning: '⚠️ Für dieses Land ist eine NOTARIELLE BEGLAUBIGUNG der Vollmacht erforderlich!',
                 notary_cost: '(Kosten: ca. 45 €)',
                 rep_warning: '🏛️ Bevollmächtigter vor Ort erforderlich (wird von Pack2EU organisiert).',
-                grauzone_title: "🇪🇺 EU-Grauzonen-Modus aktiv",
-                grauzone_text: "Seit dem 12.08.2026 gilt die neue EU-Verpackungsverordnung (PPWR). Als EU-Händler (Herkunft: {origin}) befinden Sie sich in der sanktionsfreien Grauzone – solange Sie Ihre Verpackungsdaten korrekt melden. Das übernimmt Pack2EU automatisch für Sie!",
-                grauzone_upgrade: "🔒 100% rechtliche Sicherheit oder bei großen Verpackungsvolumina? Buchen Sie jederzeit den physischen Bevollmächtigten für {price} € / Land als Add-on dazu.",
-                grauzone_button: "🔒 Auf Premium upgraden ({price} €)",
-                premium_title: "🔵 Premium-Modus aktiv – 100% rechtssicher",
-                premium_text: "Sie haben den physischen Bevollmächtigten für dieses Land hinzugebucht. Genießen Sie 100% rechtliche Sicherheit – wir kümmern uns um alles.",
+                grauzone_title: "🟠 Nationale Regel wird geprüft",
+                grauzone_text: "Für diesen Länderfall liegt noch keine verifizierte nationale Regel vor. Pack2EU zeigt deshalb bewusst keine pauschale Rechtssicherheit an.",
+                grauzone_upgrade: "Wir aktualisieren die Länderregeln, sobald belastbare Informationen vorliegen.",
+                grauzone_button: "Details prüfen",
+                premium_title: "🟢 Bevollmächtigter aktiv",
+                premium_text: "Der Bevollmächtigte ist für dieses Land hinterlegt. Pack2EU führt den Status und die nächsten Schritte für dich.",
                 non_eu_title: "🌍 Nicht-EU-Händler – Bevollmächtigter erforderlich",
                 non_eu_text: "Seit dem 12.08.2026 gilt die neue EU-Verpackungsverordnung (PPWR). Als Händler außerhalb der EU (Herkunft: {origin}) ist ein lokaler Bevollmächtigter ab dem ersten Paket zwingend gesetzlich vorgeschrieben.",
                 non_eu_button: "🏛️ Bevollmächtigten hinzubuchen ({price} €)",
             },
             en: {
+                registration_required: "Registration required", registration_title: "Registration required", registration_text: "Registration is required for this destination. Pack2EU guides you through the necessary steps.",
+                rep_required_title: "Representative required", rep_required_text: "A local representative is required for this origin/destination case.", representative_active: "Representative active", representative_active_text: "The representative is active.",
+                not_activated: "Not activated", rep_next: "Next step required", starter_limit: "Starter includes up to 2 countries.", activation_rep_next: "The activation was created. Next we handle the representative.", activation_success: "The activation was created.", rep_confirm: "Check representative now?", book_rep: "Representative required", rep_processing: "Representative being arranged",
                 plan_badge: "Business",
                 logout: "Logout",
                 company_name: "My Shop",
@@ -1283,7 +1423,7 @@
                 status_pending: "Pending",
                 status_inactive: "Inactive",
                 grauzone_status: "🟠 Gray Zone",
-                premium_status: "🔵 Premium",
+                premium_status: "🟢 Bevollmächtigter aktiv",
                 rep_required_status: "🔴 Representative required",
                 skus_title: "📦 Products & Packaging",
                 skus_add: "+ New Product",
@@ -1337,17 +1477,20 @@
                 notary_warning: '⚠️ This country requires a NOTARIAL CERTIFICATION of the power of attorney!',
                 notary_cost: '(Cost: approx. €45)',
                 rep_warning: '🏛️ Local authorized representative required (organized by Pack2EU).',
-                grauzone_title: "🇪🇺 EU Gray Zone Mode active",
-                grauzone_text: "Since 12.08.2026, the new EU Packaging Regulation (PPWR) applies. As an EU merchant (origin: {origin}), you are in the penalty-free gray zone – as long as you correctly report your packaging data. Pack2EU does this automatically for you!",
-                grauzone_upgrade: "🔒 100% legal certainty or high packaging volumes? Book the physical authorized representative for {price} € / country as an add-on at any time.",
-                grauzone_button: "🔒 Upgrade to Premium ({price} €)",
-                premium_title: "🔵 Premium Mode active – 100% legally compliant",
-                premium_text: "You have added the physical authorized representative for this country. Enjoy 100% legal certainty – we take care of everything.",
-                non_eu_title: "🌍 Non-EU Merchant – Authorized Representative Required",
-                non_eu_text: "Since 12.08.2026, the new EU Packaging Regulation (PPWR) applies. As a merchant outside the EU (origin: {origin}), a local authorized representative is mandatory from the very first package.",
-                non_eu_button: "🏛️ Book Authorized Representative ({price} €)",
+                grauzone_title: "🇪🇺 EU-interne Übergangsregelung",
+                grauzone_text: "Für EU-interne Verkäufe gelten aktuell besondere Übergangsregelungen. Pack2EU führt dich durch die Registrierung und zeigt dir nur die Schritte, die für deinen Fall erforderlich sind.",
+                grauzone_upgrade: "🔒 Einen Bevollmächtigten kannst du nur dann hinzubuchen, wenn er für deinen konkreten Fall sinnvoll oder erforderlich ist.",
+                grauzone_button: "🔒 Bevollmächtigten prüfen",
+                premium_title: "🟢 Bevollmächtigter bestätigt",
+                premium_text: "Der Bevollmächtigte wurde über den hinterlegten Anbieter bestätigt. Pack2EU führt den Status und die zugehörigen Nachweise.",
+                non_eu_title: "🌍 Drittstaat – nationale Prüfung erforderlich",
+                non_eu_text: "Für Unternehmen aus Drittstaaten kann das Zielland einen EPR-Bevollmächtigten verlangen. Pack2EU prüft die nationale Regel und zeigt dir den nächsten Schritt.",
+                non_eu_button: "🏛️ Bevollmächtigten prüfen",
             },
             fr: {
+                registration_required: "Inscription requise", registration_title: "Inscription requise", registration_text: "Une inscription est requise pour cette destination. Pack2EU vous guide.",
+                rep_required_title: "Mandataire requis", rep_required_text: "Un mandataire local est requis pour ce cas.", representative_active: "Mandataire actif", representative_active_text: "Le mandataire est actif.",
+                not_activated: "Non activé", rep_next: "Étape suivante requise", starter_limit: "Starter inclut jusqu’à 2 pays.", activation_rep_next: "Activation créée. Nous gérons ensuite le mandataire.", activation_success: "Activation créée.", rep_confirm: "Vérifier le mandataire maintenant ?", book_rep: "Mandataire requis", rep_processing: "Mandataire en cours",
                 plan_badge: "Entreprise",
                 logout: "Déconnexion",
                 company_name: "Ma boutique",
@@ -1374,7 +1517,7 @@
                 status_pending: "En attente",
                 status_inactive: "Inactif",
                 grauzone_status: "🟠 Zone grise",
-                premium_status: "🔵 Premium",
+                premium_status: "🟢 Bevollmächtigter aktiv",
                 rep_required_status: "🔴 Mandataire requis",
                 skus_title: "📦 Produits et emballages",
                 skus_add: "+ Nouveau produit",
@@ -1430,15 +1573,18 @@
                 rep_warning: '🏛️ Mandataire local requis (organisé par Pack2EU).',
                 grauzone_title: "🇪🇺 Mode zone grise UE actif",
                 grauzone_text: "Depuis le 12.08.2026, le nouveau règlement européen sur les emballages (PPWR) s'applique. En tant que commerçant de l'UE (origine: {origin}), vous vous trouvez dans la zone grise sans sanction – à condition de déclarer correctement vos données d'emballage. Pack2EU le fait automatiquement pour vous !",
-                grauzone_upgrade: "🔒 Une sécurité juridique à 100% ou de gros volumes d'emballage ? Réservez à tout moment le mandataire physique pour {price} € / pays en option.",
-                grauzone_button: "🔒 Passer à Premium ({price} €)",
-                premium_title: "🔵 Mode Premium actif – 100% conforme",
-                premium_text: "Vous avez réservé le mandataire physique pour ce pays. Profitez d'une sécurité juridique à 100% – nous nous occupons de tout.",
+                grauzone_upgrade: "Le besoin d’un mandataire dépend du pays et de votre situation.",
+                grauzone_button: "Vérifier les détails",
+                premium_title: "🟢 Mandataire actif",
+                premium_text: "Le mandataire est actif pour ce pays. Pack2EU suit son statut et les prochaines étapes.",
                 non_eu_title: "🌍 Commerçant hors UE – Mandataire requis",
                 non_eu_text: "Depuis le 12.08.2026, le nouveau règlement européen sur les emballages (PPWR) s'applique. En tant que commerçant hors UE (origine: {origin}), un mandataire local est obligatoire dès le premier colis.",
                 non_eu_button: "🏛️ Réserver un mandataire ({price} €)",
             },
             it: {
+                registration_required: "Registrazione richiesta", registration_title: "Registrazione richiesta", registration_text: "La registrazione è richiesta per questa destinazione. Pack2EU ti guida.",
+                rep_required_title: "Rappresentante richiesto", rep_required_text: "È richiesto un rappresentante locale per questo caso.", representative_active: "Rappresentante attivo", representative_active_text: "Il rappresentante è attivo.",
+                not_activated: "Non attivato", rep_next: "Prossimo passo richiesto", starter_limit: "Starter include fino a 2 paesi.", activation_rep_next: "Attivazione creata. Ora gestiamo il rappresentante.", activation_success: "Attivazione creata.", rep_confirm: "Verificare ora il rappresentante?", book_rep: "Rappresentante richiesto", rep_processing: "Rappresentante in corso",
                 plan_badge: "Business",
                 logout: "Disconnettersi",
                 company_name: "Il mio negozio",
@@ -1465,7 +1611,7 @@
                 status_pending: "In sospeso",
                 status_inactive: "Inattivo",
                 grauzone_status: "🟠 Zona grigia",
-                premium_status: "🔵 Premium",
+                premium_status: "🟢 Bevollmächtigter aktiv",
                 rep_required_status: "🔴 Rappresentante richiesto",
                 skus_title: "📦 Prodotti e imballaggi",
                 skus_add: "+ Nuovo prodotto",
@@ -1521,15 +1667,18 @@
                 rep_warning: '🏛️ Mandatario locale richiesto (organizzato da Pack2EU).',
                 grauzone_title: "🇪🇺 Modalità zona grigia UE attiva",
                 grauzone_text: "Dal 12.08.2026 si applica il nuovo regolamento UE sugli imballaggi (PPWR). Come commerciante UE (origine: {origin}), ti trovi nella zona grigia senza sanzioni – purché dichiari correttamente i tuoi dati di imballaggio. Pack2EU lo fa automaticamente per te!",
-                grauzone_upgrade: "🔒 Sicurezza giuridica al 100% o grandi volumi di imballaggio? Prenota in qualsiasi momento il rappresentante fisico per {price} € / paese come aggiunta.",
-                grauzone_button: "🔒 Passa a Premium ({price} €)",
-                premium_title: "🔵 Modalità Premium attiva – 100% conforme",
+                grauzone_upgrade: "Il bisogno di un rappresentante dipende dal paese e dalla tua situazione.",
+                grauzone_button: "Verifica dettagli",
+                premium_title: "🟢 Rappresentante attivo",
                 premium_text: "Hai prenotato il rappresentante fisico per questo paese. Goditi la massima sicurezza giuridica – ci occupiamo noi di tutto.",
                 non_eu_title: "🌍 Commerciante extra UE – Rappresentante obbligatorio",
                 non_eu_text: "Dal 12.08.2026 si applica il nuovo regolamento UE sugli imballaggi (PPWR). Come commerciante extra UE (origine: {origin}), un rappresentante locale è obbligatorio dal primo pacco.",
                 non_eu_button: "🏛️ Prenota rappresentante ({price} €)",
             },
             es: {
+                registration_required: "Registro necesario", registration_title: "Registro necesario", registration_text: "Se requiere registro para este destino. Pack2EU te guía.",
+                rep_required_title: "Representante necesario", rep_required_text: "Se requiere un representante local para este caso.", representative_active: "Representante activo", representative_active_text: "El representante está activo.",
+                not_activated: "No activado", rep_next: "Siguiente paso necesario", starter_limit: "Starter incluye hasta 2 países.", activation_rep_next: "Activación creada. Ahora gestionamos el representante.", activation_success: "Activación creada.", rep_confirm: "¿Comprobar el representante ahora?", book_rep: "Representante necesario",
                 plan_badge: "Negocio",
                 logout: "Cerrar sesión",
                 company_name: "Mi tienda",
@@ -1556,7 +1705,7 @@
                 status_pending: "Pendiente",
                 status_inactive: "Inactivo",
                 grauzone_status: "🟠 Zona gris",
-                premium_status: "🔵 Premium",
+                premium_status: "🟢 Bevollmächtigter aktiv",
                 rep_required_status: "🔴 Representante requerido",
                 skus_title: "📦 Productos y embalajes",
                 skus_add: "+ Nuevo producto",
@@ -1612,9 +1761,9 @@
                 rep_warning: '🏛️ Representante local requerido (organizado por Pack2EU).',
                 grauzone_title: "🇪🇺 Modo zona gris UE activo",
                 grauzone_text: "Desde el 12.08.2026 se aplica el nuevo reglamento europeo de envases (PPWR). Como comerciante de la UE (origen: {origin}), se encuentra en la zona gris sin sanciones – siempre que declare correctamente sus datos de envase. ¡Pack2EU lo hace automáticamente por usted!",
-                grauzone_upgrade: "🔒 ¿Seguridad jurídica al 100% o grandes volúmenes de envasado? Reserve en cualquier momento el representante físico por {price} € / país como complemento.",
-                grauzone_button: "🔒 Actualizar a Premium ({price} €)",
-                premium_title: "🔵 Modo Premium activo – 100% conforme",
+                grauzone_upgrade: "La necesidad de un representante depende del país y de tu situación.",
+                grauzone_button: "Ver detalles",
+                premium_title: "🟢 Representante activo",
                 premium_text: "Ha reservado el representante físico para este país. Disfrute de la máxima seguridad jurídica – nosotros nos encargamos de todo.",
                 non_eu_title: "🌍 Comerciante extra UE – Representante obligatorio",
                 non_eu_text: "Desde el 12.08.2026 se aplica el nuevo reglamento europeo de envases (PPWR). Como comerciante fuera de la UE (origen: {origin}), un representante local es obligatorio desde el primer paquete.",
@@ -1647,7 +1796,9 @@
             if (selectedCountry) {
                 showCountryKnowledge();
             }
-            loadDashboard();
+            if (document.readyState !== 'loading' && typeof loadDashboard === 'function') {
+                loadDashboard();
+            }
         }
 
         // ============================================================
@@ -1720,7 +1871,7 @@
         // ============================================================
         // 6. API KONFIGURATION
         // ============================================================
-        const API_BASE = window.PACK2EU_API_BASE || 'https://ack2eu-backend.onrender.com/api';
+        const API_BASE = window.PACK2EU_API_BASE || '/api';
 
         function getToken() { return localStorage.getItem('pack2eu_token'); }
         function setToken(t) { localStorage.setItem('pack2eu_token', t); }
@@ -1790,7 +1941,31 @@
                 // ⭐ PLAN-BASIERTE UI
                 applyPlanUI(plan);
 
-                const countries = await api('/activations');
+                const [activations, compliance] = await Promise.all([
+                    api('/activations'),
+                    api('/compliance')
+                ]);
+
+                // "Meine Länder" enthält ausschließlich wirklich eingerichtete Länder.
+                // Die Compliance-Übersicht liefert dazu die landesspezifischen Informationen.
+                const complianceMap = new Map(
+                    compliance.map(item => [item.country_code, item])
+                );
+                const countries = activations.map(activation => {
+                    const meta = complianceMap.get(activation.country_code) || {};
+                    return {
+                        ...meta,
+                        ...activation,
+                        country_code: activation.country_code,
+                        name: activation.name || meta.name || activation.country_code,
+                        flag: activation.flag || meta.flag || '🌍',
+                        register_body: activation.register_body || meta.register_body || '',
+                        registration_url: activation.registration_url || meta.registration_url || '',
+                        compliance: meta.compliance || activation.compliance || {}
+                    };
+                });
+
+                window.pack2euCountries = countries;
                 renderCountries(countries);
 
                 const skus = await api('/skus');
@@ -1802,13 +1977,14 @@
                 const submissions = await api('/submissions/me');
                 renderSubmissions(submissions);
 
-                document.getElementById('countries-active').textContent = countries.filter(c => c.status === 'active' || c.status === 'signed').length;
+                document.getElementById('countries-active').textContent = activations.length;
                 document.getElementById('skus-count').textContent = skus.length;
                 document.getElementById('orders-count').textContent = orders.length;
                 document.getElementById('submissions-count').textContent = submissions.length;
 
                 await loadPackagingStats();
-                await updateComplianceAmpel(countries, submissions);
+                await updateComplianceAmpel(activations, submissions);
+                await loadMonthlyReports();
 
             } catch (err) {
                 console.error('Dashboard Fehler:', err);
@@ -1921,28 +2097,18 @@
             const statusEl = document.getElementById('compliance-status');
             const tasksEl = document.getElementById('compliance-tasks');
 
-            const upcomingDeadlines = [];
-            submissions.forEach(sub => {
-                if (sub.status === 'pending') {
-                    const daysLeft = Math.floor(Math.random() * 30) + 1;
-                    if (daysLeft < 10) {
-                        upcomingDeadlines.push({
-                            country: sub.destination,
-                            days: daysLeft,
-                            type: 'Meldung'
-                        });
-                    }
-                }
+            // Never invent deadlines. Until a verified national deadline is available,
+            // the dashboard must say so instead of showing random dates.
+            const openComplianceTasks = countries.filter(c => {
+                const d = c.compliance || {};
+                return d.registrationRequired || d.representativeRequired || d.confidence === 'needs_national_rule';
             });
-
-            if (upcomingDeadlines.length > 0) {
-                statusEl.innerHTML = `<span class="badge badge-warning">⚠️ Fristen nahen</span>`;
-                tasksEl.innerHTML = upcomingDeadlines.map(d =>
-                    `<div class="flex items-center gap-2 text-[var(--warning)]">⚠️ ${d.type} für ${d.country} in ${d.days} Tagen fällig</div>`
-                ).join('');
+            if (openComplianceTasks.length > 0) {
+                statusEl.innerHTML = `<span class="badge badge-warning">⚠️ Aufgaben vorhanden</span>`;
+                tasksEl.innerHTML = `<div class="text-[var(--warning)]">${openComplianceTasks.length} Länder benötigen noch Einrichtung oder Prüfung.</div>`;
             } else {
                 statusEl.innerHTML = `<span class="badge badge-success">✅ Alles im Griff</span>`;
-                tasksEl.innerHTML = `<div class="text-[var(--text-dim)]">Keine anstehenden Aufgaben.</div>`;
+                tasksEl.innerHTML = `<div class="text-[var(--text-dim)]">Keine offenen Compliance-Aufgaben.</div>`;
             }
         }
 
@@ -1951,200 +2117,278 @@
         // ============================================================
         function renderCountries(countries) {
             const container = document.getElementById('country-list');
+            if (!container) return;
+
             if (!countries || countries.length === 0) {
-                container.innerHTML = `<div class="text-sm text-[var(--text-dim)]">Noch keine Länder aktiviert.</div>`;
+                container.innerHTML = `
+                    <div class="text-sm text-[var(--text-dim)] py-3">
+                        Noch keine Länder aktiviert. Klicke auf „+ Land aktivieren“, um dein erstes Land einzurichten.
+                    </div>`;
                 return;
             }
 
             const plan = localStorage.getItem('pack2eu_plan') || 'M';
-            const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
-            const maxCountries = planLimits[plan] || 27;
-            const originCountry = localStorage.getItem('pack2eu_origin_country') || 'DE';
-            const isEU = localStorage.getItem('pack2eu_is_eu') === 'true';
-            const upgradePrice = 149;
+            const maxCountries = plan === 'S' ? 2 : 27;
 
-            const visibleCountries = countries.slice(0, maxCountries);
-            const hasMoreCountries = countries.length > maxCountries;
+            container.innerHTML = countries.map(c => {
+                const compliance = c.compliance || {};
+                const isActivated = ['active', 'signed', 'pending'].includes(c.status);
+                const hasEpr = !!c.existing_number || !!c.provider_epr_number;
+                const hasRep = c.representative_status === 'active' || !!c.representative_name;
+                const representativeRequired = !!compliance.representativeRequired;
+                const fullyConfigured = hasEpr && (!representativeRequired || hasRep);
 
-            container.innerHTML = visibleCountries.map(c => {
-                const statusMap = {
-                    'active': { label: t('status_active'), dot: 'green' },
-                    'signed': { label: t('status_active'), dot: 'green' },
-                    'pending': { label: t('status_pending'), dot: 'yellow' },
-                    'inactive': { label: t('status_inactive'), dot: 'gray' }
-                };
-                const s = statusMap[c.status] || statusMap.inactive;
+                let statusLabel = t('status_pending');
+                let dot = 'yellow';
+                if (fullyConfigured || c.status === 'signed') {
+                    statusLabel = t('status_active');
+                    dot = 'green';
+                } else if (c.status === 'active') {
+                    statusLabel = t('status_active');
+                    dot = 'green';
+                }
 
-                // ⭐ FIX: "premium" darf NIE geraten werden. Nur wenn das Backend es
-                // für DIESES Land explizit bestätigt (= Bevollmächtigter bezahlt & aktiv),
-                // gilt der Status als "premium". Sonst immer "grauzone" als Ausgangspunkt.
-                const mode = c.mode === 'premium' ? 'premium' : 'grauzone';
-                const isPremium = mode === 'premium';
-                const countryIsEU = isEUCountry(c.country_code);
-
-                let modeBadge = '';
-                if (isPremium) {
-                    modeBadge = `<span class="badge badge-success">${t('premium_status')}</span>`;
-                } else if (countryIsEU && !isEU) {
-                    // Nicht-EU-Händler ohne gebuchten Bevollmächtigten -> klar als "erforderlich" markieren
-                    modeBadge = `<span class="badge badge-danger">${t('rep_required_status')}</span>`;
+                let decisionBadge;
+                let info;
+                if (fullyConfigured) {
+                    decisionBadge = `<span class="badge badge-success">🟢 Alles hinterlegt</span>`;
+                    info = `<div class="infobox-premium mt-3"><div class="title">✅ Land vollständig hinterlegt</div><p class="text-sm mt-1">EPR-Nummer${hasRep ? ' und Bevollmächtigter' : ''} sind gespeichert.</p></div>`;
+                } else if (representativeRequired && !hasRep) {
+                    decisionBadge = `<span class="badge badge-danger">🔴 Bevollmächtigter fehlt</span>`;
+                    info = `<div class="infobox-non-eu mt-3"><div class="title">${t('rep_required_title')}</div><p class="text-sm mt-1">Für dieses Länderpaar ist ein Bevollmächtigter erforderlich.</p></div>`;
+                } else if (!hasEpr && compliance.registrationRequired) {
+                    decisionBadge = `<span class="badge badge-warning">🟠 EPR-Registrierung offen</span>`;
+                    info = `<div class="infobox-grauzone mt-3"><div class="title">EPR-Registrierung noch offen</div><p class="text-sm mt-1">Du hast noch keine bestehende EPR-Nummer hinterlegt.</p></div>`;
                 } else {
-                    // EU-Händler in der sanktionsfreien Grauzone -> orange
-                    modeBadge = `<span class="badge badge-warning">${t('grauzone_status')}</span>`;
+                    decisionBadge = `<span class="badge badge-warning">🟠 Prüfung / Einrichtung offen</span>`;
+                    info = `<div class="infobox-grauzone mt-3"><div class="title">Einrichtung noch nicht vollständig</div><p class="text-sm mt-1">Die vorhandenen Daten können jederzeit ergänzt werden.</p></div>`;
                 }
 
-                let infobox = '';
+                const repText = hasRep
+                    ? `<span class="text-xs text-[var(--success)] ml-2">🏛️ ${c.representative_name}${c.representative_company ? ' · ' + c.representative_company : ''}</span>`
+                    : '';
 
-                if (isPremium) {
-                    infobox = `
-                        <div class="infobox-premium mt-3">
-                            <div class="title">${t('premium_title')}</div>
-                            <p class="text-sm mt-1">${t('premium_text')}</p>
-                        </div>
-                    `;
-                } else if (countryIsEU && isEU) {
-                    // EU-Händler, EU-Zielland, kein Premium -> Grauzonen-Hinweis (orange)
-                    const originName = getCountryName(originCountry);
-                    infobox = `
-                        <div class="infobox-grauzone mt-3">
-                            <div class="title">${t('grauzone_title')}</div>
-                            <p class="text-sm mt-1">${t('grauzone_text').replace('{origin}', originName)}</p>
-                            <p class="text-sm mt-1">${t('grauzone_upgrade').replace('{price}', upgradePrice)}</p>
-                            <button onclick="upgradeToPremium('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('grauzone_button').replace('{price}', upgradePrice)}</button>
-                        </div>
-                    `;
-                } else if (countryIsEU && !isEU) {
-                    // Nicht-EU-Händler -> Bevollmächtigter ist PFLICHT, nicht optional
-                    const originName = getCountryName(originCountry);
-                    infobox = `
-                        <div class="infobox-non-eu mt-3">
-                            <div class="title">${t('non_eu_title')}</div>
-                            <p class="text-sm mt-1">${t('non_eu_text').replace('{origin}', originName)}</p>
-                            <button onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs mt-2 py-1 px-3">${t('non_eu_button').replace('{price}', upgradePrice)}</button>
-                        </div>
-                    `;
-                }
+                const actions = `
+                    ${c.status === 'pending' ? `<button type="button" onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
+                    ${c.registration_url && !hasEpr ? `<button type="button" onclick="window.open('${c.registration_url}', '_blank', 'noopener')" class="btn-outline text-xs ml-2 py-1 px-2">${t('to_register')}</button>` : ''}
+                    ${representativeRequired && !hasRep ? `<button type="button" onclick="bookRepresentative('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('book_rep')}</button>` : ''}
+                `;
 
                 return `
                     <div class="country-item border rounded-lg p-4 mb-3">
                         <div class="flex items-center justify-between flex-wrap gap-2">
-                            <div>
+                            <div class="min-w-0">
                                 <span class="text-2xl">${c.flag || '🌍'}</span>
                                 <span class="font-bold text-lg">${c.name}</span>
                                 <span class="text-xs text-[var(--text-dim)] ml-2">${c.register_body || ''}</span>
                                 ${c.existing_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.existing_number}</span>` : ''}
-                                ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✅ ${c.provider_epr_number}</span>` : ''}
+                                ${c.provider_epr_number ? `<span class="text-xs text-[var(--success)] ml-2">✓ ${c.provider_epr_number}</span>` : ''}
+                                ${repText}
                             </div>
                             <div class="flex items-center gap-2 flex-wrap">
-                                <span class="status-dot ${s.dot}"></span>
-                                <span class="text-sm">${s.label}</span>
-                                ${modeBadge}
-                                ${c.status === 'pending' ? `<button onclick="signActivation('${c.country_code}')" class="btn-primary text-xs ml-2 py-1 px-2">${t('sign')}</button>` : ''}
-                                ${c.status === 'active' ? `<button onclick="downloadPoa('${c.country_code}')" class="btn-outline text-xs ml-2 py-1 px-2">${t('pdf')}</button>` : ''}
-                                ${c.status === 'active' ? `<button onclick="generateLabelForCountry('${c.country_code}')" class="btn-accent text-xs ml-2 py-1 px-2">🏷️ Label</button>` : ''}
+                                <span class="status-dot ${dot}"></span>
+                                <span class="text-sm">${statusLabel}</span>
+                                ${decisionBadge}
+                                ${actions}
                             </div>
                         </div>
-                        ${infobox}
-                    </div>
-                `;
+                        ${info}
+                    </div>`;
             }).join('');
 
-            if (hasMoreCountries && plan === 'S') {
-                const lockedCount = countries.length - maxCountries;
-                container.innerHTML += `
-                    <div class="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-                        <p class="text-sm text-yellow-800">
-                            📦 Sie haben das Starter-Paket (max. 2 Länder). ${lockedCount} weitere Länder sind gesperrt.
-                        </p>
-                        <button onclick="upgradePlan('M')" class="btn-primary text-xs mt-2 py-1 px-3">
-                            ➡️ Auf Bestseller upgraden (49 €/Monat)
-                        </button>
-                    </div>
-                `;
+            if (countries.length >= maxCountries && plan === 'S') {
+                container.innerHTML += `<div class="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg"><p class="text-sm text-yellow-800">📦 ${t('starter_limit')}</p><button type="button" onclick="upgradePlan('M')" class="btn-primary text-xs mt-2 py-1 px-3">➡️ Auf Bestseller upgraden (49 €/Monat)</button></div>`;
             }
         }
 
         // ============================================================
         // 13. COUNTRY MODAL
         // ============================================================
-        function openCountryModal() {
-            document.getElementById('country-modal').style.display = 'flex';
-            document.getElementById('country-error').classList.add('hidden');
+        function resetCountryForm() {
+            const formFields = {
+                'existing-number': '',
+                'representative-name': '',
+                'representative-company': '',
+                'representative-email': ''
+            };
+            Object.entries(formFields).forEach(([id, value]) => {
+                const el = document.getElementById(id);
+                if (el) el.value = value;
+            });
+
+            const eprNo = document.querySelector('input[name="epr-status"][value="no"]');
+            const repNo = document.querySelector('input[name="representative-status"][value="no"]');
+            if (eprNo) eprNo.checked = true;
+            if (repNo) repNo.checked = true;
+
+            updateEprStatus();
+            updateRepresentativeStatus();
+        }
+
+        function updateEprStatus() {
+            const status = document.querySelector('input[name="epr-status"]:checked')?.value || 'no';
+            const numberWrapper = document.getElementById('epr-number-wrapper');
+            const registerWrapper = document.getElementById('epr-register-wrapper');
+            const numberInput = document.getElementById('existing-number');
+            const yesCard = document.getElementById('epr-choice-yes');
+            const noCard = document.getElementById('epr-choice-no');
+
+            const hasNumber = status === 'yes';
+            numberWrapper?.classList.toggle('hidden', !hasNumber);
+            registerWrapper?.classList.toggle('hidden', hasNumber);
+            if (numberInput) numberInput.required = hasNumber;
+            yesCard?.classList.toggle('selected', hasNumber);
+            noCard?.classList.toggle('selected', !hasNumber);
+
+            const btn = document.getElementById('activate-country-btn');
+            if (btn && hasNumber && !numberInput?.value.trim()) btn.disabled = true;
+            if (btn && !hasNumber) btn.disabled = !document.getElementById('country-select')?.value;
+        }
+
+        function updateRepresentativeStatus() {
+            const status = document.querySelector('input[name="representative-status"]:checked')?.value || 'no';
+            const fields = document.getElementById('representative-fields');
+            const nameInput = document.getElementById('representative-name');
+            const yesCard = document.getElementById('rep-choice-yes');
+            const noCard = document.getElementById('rep-choice-no');
+            const hasRep = status === 'yes';
+
+            fields?.classList.toggle('hidden', !hasRep);
+            if (nameInput) nameInput.required = hasRep;
+            yesCard?.classList.toggle('selected', hasRep);
+            noCard?.classList.toggle('selected', !hasRep);
+        }
+
+        function setEprRegisterLink(url) {
+            const link = document.getElementById('epr-register-link');
+            if (!link) return;
+            if (url) {
+                link.href = url;
+                link.classList.remove('hidden');
+            } else {
+                link.href = '#';
+                link.classList.add('hidden');
+            }
+        }
+
+        async function openCountryModal() {
+            const modal = document.getElementById('country-modal');
+            const error = document.getElementById('country-error');
+            const select = document.getElementById('country-select');
+            if (!modal || !select) return;
+
+            resetCountryForm();
+            error?.classList.add('hidden');
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+
+            if (!select.dataset.loaded) {
+                try {
+                    const countries = await api('/countries');
+                    select.innerHTML = '<option value="">— Zielland auswählen —</option>' + countries.map(c =>
+                        `<option value="${c.code}" data-registration-url="${c.registration_url || ''}">${c.flag || '🌍'} ${c.name}</option>`
+                    ).join('');
+                    select.dataset.loaded = '1';
+                } catch (err) {
+                    if (error) {
+                        error.textContent = err.message || 'Länder konnten nicht geladen werden.';
+                        error.classList.remove('hidden');
+                    }
+                    return;
+                }
+            }
+
+            previewCountryActivation();
         }
 
         function closeCountryModal() {
-            document.getElementById('country-modal').style.display = 'none';
+            hideModal('country-modal');
         }
 
-        // ============================================================
-        // 14. LAND AKTIVIEREN
-        // ============================================================
-        async function activateCountry() {
-            const code = document.getElementById('country-select').value;
-            const existing_number = document.getElementById('existing-number').value.trim();
+        async function activateCountry(codeFromCard = null) {
+            const code = (codeFromCard || document.getElementById('country-select')?.value || '').trim().toUpperCase();
             const error = document.getElementById('country-error');
-            error.classList.add('hidden');
+            const eprStatus = document.querySelector('input[name="epr-status"]:checked')?.value || 'no';
+            const existing_number = eprStatus === 'yes' ? (document.getElementById('existing-number')?.value.trim() || '') : '';
+            const repStatus = document.querySelector('input[name="representative-status"]:checked')?.value || 'no';
+            const representative = repStatus === 'yes' ? {
+                name: document.getElementById('representative-name')?.value.trim() || '',
+                company: document.getElementById('representative-company')?.value.trim() || '',
+                email: document.getElementById('representative-email')?.value.trim() || ''
+            } : null;
+
+            error?.classList.add('hidden');
+
+            if (!code) {
+                if (error) { error.textContent = 'Bitte wähle zuerst ein Zielland aus.'; error.classList.remove('hidden'); }
+                return;
+            }
+            if (eprStatus === 'yes' && !existing_number) {
+                if (error) { error.textContent = 'Bitte gib die bestehende EPR-Nummer ein.'; error.classList.remove('hidden'); }
+                return;
+            }
+            if (repStatus === 'yes' && !representative.name) {
+                if (error) { error.textContent = 'Bitte gib mindestens den Namen des Bevollmächtigten ein.'; error.classList.remove('hidden'); }
+                return;
+            }
 
             const plan = localStorage.getItem('pack2eu_plan') || 'M';
-            const planLimits = { 'S': 2, 'M': 27, 'L': 27 };
-            const maxCountries = planLimits[plan] || 27;
+            const maxCountries = plan === 'S' ? 2 : 27;
+            const btn = document.getElementById('activate-country-btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
 
             try {
-                const countries = await api('/activations');
-                if (countries.length >= maxCountries) {
-                    error.textContent = `❌ Ihr Plan (${plan === 'S' ? 'Starter' : plan}) erlaubt maximal ${maxCountries} Länder. Bitte upgraden Sie für mehr Länder.`;
-                    error.classList.remove('hidden');
-                    return;
+                const activations = await api('/activations');
+                if (activations.some(a => String(a.country_code).toUpperCase() === code)) {
+                    throw new Error('Dieses Land ist bereits aktiviert.');
+                }
+                if (activations.length >= maxCountries) {
+                    throw new Error(`Ihr Plan erlaubt maximal ${maxCountries} Länder.`);
                 }
 
-                const skus = await api('/skus');
-                let packagingData = [];
-                skus.forEach(sku => {
-                    const materials = JSON.parse(sku.materials_json || '[]');
-                    materials.forEach(m => {
-                        if (m.lappa_code) {
-                            packagingData.push({
-                                material_code: m.lappa_code,
-                                weight_grams: m.weight_grams || 0,
-                                is_recyclable: m.is_recyclable || false
-                            });
-                        }
-                    });
-                });
-
-                const lappaResponse = await api('/lappa/register', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        country: code,
-                        packaging: packagingData,
-                        existing_number: existing_number || null
-                    })
-                });
-
-                console.log('Lappa Registrierung:', lappaResponse);
-
-                const activationData = {
-                    existing_number: lappaResponse.epr_number || existing_number || null
-                };
+                const compliance = await api('/compliance/' + encodeURIComponent(code));
 
                 await api('/activations/' + code, {
                     method: 'POST',
-                    body: JSON.stringify(activationData)
+                    body: JSON.stringify({
+                        existing_number: existing_number || null,
+                        representative: representative
+                    })
                 });
 
                 closeCountryModal();
-                loadDashboard();
+                await loadDashboard();
 
-                if (lappaResponse.epr_number) {
-                    alert(`✅ Land ${code} wurde erfolgreich bei Lappa registriert!\n\nEPR-Nummer: ${lappaResponse.epr_number}`);
+                if (compliance.representativeRequired && !representative) {
+                    alert('✅ Das Land wurde eingerichtet. Für dieses Länderpaar ist noch ein Bevollmächtigter erforderlich.');
+                } else if (compliance.registrationRequired && !existing_number) {
+                    alert('✅ Das Land wurde eingerichtet. Die Registrierung ist noch offen.');
                 } else {
-                    alert(`✅ Land ${code} wurde aktiviert. Die Lappa-Registrierung wird verarbeitet.`);
+                    alert('✅ Das Land wurde erfolgreich eingerichtet.');
                 }
-
             } catch (err) {
                 console.error('Fehler bei der Aktivierung:', err);
-                error.textContent = err.message || 'Fehler bei der Aktivierung. Bitte versuche es später erneut.';
-                error.classList.remove('hidden');
+                if (error) {
+                    error.textContent = err.message || 'Fehler bei der Aktivierung.';
+                    error.classList.remove('hidden');
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Land aktivieren'; }
+            }
+        }
+
+        async function startCountryRegistration(countryCode) {
+            try {
+                const result = await api('/lappa/register', { method: 'POST', body: JSON.stringify({ country: countryCode }) });
+                if (result.submitted) {
+                    alert('Registrierung an den Provider übergeben. Pack2EU verfolgt den Status weiter.');
+                } else {
+                    alert(result.message || 'Der Provider ist noch nicht technisch verbunden. Deine Daten sind gespeichert.');
+                }
+                await loadDashboard();
+            } catch (err) {
+                alert('Registrierung konnte nicht gestartet werden: ' + err.message);
             }
         }
 
@@ -2168,42 +2412,21 @@
         // 16. UPGRADE ZU PREMIUM
         // ============================================================
         async function upgradeToPremium(countryCode) {
-            const price = 149;
-            if (!confirm(`${t('grauzone_upgrade').replace('{price}', price)}`)) return;
-
-            try {
-                const session = await api('/billing/create-upgrade-session', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        country: countryCode,
-                        price: price,
-                        type: 'premium_upgrade'
-                    })
-                });
-
-                if (session.url) {
-                    window.location.href = session.url;
-                } else {
-                    alert('Fehler bei der Zahlungsabwicklung.');
-                }
-            } catch (err) {
-                alert('Fehler: ' + err.message);
-            }
+            // Legacy UI alias: use the same server-validated representative flow.
+            return bookRepresentative(countryCode);
         }
 
         // ============================================================
         // 17. BEVOLLMÄCHTIGTEN BUCHEN
         // ============================================================
         async function bookRepresentative(countryCode) {
-            const price = 149;
-            if (!confirm(`${t('non_eu_button').replace('{price}', price)}`)) return;
+            if (!confirm(t('rep_confirm'))) return;
 
             try {
                 const session = await api('/billing/create-upgrade-session', {
                     method: 'POST',
                     body: JSON.stringify({
                         country: countryCode,
-                        price: price,
                         type: 'representative_booking'
                     })
                 });
@@ -2273,8 +2496,8 @@
 
         let editingSkuId = null;
 
-        function openSkuModal(skuData) {
-            document.getElementById('sku-modal').style.display = 'flex';
+        function openSkuModal(skuData = null) {
+            if (!showModal('sku-modal')) return;
             document.getElementById('sku-error').classList.add('hidden');
 
             if (skuData) {
@@ -2296,7 +2519,7 @@
         }
 
         function closeSkuModal() {
-            document.getElementById('sku-modal').style.display = 'none';
+            hideModal('sku-modal');
         }
 
         function addMaterialRow(material = 'karton', weight = 245, recyclable = 1) {
@@ -2569,6 +2792,24 @@
         // ============================================================
         // 23. VERPACKUNGSSTATISTIK
         // ============================================================
+        async function loadMonthlyReports() {
+            const container = document.getElementById('monthly-reports');
+            if (!container) return;
+            try {
+                const reports = await api('/reports/monthly');
+                if (!reports.length) {
+                    container.innerHTML = '<div class="text-sm text-[var(--text-dim)]">Noch keine Monatsreports vorhanden. Sobald Bestellungen oder Meldungen vorliegen, kann Pack2EU die Länderberichte automatisch aufbauen.</div>';
+                    return;
+                }
+                container.innerHTML = reports.slice(0, 12).map(r => {
+                    const t = r.totals || {};
+                    return `<div class="flex items-center justify-between gap-4 py-3 border-b border-[var(--border)]"><div><div class="font-semibold">${t.country || r.country_code} · ${t.period || r.period}</div><div class="text-xs text-[var(--text-dim)]">${Number(t.orders||0)} Bestellungen · ${(Number(t.orderPackagingKg||0)+Number(t.submissionKg||0)).toFixed(2)} kg erfasst</div></div><span class="badge badge-accent">${r.status === 'submitted' ? 'Übermittelt' : 'Entwurf'}</span></div>`;
+                }).join('');
+            } catch (err) {
+                container.innerHTML = `<div class="text-sm text-red-600">${err.message || 'Reports konnten nicht geladen werden.'}</div>`;
+            }
+        }
+
         async function loadPackagingStats() {
             try {
                 const orders = await api('/shopify/orders');
@@ -2743,9 +2984,29 @@
         }
 
         // ============================================================
+        // MODAL / UI ROBUSTNESS
+        // ============================================================
+        function showModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            el.style.display = 'flex';
+            el.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            return true;
+        }
+
+        function hideModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = 'none';
+            el.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        // ============================================================
         // 27. INIT
         // ============================================================
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const token = getToken();
             if (!token) {
                 window.location.href = '/index.html';
@@ -2753,9 +3014,33 @@
             }
 
             const savedLang = localStorage.getItem('pack2eu_lang') || 'de';
-            setLang(savedLang);
+            currentLang = i18n[savedLang] ? savedLang : 'de';
+            document.documentElement.lang = currentLang;
+            const langSelect = document.getElementById('lang-select');
+            if (langSelect) langSelect.value = currentLang;
 
-            loadDashboard();
+            // Buttons explizit verdrahten: kein Timing-/Inline-Handler-Problem mehr.
+            document.getElementById('new-product-btn')?.addEventListener('click', () => openSkuModal());
+            document.getElementById('activate-country-top-btn')?.addEventListener('click', () => openCountryModal());
+
+            document.getElementById('sku-modal')?.addEventListener('click', e => {
+                if (e.target === e.currentTarget) closeSkuModal();
+            });
+            document.getElementById('country-modal')?.addEventListener('click', e => {
+                if (e.target === e.currentTarget) closeCountryModal();
+            });
+
+            document.addEventListener('keydown', e => {
+                if (e.key !== 'Escape') return;
+                closeCountryModal();
+                closeSkuModal();
+                closeBulkImport();
+                closeShopifySync();
+            });
+
+            updateEprStatus();
+            updateRepresentativeStatus();
+            await loadDashboard();
 
             document.getElementById('knowledge-display').innerHTML =
                 `<div class="text-sm text-[var(--text-dim)]">Wähle ein Land aus, um die Anforderungen zu sehen.</div>`;
@@ -2772,3 +3057,5 @@
 
 </body>
 </html>
+
+
