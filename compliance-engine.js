@@ -2,200 +2,277 @@
 // PACK2EU – COMPLIANCE ENGINE
 // ============================================================
 //
-// Zentrale Stelle für die Entscheidung:
-//
-// 1. Wo sitzt der Händler?
-// 2. Wohin liefert er?
-// 3. Ist das Herkunftsland EU?
-// 4. Wird ein Bevollmächtigter benötigt?
-// 5. Welcher Modus gilt?
-//
 // WICHTIG:
-// Diese Engine bildet die technische Produktlogik ab.
-// Sie ersetzt keine individuelle Rechtsberatung.
-// Die tatsächlichen Länderanforderungen kommen aus
-// der countries-Tabelle.
-//
+// Keine verifizierte Länderregel = niemals automatisch grün.
+// ============================================================
 
-const EU_COUNTRIES = new Set([
+
+const EU_CODES = new Set([
   'AT',
   'BE',
   'BG',
   'HR',
   'CY',
   'CZ',
+  'DE',
   'DK',
   'EE',
+  'ES',
   'FI',
   'FR',
-  'DE',
   'GR',
   'HU',
   'IE',
   'IT',
-  'LV',
   'LT',
   'LU',
+  'LV',
   'MT',
   'NL',
   'PL',
   'PT',
   'RO',
-  'SK',
+  'SE',
   'SI',
-  'ES',
-  'SE'
+  'SK'
 ]);
 
-function normalizeCountry(code) {
-  if (!code) return null;
 
-  return String(code)
+// ============================================================
+// LANDESCODE NORMALISIEREN
+// ============================================================
+
+function normalizeCode(code) {
+
+  return String(code || '')
     .trim()
     .toUpperCase();
+
 }
+
+
+// ============================================================
+// EU-LAND?
+// ============================================================
 
 function isEUCountry(code) {
-  return EU_COUNTRIES.has(
-    normalizeCountry(code)
+
+  return EU_CODES.has(
+    normalizeCode(code)
   );
+
 }
 
-/**
- * Ermittelt den Compliance-Modus.
- *
- * EU-Händler:
- *   → Registrierung erforderlich
- *   → Bevollmächtigtenstatus kann je nach
- *     aktueller Länderregelung / Übergangslage
- *     gesondert dargestellt werden.
- *
- * Nicht-EU-Händler:
- *   → grundsätzlich Bevollmächtigtenprüfung
- *   → wenn das Zielland einen Bevollmächtigten
- *     verlangt, wird "representative_required"
- *
- * Die konkrete Länderinformation kommt aus der DB.
- */
 
-function calculateCompliance({
+// ============================================================
+// COMPLIANCE ENTSCHEIDUNG
+// ============================================================
+
+function decide({
   originCountry,
   destinationCountry,
-  country
+  rule,
+  destinationMeta
 }) {
-  const origin = normalizeCountry(originCountry);
-  const destination = normalizeCountry(destinationCountry);
 
-  if (!origin) {
-    throw new Error('Herkunftsland fehlt.');
-  }
+  const origin =
+    normalizeCode(originCountry);
 
-  if (!destination) {
-    throw new Error('Zielland fehlt.');
-  }
+  const destination =
+    normalizeCode(destinationCountry);
 
-  if (!country) {
-    throw new Error(
-      `Zielland ${destination} ist nicht in Pack2EU hinterlegt.`
-    );
-  }
+  const originEU =
+    isEUCountry(origin);
 
-  const originIsEU = isEUCountry(origin);
-
-  const countryRequiresRepresentative =
-    Number(country.representative_required) === 1;
-
-  const countryRequiresNotary =
-    Number(country.notary_required) === 1;
 
   // ----------------------------------------------------------
-  // NICHT-EU-HÄNDLER
+  // LAND NICHT VORHANDEN
   // ----------------------------------------------------------
 
-  if (!originIsEU) {
+  if (!destinationMeta) {
+
     return {
-      origin_country: origin,
-      destination_country: destination,
+      status: 'unsupported',
 
-      origin_is_eu: false,
+      registrationRequired: false,
 
-      status: countryRequiresRepresentative
-        ? 'representative_required'
-        : 'registration_required',
+      representativeRequired: false,
 
-      mode: countryRequiresRepresentative
-        ? 'premium'
-        : 'registration',
+      notaryRequired: false,
 
-      representative_required:
-        countryRequiresRepresentative,
+      confidence: 'unsupported',
 
-      notary_required:
-        countryRequiresRepresentative &&
-        countryRequiresNotary,
+      originCountry: origin,
 
-      color: countryRequiresRepresentative
-        ? 'red'
-        : 'orange',
-
-      headline: countryRequiresRepresentative
-        ? 'Bevollmächtigter erforderlich'
-        : 'Registrierung erforderlich',
-
-      message: countryRequiresRepresentative
-        ? 'Dein Unternehmen sitzt außerhalb der EU. Für dieses Zielland benötigt Pack2EU einen Bevollmächtigten.'
-        : 'Dein Unternehmen sitzt außerhalb der EU. Für dieses Zielland ist zunächst die Registrierung erforderlich.',
-
-      action: countryRequiresRepresentative
-        ? 'representative'
-        : 'registration'
+      destinationCountry: destination
     };
+
   }
 
+
   // ----------------------------------------------------------
-  // EU-HÄNDLER
+  // VERIFIZIERTE REGEL VORHANDEN
+  // ----------------------------------------------------------
+
+  if (rule) {
+
+    return {
+
+      status:
+        rule.status ||
+        'needs_review',
+
+      registrationRequired:
+        Number(rule.registration_required) === 1,
+
+      representativeRequired:
+        Number(rule.representative_required) === 1,
+
+      notaryRequired:
+        Number(rule.notary_required) === 1,
+
+      legalLabel:
+        rule.legal_label ||
+        'Prüfung erforderlich',
+
+      explanation:
+        rule.explanation ||
+        '',
+
+      legalBasis:
+        rule.legal_basis ||
+        '',
+
+      confidence:
+        rule.confidence ||
+        'needs_review',
+
+      policyVersion:
+        rule.policy_version ||
+        '',
+
+      sourceUrl:
+        rule.source_url ||
+        '',
+
+      sourceType:
+        rule.source_type ||
+        'internal',
+
+      providerAvailable:
+        Number(rule.provider_available) === 1,
+
+      providerId:
+        rule.provider_id ||
+        null,
+
+      providerCostEur:
+        rule.provider_cost_eur ??
+        null,
+
+      originEU,
+
+      originCountry:
+        origin,
+
+      destinationCountry:
+        destination
+    };
+
+  }
+
+
+  // ----------------------------------------------------------
+  // KEINE VERIFIZIERTE REGEL
+  //
+  // NIEMALS GRÜN
   // ----------------------------------------------------------
 
   return {
-    origin_country: origin,
-    destination_country: destination,
 
-    origin_is_eu: true,
+    status:
+      'needs_review',
 
-    status: 'registration_required',
+    registrationRequired:
+      true,
 
-    // Für EU-Händler NICHT automatisch premium.
-    mode: 'grauzone',
-
-    representative_required:
+    representativeRequired:
       false,
 
-    notary_required:
+    notaryRequired:
       false,
 
-    color: 'orange',
+    legalLabel:
+      'Nationale Regel wird geprüft',
 
-    headline:
-      'Registrierung erforderlich',
+    explanation:
+      'Für dieses Länderpaar liegt in Pack2EU noch keine verifizierte nationale Regel vor. Pack2EU zeigt deshalb bewusst keine pauschale Rechtssicherheit an.',
 
-    message:
-      'Dein Unternehmen sitzt in der EU. Pack2EU führt dich durch die Registrierung für dieses Zielland. Die aktuelle Einordnung des Bevollmächtigten wird dir transparent angezeigt.',
+    legalBasis:
+      'EU baseline: Regulation (EU) 2025/40',
 
-    action:
-      'registration',
+    confidence:
+      'needs_national_rule',
 
-    // Technische Information für das Frontend
-    // und spätere rechtliche Aktualisierungen.
-    country_representative_rule:
-      countryRequiresRepresentative
-        ? 'country_data_requires_representative'
-        : 'country_data_does_not_require_representative'
+    policyVersion:
+      '2026-08-25',
+
+    sourceUrl:
+      'https://eur-lex.europa.eu/eli/reg/2025/40/oj',
+
+    sourceType:
+      'eu_regulation',
+
+    providerAvailable:
+      false,
+
+    providerId:
+      null,
+
+    providerCostEur:
+      null,
+
+    originEU,
+
+    originCountry:
+      origin,
+
+    destinationCountry:
+      destination
   };
+
 }
 
+
+// ============================================================
+// VERIFIZIERTE ENTSCHEIDUNG?
+// ============================================================
+
+function isVerifiedDecision(decision) {
+
+  return !!decision &&
+    decision.confidence ===
+      'primary_source_verified' &&
+    decision.status !==
+      'needs_review';
+
+}
+
+
+// ============================================================
+// EXPORT
+// ============================================================
+
 module.exports = {
-  EU_COUNTRIES,
-  normalizeCountry,
+
+  EU_CODES,
+
+  normalizeCode,
+
   isEUCountry,
-  calculateCompliance
+
+  decide,
+
+  isVerifiedDecision
+
 };
