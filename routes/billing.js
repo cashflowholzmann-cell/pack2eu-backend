@@ -1,6 +1,6 @@
 const express = require('express');
 const Stripe = require('stripe');
-const db = require('../db');
+const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -209,4 +209,4 @@ router.get('/status', requireAuth, (req, res) => {
   res.json(customer || { plan: 'M', subscription_status: 'inactive' });
 });
 
-module.exports = router;
+module.exports = router
