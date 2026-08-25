@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 
-const db = require('../db');
+const { db } = require('../db');
 
 const {
   signToken,
@@ -427,4 +427,4 @@ router.get(
 );
 
 
-module.exports = router;
+module.
