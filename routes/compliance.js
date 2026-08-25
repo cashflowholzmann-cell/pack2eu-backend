@@ -1,347 +1,201 @@
 const express = require('express');
-
 const db = require('../db');
 
 const {
-  normalizeCountry,
-  isEUCountry,
-  calculateCompliance
-} = require('../compliance-engine');
-
-const {
-  requireAuth
+  requireAuth,
+  requireCustomer
 } = require('../middleware/auth');
 
-const router = express.Router();
+const {
+  decide,
+  normalizeCode
+} = require('../compliance-engine');
+
+
+const router =
+  express.Router();
 
 
 // ============================================================
-// GET /api/compliance
-//
-// Liefert alle unterstützten Länder für das Dashboard.
-//
-// Das Dashboard verwendet diesen Endpoint,
-// um die Länderauswahl beim Öffnen des
-// "Land aktivieren"-Fensters zu laden.
+// AUTH
 // ============================================================
 
-router.get('/', requireAuth, (req, res) => {
-
-  try {
-
-    const countries = db.prepare(`
-      SELECT
-        code,
-        name,
-        flag,
-        register_body,
-        registration_url,
-        representative_required,
-        notary_required,
-        notary_cost,
-        eco_fee,
-        requirements_json,
-        labeling_json,
-        steps_json
-      FROM countries
-      ORDER BY name ASC
-    `).all();
+router.use(
+  requireAuth,
+  requireCustomer
+);
 
 
-    const result = countries.map(country => {
+// ============================================================
+// HÄNDLER
+// ============================================================
 
-      let requirements = [];
-      let labeling = [];
-      let steps = [];
+function getCustomer(customerId) {
 
-
-      try {
-        requirements =
-          JSON.parse(
-            country.requirements_json || '[]'
-          );
-      } catch (_) {
-        requirements = [];
-      }
-
-
-      try {
-        labeling =
-          JSON.parse(
-            country.labeling_json || '[]'
-          );
-      } catch (_) {
-        labeling = [];
-      }
+  return db.prepare(`
+    SELECT
+      id,
+      company_name,
+      origin_country,
+      is_eu,
+      plan
+    FROM customers
+    WHERE id = ?
+  `).get(customerId);
+}
 
 
-      try {
-        steps =
-          JSON.parse(
-            country.steps_json || '[]'
-          );
-      } catch (_) {
-        steps = [];
-      }
+// ============================================================
+// LAND
+// ============================================================
+
+function getCountry(countryCode) {
+
+  return db.prepare(`
+    SELECT *
+    FROM countries
+    WHERE code = ?
+  `).get(
+    normalizeCode(countryCode)
+  );
+}
 
 
-      return {
+// ============================================================
+// REGEL
+// ============================================================
 
-        country_code:
-          country.code,
+function getRule(
+  originCountry,
+  destinationCountry
+) {
 
-        code:
-          country.code,
-
-        name:
-          country.name,
-
-        flag:
-          country.flag || '🌍',
-
-        register_body:
-          country.register_body,
-
-        registration_url:
-          country.registration_url || '',
-
-        representative_required:
-          Number(
-            country.representative_required
-          ) === 1,
-
-        notary_required:
-          Number(
-            country.notary_required
-          ) === 1,
-
-        notary_cost:
-          country.notary_cost || '',
-
-        eco_fee:
-          country.eco_fee || '',
-
-        requirements,
-
-        labeling,
-
-        steps
-      };
-
-    });
+  return db.prepare(`
+    SELECT *
+    FROM compliance_rules
+    WHERE origin_code = ?
+      AND destination_code = ?
+      AND active = 1
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(
+    normalizeCode(originCountry),
+    normalizeCode(destinationCountry)
+  );
+}
 
 
-    res.json(result);
+// ============================================================
+// ENTSCHEIDUNG
+// ============================================================
 
-  } catch (error) {
+function buildDecision(
+  customer,
+  destinationCode
+) {
 
-    console.error(
-      '❌ Fehler beim Laden der Compliance-Länder:',
-      error
+  const destination =
+    normalizeCode(
+      destinationCode
     );
 
-    res.status(500).json({
-      error:
-        'Länder konnten nicht geladen werden.'
-    });
+  const country =
+    getCountry(destination);
 
+  if (!country) {
+    return null;
   }
 
-});
+  const rule =
+    getRule(
+      customer.origin_country,
+      destination
+    );
+
+  return decide({
+
+    originCountry:
+      customer.origin_country,
+
+    destinationCountry:
+      destination,
+
+    rule,
+
+    destinationMeta:
+      country
+
+  });
+}
 
 
 // ============================================================
-// GET /api/compliance/check
-//
-// Beispiel:
-//
-// /api/compliance/check?destination=FR
-//
-// Das Herkunftsland wird NICHT vom Frontend übergeben,
-// sondern aus dem eingeloggten Händler geladen.
+// EINZELNES LAND
+// GET /api/compliance/DE
 // ============================================================
 
-router.get('/check', requireAuth, (req, res) => {
+router.get(
+  '/:destination',
+  (req, res) => {
 
-  try {
+    try {
 
-    const destination =
-      normalizeCountry(
-        req.query.destination
-      );
+      const customer =
+        getCustomer(
+          req.auth.userId
+        );
 
+      if (!customer) {
 
-    if (!destination) {
-
-      return res.status(400).json({
-        error: 'Zielland fehlt.'
-      });
-
-    }
-
-
-    // --------------------------------------------------------
-    // Händler aus DB laden
-    // --------------------------------------------------------
-
-    const customer =
-      db.prepare(`
-        SELECT
-          id,
-          company_name,
-          origin_country,
-          is_eu,
-          plan
-        FROM customers
-        WHERE id = ?
-      `).get(req.customer.sub);
+        return res.status(404).json({
+          error:
+            'Kunde nicht gefunden.'
+        });
+      }
 
 
-    if (!customer) {
-
-      return res.status(404).json({
-        error:
-          'Händler nicht gefunden.'
-      });
-
-    }
+      const code =
+        normalizeCode(
+          req.params.destination
+        );
 
 
-    // --------------------------------------------------------
-    // Zielland laden
-    // --------------------------------------------------------
+      const country =
+        getCountry(code);
 
-    const country =
-      db.prepare(`
-        SELECT
+
+      if (!country) {
+
+        return res.status(404).json({
+          error:
+            `Zielland ${code} wird nicht unterstützt.`
+        });
+      }
+
+
+      const compliance =
+        buildDecision(
+          customer,
+          code
+        );
+
+
+      const activation =
+        db.prepare(`
+          SELECT *
+          FROM activations
+          WHERE customer_id = ?
+            AND country_code = ?
+        `).get(
+          customer.id,
+          code
+        );
+
+
+      return res.json({
+
+        country_code:
           code,
-          name,
-          register_body,
-          representative_required,
-          notary_required,
-          notary_cost,
-          registration_url,
-          eco_fee,
-          requirements_json,
-          labeling_json,
-          steps_json,
-          flag
-        FROM countries
-        WHERE code = ?
-      `).get(destination);
-
-
-    if (!country) {
-
-      return res.status(404).json({
-        error:
-          `Zielland ${destination} wird von Pack2EU noch nicht unterstützt.`
-      });
-
-    }
-
-
-    // --------------------------------------------------------
-    // Compliance berechnen
-    // --------------------------------------------------------
-
-    const compliance =
-      calculateCompliance({
-
-        originCountry:
-          customer.origin_country,
-
-        destinationCountry:
-          destination,
-
-        country
-
-      });
-
-
-    // --------------------------------------------------------
-    // Länderinformationen
-    // --------------------------------------------------------
-
-    let requirements = [];
-    let labeling = [];
-    let steps = [];
-
-
-    try {
-
-      requirements =
-        JSON.parse(
-          country.requirements_json || '[]'
-        );
-
-    } catch (_) {
-
-      requirements = [];
-
-    }
-
-
-    try {
-
-      labeling =
-        JSON.parse(
-          country.labeling_json || '[]'
-        );
-
-    } catch (_) {
-
-      labeling = [];
-
-    }
-
-
-    try {
-
-      steps =
-        JSON.parse(
-          country.steps_json || '[]'
-        );
-
-    } catch (_) {
-
-      steps = [];
-
-    }
-
-
-    // --------------------------------------------------------
-    // Antwort
-    // --------------------------------------------------------
-
-    res.json({
-
-      ok: true,
-
-      customer: {
-
-        company_name:
-          customer.company_name,
-
-        origin_country:
-          normalizeCountry(
-            customer.origin_country
-          ),
-
-        origin_is_eu:
-          isEUCountry(
-            customer.origin_country
-          ),
-
-        plan:
-          customer.plan
-
-      },
-
-      country: {
-
-        code:
-          country.code,
 
         name:
           country.name,
@@ -353,178 +207,192 @@ router.get('/check', requireAuth, (req, res) => {
           country.register_body,
 
         registration_url:
-          country.registration_url,
+          country.registration_url ||
+          '',
 
-        eco_fee:
-          country.eco_fee,
+        data_status:
+          country.data_status ||
+          'needs_verification',
 
-        requirements,
+        plan:
+          customer.plan,
 
-        labeling,
+        compliance,
 
-        steps,
+        activation:
+          activation ||
+          null
+      });
 
-        representative_required:
-          Number(
-            country.representative_required
-          ) === 1,
+    } catch (error) {
 
-        notary_required:
-          Number(
-            country.notary_required
-          ) === 1,
+      console.error(
+        '❌ Compliance error:',
+        error
+      );
 
-        notary_cost:
-          country.notary_cost || ''
-
-      },
-
-      compliance
-
-    });
-
-  } catch (error) {
-
-    console.error(
-      '❌ Compliance Check Fehler:',
-      error
-    );
-
-    res.status(500).json({
-
-      error:
-        'Fehler bei der Compliance-Prüfung.'
-
-    });
-
+      return res.status(500).json({
+        error:
+          'Compliance-Prüfung fehlgeschlagen: ' +
+          error.message
+      });
+    }
   }
-
-});
+);
 
 
 // ============================================================
-// GET /api/compliance/summary
-//
-// Beispiel:
-//
-// /api/compliance/summary?destination=FR
+// ALLE LÄNDER
+// GET /api/compliance
 // ============================================================
 
 router.get(
-  '/summary',
-  requireAuth,
+  '/',
   (req, res) => {
 
     try {
 
-      const destination =
-        normalizeCountry(
-          req.query.destination
-        );
-
-
-      if (!destination) {
-
-        return res.status(400).json({
-          error:
-            'Zielland fehlt.'
-        });
-
-      }
-
-
       const customer =
-        db.prepare(`
-          SELECT
-            origin_country,
-            plan
-          FROM customers
-          WHERE id = ?
-        `).get(req.customer.sub);
+        getCustomer(
+          req.auth.userId
+        );
 
 
       if (!customer) {
 
         return res.status(404).json({
           error:
-            'Händler nicht gefunden.'
+            'Kunde nicht gefunden.'
         });
-
       }
 
 
-      const country =
+      const countries =
         db.prepare(`
           SELECT
             code,
             name,
+            flag,
+            register_body,
+            data_status,
+            registration_url,
             representative_required,
-            notary_required
+            notary_required,
+            notary_cost
           FROM countries
-          WHERE code = ?
-        `).get(destination);
+          ORDER BY name
+        `).all();
 
 
-      if (!country) {
-
-        return res.status(404).json({
-          error:
-            'Zielland nicht gefunden.'
-        });
-
-      }
-
-
-      const compliance =
-        calculateCompliance({
-
-          originCountry:
-            customer.origin_country,
-
-          destinationCountry:
-            destination,
-
-          country
-
-        });
+      const activations =
+        db.prepare(`
+          SELECT
+            *
+          FROM activations
+          WHERE customer_id = ?
+        `).all(
+          customer.id
+        );
 
 
-      res.json({
+      const activationMap =
+        new Map(
+          activations.map(
+            activation => [
+              activation.country_code,
+              activation
+            ]
+          )
+        );
 
-        ok: true,
 
-        origin_country:
-          normalizeCountry(
-            customer.origin_country
-          ),
+      const result =
+        countries.map(
+          country => {
 
-        destination_country:
-          destination,
+            const activation =
+              activationMap.get(
+                country.code
+              ) || null;
 
-        plan:
-          customer.plan,
 
-        ...compliance
+            const compliance =
+              buildDecision(
+                customer,
+                country.code
+              );
 
-      });
+
+            return {
+
+              country_code:
+                country.code,
+
+              name:
+                country.name,
+
+              flag:
+                country.flag,
+
+              register_body:
+                country.register_body,
+
+              data_status:
+                country.data_status ||
+                'needs_verification',
+
+              registration_url:
+                country.registration_url ||
+                '',
+
+              status:
+                activation?.status ||
+                'inactive',
+
+              mode:
+                activation?.mode ||
+                null,
+
+              provider_status:
+                activation?.provider_status ||
+                null,
+
+              provider_epr_number:
+                activation?.provider_epr_number ||
+                null,
+
+              representative_required:
+                country.representative_required === 1,
+
+              notary_required:
+                country.notary_required === 1,
+
+              notary_cost:
+                country.notary_cost ||
+                '',
+
+              compliance
+
+            };
+          }
+        );
+
+
+      return res.json(result);
 
     } catch (error) {
 
       console.error(
-        '❌ Compliance Summary Fehler:',
+        '❌ Compliance overview error:',
         error
       );
 
-
-      res.status(500).json({
-
+      return res.status(500).json({
         error:
-          'Fehler beim Erstellen der Compliance-Zusammenfassung.'
-
+          'Compliance-Daten konnten nicht geladen werden: ' +
+          error.message
       });
-
     }
-
   }
 );
 
