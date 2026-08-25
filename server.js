@@ -32,6 +32,9 @@ const lappaRoutes = require('./routes/lappa');
 // ⭐ NEU: zentrale Compliance-Logik
 const complianceRoutes = require('./routes/compliance');
 
+// ⭐⭐ NEU: Report-Route
+const reportRoutes = require('./routes/reports');
+
 // ============================================================
 // APP
 // ============================================================
@@ -175,6 +178,9 @@ app.use(
   complianceLimiter,
   complianceRoutes
 );
+
+// ⭐⭐ NEU: Report-Route
+app.use('/api/reports', reportRoutes);
 
 // ============================================================
 // 404
