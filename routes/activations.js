@@ -8,12 +8,30 @@ const {
 
 const {
   decide,
-  normalizeCode,
   isVerifiedDecision
 } = require('../compliance-engine');
 
 const router = express.Router();
 
+router.use(
+  requireAuth,
+  requireCustomer
+);
+
+
+// ============================================================
+// COUNTRY CODE NORMALISIEREN
+// ============================================================
+// Absichtlich lokal in dieser Route.
+// Dadurch funktioniert die Aktivierung auch dann,
+// wenn eine ältere compliance-engine.js auf Render geladen ist.
+// ============================================================
+
+function normalizeCode(code) {
+  return String(code || '')
+    .trim()
+    .toUpperCase();
+}
 
 // ============================================================
 // AUTH
