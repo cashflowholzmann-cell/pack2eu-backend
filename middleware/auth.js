@@ -105,6 +105,13 @@ function requireAuth(req, res, next) {
 
     };
 
+    // Compatibility for existing route modules. New code should use req.auth.
+    req.customer = {
+      sub: userId,
+      role: req.auth.role,
+      customerNumber: req.auth.customerNumber
+    };
+
     next();
 
   } catch (error) {
