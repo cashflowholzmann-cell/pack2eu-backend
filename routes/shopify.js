@@ -117,12 +117,30 @@ router.post('/webhook/orders/create', async (req, res) => {
   }
 });
 
+// Bestellungen des angemeldeten Händlers für das Dashboard.
+router.get('/orders', requireAuth, (req, res) => {
+  try {
+    const orders = db.prepare(`
+      SELECT id, shopify_order_id, destination_country, total_weight_grams,
+             packaging_data, created_at
+      FROM shopify_orders
+      WHERE customer_id = ?
+      ORDER BY created_at DESC
+    `).all(req.auth.userId);
+
+    res.json(orders);
+  } catch (error) {
+    console.error('Shopify Bestellungen Fehler:', error.message);
+    res.status(500).json({ error: 'Fehler beim Laden der Shopify-Bestellungen.' });
+  }
+});
+
 // ============================================================
 // 4. Shopify-Produkte abrufen
 // ============================================================
 router.get('/products', requireAuth, async (req, res) => {
   try {
-    const customer = db.prepare('SELECT shopify_access_token, shopify_shop_domain FROM customers WHERE id = ?').get(req.customer.sub);
+    const customer = db.prepare('SELECT shopify_access_token, shopify_shop_domain FROM customers WHERE id = ?').get(req.auth.userId);
     if (!customer?.shopify_access_token) {
       return res.status(400).json({ error: 'Shopify nicht verbunden.' });
     }
