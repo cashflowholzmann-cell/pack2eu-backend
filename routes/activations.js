@@ -25,7 +25,7 @@ router.use(
 
 
 // ============================================================
-// HILFSFUNKTIONEN
+// HILFSFUNKTION
 // ============================================================
 
 function clean(value) {
@@ -80,7 +80,7 @@ function getCountry(
 
 
 // ============================================================
-// COMPLIANCE-REGEL
+// COMPLIANCE REGEL
 // ============================================================
 
 function getRule(
@@ -111,7 +111,7 @@ function getRule(
 
 
 // ============================================================
-// ENTSCHEIDUNG
+// COMPLIANCE ENTSCHEIDUNG
 // ============================================================
 
 function getDecision(
@@ -188,10 +188,9 @@ function readRepresentative(
 
   const nested =
     body.representative &&
-    typeof body.representative === 'object'
-
+    typeof body.representative ===
+      'object'
       ? body.representative
-
       : {};
 
 
@@ -223,7 +222,7 @@ function readRepresentative(
 
 
 // ============================================================
-// STATUS BERECHNEN
+// STATUS
 // ============================================================
 
 function calculateState({
@@ -240,15 +239,21 @@ function calculateState({
 
   const hasNumber =
     Boolean(
-      clean(existingNumber)
+      clean(
+        existingNumber
+      )
     );
 
 
   const hasRepresentative =
     Boolean(
       representative &&
-      clean(representative.name) &&
-      clean(representative.email)
+      clean(
+        representative.name
+      ) &&
+      clean(
+        representative.email
+      )
     );
 
 
@@ -300,44 +305,32 @@ function calculateState({
 
   const registrationStatus =
     !registrationRequired
-
       ? 'not_required'
-
       : hasNumber
-
         ? 'active'
-
         : 'required';
 
 
-  let finalRepresentativeStatus;
+  let representativeStatus;
 
 
   if (
     !representativeRequired
   ) {
 
-    finalRepresentativeStatus =
+    representativeStatus =
       'not_required';
 
   } else if (
     hasRepresentative
   ) {
 
-    finalRepresentativeStatus =
+    representativeStatus =
       'active';
-
-  } else if (
-    providerStatus ===
-    'paid_pending_provider'
-  ) {
-
-    finalRepresentativeStatus =
-      'paid_pending_provider';
 
   } else {
 
-    finalRepresentativeStatus =
+    representativeStatus =
       'required';
   }
 
@@ -364,8 +357,7 @@ function calculateState({
 
     registrationStatus,
 
-    representativeStatus:
-      finalRepresentativeStatus,
+    representativeStatus,
 
     providerStatus:
       providerStatus ||
@@ -431,85 +423,30 @@ router.get(
       const rows =
         db.prepare(`
           SELECT
-
-            a.id,
-
-            a.country_code,
-
-            a.status,
-
-            a.signed_at,
-
-            a.existing_number,
-
-            a.representative_name,
-
-            a.representative_company,
-
-            a.representative_email,
-
-            a.provider_id,
-
-            a.provider_epr_number,
-
-            a.provider_status,
-
-            a.lappa_representative_id,
-
-            a.lappa_status,
-
-            a.mode,
-
-            a.mode_updated_at,
-
-            a.compliance_status,
-
-            a.registration_status,
-
-            a.representative_status,
-
-            a.created_at,
-
+            a.*,
             c.name,
-
             c.register_body,
-
             c.flag,
-
             c.representative_required,
-
             c.notary_required,
-
             c.notary_cost,
-
             c.registration_url,
-
             c.data_status
-
           FROM activations a
-
           JOIN countries c
-            ON c.code =
-               a.country_code
-
+            ON c.code = a.country_code
           WHERE a.customer_id = ?
-
           ORDER BY c.name ASC
-
         `).all(
           req.auth.userId
         );
 
 
-      res.json(
+      return res.json(
         rows.map(
           row => ({
 
             ...row,
-
-            mode:
-              row.mode ||
-              'grauzone',
 
             has_existing_number:
               Boolean(
@@ -533,7 +470,7 @@ router.get(
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         error:
           'Fehler beim Laden der Aktivierungen: ' +
           error.message
@@ -618,7 +555,8 @@ router.get(
 
 // ============================================================
 // LAND AKTIVIEREN
-// POST /api/activations/DE
+//
+// POST /api/activations/PL
 // ============================================================
 
 router.post(
@@ -649,6 +587,46 @@ router.post(
       }
 
 
+      // --------------------------------------------------------
+      // PLAN LIMIT
+      // --------------------------------------------------------
+
+      const customer =
+        result.customer;
+
+
+      const activationCount =
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM activations
+          WHERE customer_id = ?
+        `).get(
+          customer.id
+        ).count;
+
+
+      const maxCountries =
+        customer.plan === 'S'
+          ? 2
+          : 27;
+
+
+      if (
+        activationCount >=
+        maxCountries
+      ) {
+
+        return res.status(403).json({
+          error:
+            `Ihr Plan erlaubt maximal ${maxCountries} Länder.`
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // BEREITS AKTIVIERT?
+      // --------------------------------------------------------
+
       const existingActivation =
         db.prepare(`
           SELECT *
@@ -656,21 +634,31 @@ router.post(
           WHERE customer_id = ?
             AND country_code = ?
         `).get(
+
           req.auth.userId,
+
           countryCode
+
         );
 
 
       if (existingActivation) {
 
         return res.status(409).json({
+
           error:
             'Dieses Land ist bereits aktiviert.',
+
           activation:
             existingActivation
+
         });
       }
 
+
+      // --------------------------------------------------------
+      // FORMULARDATEN
+      // --------------------------------------------------------
 
       const existingNumber =
         clean(
@@ -684,6 +672,22 @@ router.post(
         );
 
 
+      // --------------------------------------------------------
+      // STATUS
+      // --------------------------------------------------------
+
+      const providerStatus =
+        result.decision.representativeRequired
+
+          ? (
+              result.decision.providerAvailable
+                ? 'required'
+                : 'required_manual_check'
+            )
+
+          : 'not_required';
+
+
       const state =
         calculateState({
 
@@ -694,14 +698,7 @@ router.post(
 
           representative,
 
-          providerStatus:
-            result.decision.representativeRequired
-              ? (
-                  result.decision.providerAvailable
-                    ? 'required'
-                    : 'required_manual_check'
-                )
-              : 'not_required'
+          providerStatus
 
         });
 
@@ -724,160 +721,6 @@ router.post(
         });
 
 
-      const insert =
-        db.prepare(`
-          INSERT INTO activations (
-
-            customer_id,
-
-            country_code,
-
-            status,
-
-            existing_number,
-
-            representative_name,
-
-            representative_company,
-
-            representative_email,
-
-            provider_id,
-
-            provider_status,
-
-            status,
-
-            mode,
-
-            mode_updated_at,
-
-            compliance_status,
-
-            registration_status,
-
-            representative_status,
-
-            compliance_snapshot
-
-          )
-
-          VALUES (
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            datetime('now'),
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?
-
-          )
-        `);
-
-
-      // --------------------------------------------------------
-      // SQLite erlaubt nicht zweimal dieselbe Spalte.
-      // Deshalb verwenden wir die korrigierte INSERT-Version
-      // weiter unten.
-      // --------------------------------------------------------
-
-      const insertFixed =
-        db.prepare(`
-          INSERT INTO activations (
-
-            customer_id,
-
-            country_code,
-
-            status,
-
-            existing_number,
-
-            representative_name,
-
-            representative_company,
-
-            representative_email,
-
-            provider_id,
-
-            provider_status,
-
-            mode,
-
-            mode_updated_at,
-
-            compliance_status,
-
-            registration_status,
-
-            representative_status,
-
-            compliance_snapshot
-
-          )
-
-          VALUES (
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?,
-
-            datetime('now'),
-
-            ?,
-
-            ?,
-
-            ?,
-
-            ?
-
-          )
-        `);
-
-
       const providerId =
         result.decision.providerAvailable
           ? (
@@ -887,8 +730,70 @@ router.post(
           : null;
 
 
-      const runResult =
-        insertFixed.run(
+      // --------------------------------------------------------
+      // AKTIVIERUNG SPEICHERN
+      // --------------------------------------------------------
+
+      const insertActivation =
+        db.prepare(`
+          INSERT INTO activations (
+
+            customer_id,
+
+            country_code,
+
+            status,
+
+            existing_number,
+
+            representative_name,
+
+            representative_company,
+
+            representative_email,
+
+            provider_id,
+
+            provider_status,
+
+            mode,
+
+            mode_updated_at,
+
+            compliance_status,
+
+            registration_status,
+
+            representative_status,
+
+            compliance_snapshot
+
+          )
+
+          VALUES (
+
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            datetime('now'),
+            ?,
+            ?,
+            ?,
+            ?
+
+          )
+        `);
+
+
+      const inserted =
+        insertActivation.run(
 
           req.auth.userId,
 
@@ -927,6 +832,9 @@ router.post(
 
       // --------------------------------------------------------
       // COMPLIANCE CASE
+      //
+      // DAS WAR DER KONKRETE FEHLER:
+      // compliance_status MUSS GESETZT WERDEN.
       // --------------------------------------------------------
 
       db.prepare(`
@@ -936,11 +844,17 @@ router.post(
 
           country_code,
 
-          provider_id,
+          compliance_status,
+
+          registration_status,
 
           representative_status,
 
+          provider_id,
+
           external_status,
+
+          snapshot_json,
 
           updated_at
 
@@ -949,15 +863,13 @@ router.post(
         VALUES (
 
           ?,
-
           ?,
-
           ?,
-
           ?,
-
           ?,
-
+          ?,
+          ?,
+          ?,
           datetime('now')
 
         )
@@ -969,14 +881,23 @@ router.post(
 
         DO UPDATE SET
 
-          provider_id =
-            excluded.provider_id,
+          compliance_status =
+            excluded.compliance_status,
+
+          registration_status =
+            excluded.registration_status,
 
           representative_status =
             excluded.representative_status,
 
+          provider_id =
+            excluded.provider_id,
+
           external_status =
             excluded.external_status,
+
+          snapshot_json =
+            excluded.snapshot_json,
 
           updated_at =
             datetime('now')
@@ -987,53 +908,51 @@ router.post(
 
         countryCode,
 
-        providerId,
+        result.decision.status,
+
+        state.registrationStatus,
 
         state.representativeStatus,
 
-        result.decision.status
+        providerId,
+
+        result.decision.status,
+
+        snapshot
 
       );
 
 
+      // --------------------------------------------------------
+      // AKTIVIERUNG AUS DB LADEN
+      // --------------------------------------------------------
+
       const activation =
         db.prepare(`
           SELECT
-
             a.*,
-
             c.name,
-
             c.flag,
-
             c.register_body,
-
             c.representative_required,
-
             c.notary_required,
-
             c.notary_cost,
-
             c.registration_url,
-
             c.data_status
-
           FROM activations a
-
           JOIN countries c
             ON c.code =
                a.country_code
-
           WHERE a.id = ?
-
         `).get(
-          runResult.lastInsertRowid
+          inserted.lastInsertRowid
         );
 
 
       return res.status(201).json({
 
-        ok: true,
+        ok:
+          true,
 
         activation,
 
@@ -1064,7 +983,8 @@ router.post(
 
 // ============================================================
 // AKTIVIERUNG AKTUALISIEREN
-// PUT /api/activations/DE
+//
+// PUT /api/activations/PL
 // ============================================================
 
 router.put(
@@ -1102,8 +1022,11 @@ router.put(
           WHERE customer_id = ?
             AND country_code = ?
         `).get(
+
           req.auth.userId,
+
           countryCode
+
         );
 
 
@@ -1232,6 +1155,95 @@ router.put(
       );
 
 
+      // Compliance Case synchronisieren
+
+      db.prepare(`
+        INSERT INTO compliance_cases (
+
+          customer_id,
+
+          country_code,
+
+          compliance_status,
+
+          registration_status,
+
+          representative_status,
+
+          provider_id,
+
+          external_status,
+
+          snapshot_json,
+
+          updated_at
+
+        )
+
+        VALUES (
+
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          datetime('now')
+
+        )
+
+        ON CONFLICT(
+          customer_id,
+          country_code
+        )
+
+        DO UPDATE SET
+
+          compliance_status =
+            excluded.compliance_status,
+
+          registration_status =
+            excluded.registration_status,
+
+          representative_status =
+            excluded.representative_status,
+
+          provider_id =
+            excluded.provider_id,
+
+          external_status =
+            excluded.external_status,
+
+          snapshot_json =
+            excluded.snapshot_json,
+
+          updated_at =
+            datetime('now')
+
+      `).run(
+
+        req.auth.userId,
+
+        countryCode,
+
+        result.decision.status,
+
+        state.registrationStatus,
+
+        state.representativeStatus,
+
+        activation.provider_id ||
+          null,
+
+        result.decision.status,
+
+        snapshot
+
+      );
+
+
       const updated =
         db.prepare(`
           SELECT
@@ -1242,7 +1254,8 @@ router.put(
             c.representative_required,
             c.notary_required,
             c.notary_cost,
-            c.registration_url
+            c.registration_url,
+            c.data_status
           FROM activations a
           JOIN countries c
             ON c.code =
@@ -1250,14 +1263,18 @@ router.put(
           WHERE a.customer_id = ?
             AND a.country_code = ?
         `).get(
+
           req.auth.userId,
+
           countryCode
+
         );
 
 
       return res.json({
 
-        ok: true,
+        ok:
+          true,
 
         activation:
           updated,
@@ -1289,7 +1306,8 @@ router.put(
 
 // ============================================================
 // SIGNATUR
-// POST /api/activations/DE/sign
+//
+// POST /api/activations/PL/sign
 // ============================================================
 
 router.post(
@@ -1327,8 +1345,11 @@ router.post(
           WHERE customer_id = ?
             AND country_code = ?
         `).get(
+
           req.auth.userId,
+
           countryCode
+
         );
 
 
@@ -1375,7 +1396,9 @@ router.post(
         });
 
 
-      if (!state.fullyConfigured) {
+      if (
+        !state.fullyConfigured
+      ) {
 
         return res.status(400).json({
 
@@ -1428,14 +1451,18 @@ router.post(
           WHERE customer_id = ?
             AND country_code = ?
         `).get(
+
           req.auth.userId,
+
           countryCode
+
         );
 
 
       return res.json({
 
-        ok: true,
+        ok:
+          true,
 
         activation:
           updated,
@@ -1464,6 +1491,7 @@ router.post(
 
 // ============================================================
 // STATUS
+// GET /api/activations/status
 // ============================================================
 
 router.get(
