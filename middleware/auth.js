@@ -23,6 +23,12 @@ function signToken(identity = {}) {
     identity.sub ??
     identity.id;
 
+  if (!subject) {
+    throw new Error(
+      'Token kann ohne Benutzer-ID nicht erstellt werden.'
+    );
+  }
+
   const customerNumber =
     identity.customer_number ??
     identity.customerNumber ??
@@ -30,7 +36,7 @@ function signToken(identity = {}) {
 
   return jwt.sign(
     {
-      sub: subject,
+      sub: Number(subject),
       role,
       customerNumber
     },
@@ -57,6 +63,7 @@ function requireAuth(req, res, next) {
       : null;
 
   if (!token) {
+
     return res.status(401).json({
       error: 'Kein Token übergeben.'
     });
@@ -73,20 +80,29 @@ function requireAuth(req, res, next) {
     const userId =
       Number(payload.sub);
 
-    if (!Number.isInteger(userId) || userId <= 0) {
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+
       return res.status(401).json({
-        error: 'Token enthält keine gültige Benutzer-ID.'
+        error:
+          'Token enthält keine gültige Benutzer-ID.'
       });
     }
 
     req.auth = {
+
       userId,
+
       role:
         payload.role ||
         'customer',
+
       customerNumber:
         payload.customerNumber ||
         null
+
     };
 
     next();
@@ -99,7 +115,8 @@ function requireAuth(req, res, next) {
     );
 
     return res.status(401).json({
-      error: 'Token ungültig oder abgelaufen.'
+      error:
+        'Token ungültig oder abgelaufen.'
     });
   }
 }
