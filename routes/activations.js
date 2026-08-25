@@ -1537,4 +1537,4 @@ router.get(
 );
 
 
-module.exports = route
+module.exports = route;
