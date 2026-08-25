@@ -13,46 +13,36 @@ db.pragma('foreign_keys = ON');
 
 
 // ============================================================
-// HILFSFUNKTION
-// Prüft, ob eine Spalte bereits existiert
+// HILFSFUNKTIONEN
 // ============================================================
 
-function columnExists(table, column) {
-  const columns = db
-    .prepare(`PRAGMA table_info(${table})`)
-    .all();
-
-  return columns.some(
-    c => c.name === column
-  );
+function tableExists(table) {
+  return db.prepare(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table'
+      AND name = ?
+  `).get(table);
 }
 
+function columnExists(table, column) {
+  if (!tableExists(table)) return false;
 
-// ============================================================
-// SICHERE MIGRATION
-// ============================================================
+  return db.prepare(`
+    PRAGMA table_info(${table})
+  `).all().some(c => c.name === column);
+}
 
-function addColumnIfMissing(
-  table,
-  column,
-  definition
-) {
+function addColumnIfMissing(table, column, definition) {
+  if (!tableExists(table)) return;
+
   if (!columnExists(table, column)) {
-
     db.exec(`
       ALTER TABLE ${table}
       ADD COLUMN ${column} ${definition}
     `);
 
-    console.log(
-      `✅ Spalte ${table}.${column} hinzugefügt`
-    );
-
-  } else {
-
-    console.log(
-      `ℹ️ Spalte ${table}.${column} existiert bereits`
-    );
+    console.log(`✅ Spalte ${table}.${column} hinzugefügt`);
   }
 }
 
@@ -62,29 +52,133 @@ function addColumnIfMissing(
 // ============================================================
 
 function init() {
-
   try {
 
     // --------------------------------------------------------
-    // 1. SCHEMA
+    // 1. GRUNDLEGENDE COMPLIANCE-TABELLEN
     // --------------------------------------------------------
 
-    const schema =
-      fs.readFileSync(
-        path.join(__dirname, 'schema.sql'),
-        'utf8'
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS country_jurisdictions (
+        code TEXT PRIMARY KEY,
+        is_eu INTEGER NOT NULL DEFAULT 0
       );
+
+      CREATE TABLE IF NOT EXISTS compliance_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        origin_code TEXT NOT NULL,
+        destination_code TEXT NOT NULL,
+
+        registration_required INTEGER NOT NULL DEFAULT 1,
+        representative_required INTEGER NOT NULL DEFAULT 0,
+        notary_required INTEGER NOT NULL DEFAULT 0,
+
+        status TEXT NOT NULL DEFAULT 'needs_review',
+
+        legal_label TEXT NOT NULL DEFAULT 'Prüfung erforderlich',
+        explanation TEXT,
+        legal_basis TEXT,
+
+        confidence TEXT NOT NULL DEFAULT 'needs_review',
+
+        policy_version TEXT NOT NULL DEFAULT '2026-08-25',
+
+        source_url TEXT,
+        source_type TEXT NOT NULL DEFAULT 'internal',
+
+        provider_available INTEGER NOT NULL DEFAULT 0,
+        provider_id TEXT,
+        provider_cost_eur REAL,
+
+        effective_from TEXT,
+
+        active INTEGER NOT NULL DEFAULT 1,
+
+        UNIQUE(origin_code, destination_code)
+      );
+    `);
+
+    console.log('✅ Compliance-Tabellen vorhanden');
+
+
+    // --------------------------------------------------------
+    // 2. EU / NICHT-EU LÄNDER
+    // --------------------------------------------------------
+
+    const euCodes = [
+      'AT','BE','BG','HR','CY','CZ','DE','DK','EE',
+      'ES','FI','FR','GR','HU','IE','IT','LT','LU',
+      'LV','MT','NL','PL','PT','RO','SE','SI','SK'
+    ];
+
+    const nonEuCodes = [
+      'CH','US','CA','CN','TH','GB','JP','AU',
+      'IN','NO','IS','LI'
+    ];
+
+    const insertJurisdiction = db.prepare(`
+      INSERT OR IGNORE INTO country_jurisdictions
+      (code, is_eu)
+      VALUES (?, ?)
+    `);
+
+    const seedJurisdictions = db.transaction(() => {
+      for (const code of euCodes) {
+        insertJurisdiction.run(code, 1);
+      }
+
+      for (const code of nonEuCodes) {
+        insertJurisdiction.run(code, 0);
+      }
+    });
+
+    seedJurisdictions();
+
+
+    // --------------------------------------------------------
+    // 3. NORMALES SCHEMA
+    // --------------------------------------------------------
+
+    const schema = fs.readFileSync(
+      path.join(__dirname, 'schema.sql'),
+      'utf8'
+    );
 
     db.exec(schema);
 
-    console.log(
-      '✅ Schema ausgeführt'
+    console.log('✅ Schema ausgeführt');
+
+
+    // --------------------------------------------------------
+    // 4. WICHTIGE MIGRATIONEN
+    // --------------------------------------------------------
+
+    // countries
+    addColumnIfMissing(
+      'countries',
+      'data_status',
+      "TEXT NOT NULL DEFAULT 'needs_verification'"
     );
 
+    // activations
+    addColumnIfMissing(
+      'activations',
+      'representative_name',
+      'TEXT'
+    );
 
-    // --------------------------------------------------------
-    // 2. ACTIVATIONS – PROVIDER
-    // --------------------------------------------------------
+    addColumnIfMissing(
+      'activations',
+      'representative_company',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'activations',
+      'representative_email',
+      'TEXT'
+    );
 
     addColumnIfMissing(
       'activations',
@@ -110,10 +204,17 @@ function init() {
       'TEXT'
     );
 
+    addColumnIfMissing(
+      'activations',
+      'provider_case_id',
+      'TEXT'
+    );
 
-    // --------------------------------------------------------
-    // 3. ACTIVATIONS – LAPPA
-    // --------------------------------------------------------
+    addColumnIfMissing(
+      'activations',
+      'provider_error',
+      'TEXT'
+    );
 
     addColumnIfMissing(
       'activations',
@@ -133,34 +234,38 @@ function init() {
       'TEXT'
     );
 
-
-    // --------------------------------------------------------
-    // 4. ACTIVATIONS – VORHANDENER BEVOLLMÄCHTIGTER
-    // --------------------------------------------------------
-
     addColumnIfMissing(
       'activations',
-      'representative_name',
+      'compliance_status',
       'TEXT'
     );
 
     addColumnIfMissing(
       'activations',
-      'representative_company',
-      'TEXT'
+      'registration_status',
+      "TEXT DEFAULT 'not_started'"
     );
 
     addColumnIfMissing(
       'activations',
-      'representative_email',
-      'TEXT'
+      'representative_status',
+      "TEXT DEFAULT 'not_required'"
+    );
+
+    addColumnIfMissing(
+      'activations',
+      'compliance_snapshot',
+      "TEXT DEFAULT '{}'"
+    );
+
+    addColumnIfMissing(
+      'activations',
+      'local_establishment',
+      'INTEGER NOT NULL DEFAULT 0'
     );
 
 
-    // --------------------------------------------------------
-    // 5. PRODUCT PACKAGING
-    // --------------------------------------------------------
-
+    // product packaging
     addColumnIfMissing(
       'product_packaging',
       'provider_codes_json',
@@ -169,404 +274,305 @@ function init() {
 
 
     // --------------------------------------------------------
-    // 6. LÄNDER SEEDEN
+    // 5. COMPLIANCE CASES
     // --------------------------------------------------------
 
-    const count =
-      db
-        .prepare(
-          'SELECT COUNT(*) AS n FROM countries'
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS compliance_cases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        customer_id INTEGER NOT NULL
+          REFERENCES customers(id)
+          ON DELETE CASCADE,
+
+        country_code TEXT NOT NULL
+          REFERENCES countries(code),
+
+        compliance_status TEXT NOT NULL,
+
+        registration_status TEXT NOT NULL
+          DEFAULT 'not_started',
+
+        representative_status TEXT NOT NULL
+          DEFAULT 'not_required',
+
+        provider_id TEXT,
+        provider_case_id TEXT,
+
+        external_number TEXT,
+        external_status TEXT,
+
+        snapshot_json TEXT NOT NULL
+          DEFAULT '{}',
+
+        last_error TEXT,
+
+        submitted_at TEXT,
+        completed_at TEXT,
+
+        created_at TEXT NOT NULL
+          DEFAULT (datetime('now')),
+
+        updated_at TEXT NOT NULL
+          DEFAULT (datetime('now')),
+
+        UNIQUE(customer_id, country_code)
+      );
+
+      CREATE INDEX IF NOT EXISTS
+      idx_compliance_cases_customer
+      ON compliance_cases(customer_id);
+
+      CREATE INDEX IF NOT EXISTS
+      idx_compliance_cases_status
+      ON compliance_cases(
+        registration_status,
+        representative_status
+      );
+    `);
+
+
+    // --------------------------------------------------------
+    // 6. WEITERE COMPLIANCE-FELDER
+    // --------------------------------------------------------
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'explanation',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'legal_basis',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'confidence',
+      "TEXT NOT NULL DEFAULT 'needs_review'"
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'source_url',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'source_type',
+      "TEXT NOT NULL DEFAULT 'internal'"
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'provider_available',
+      'INTEGER NOT NULL DEFAULT 0'
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'provider_id',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'provider_cost_eur',
+      'REAL'
+    );
+
+    addColumnIfMissing(
+      'compliance_rules',
+      'effective_from',
+      'TEXT'
+    );
+
+
+    // --------------------------------------------------------
+    // 7. LÄNDERDATEN
+    // --------------------------------------------------------
+
+    const countryCount = db.prepare(`
+      SELECT COUNT(*) AS n
+      FROM countries
+    `).get().n;
+
+    if (countryCount === 0) {
+
+      const insertCountry = db.prepare(`
+        INSERT INTO countries (
+          code,
+          name,
+          register_body,
+          labeling_reqs,
+          requirements_json,
+          labeling_json,
+          eco_fee,
+          steps_json,
+          representative_required,
+          notary_required,
+          notary_cost,
+          registration_url,
+          flag,
+          data_status
         )
-        .get().n;
+        VALUES (
+          @code,
+          @name,
+          @register_body,
+          @labeling_reqs,
+          @requirements_json,
+          @labeling_json,
+          @eco_fee,
+          @steps_json,
+          @representative_required,
+          @notary_required,
+          @notary_cost,
+          @registration_url,
+          @flag,
+          @data_status
+        )
+      `);
 
-
-    if (count === 0) {
-
-      const insert =
-        db.prepare(`
-          INSERT INTO countries (
-            code,
-            name,
-            register_body,
-            labeling_reqs,
-            requirements_json,
-            labeling_json,
-            eco_fee,
-            steps_json,
-            representative_required,
-            notary_required,
-            notary_cost,
-            registration_url,
-            flag
-          )
-
-          VALUES (
-            @code,
-            @name,
-            @register_body,
-            @labeling_reqs,
-            @requirements_json,
-            @labeling_json,
-            @eco_fee,
-            @steps_json,
-            @representative_required,
-            @notary_required,
-            @notary_cost,
-            @registration_url,
-            @flag
-          )
-        `);
-
-
-      const seed = [
+      const countries = [
 
         {
           code: 'DE',
           name: 'Deutschland',
           register_body: 'LUCID / ZSVR',
-
-          labeling_reqs:
-            '["Grüner Punkt (optional)", "Materialkennzeichnung (z.B. PAP 21)"]',
-
-          requirements_json:
-            '["Registrierung im LUCID-Verpackungsregister (kostenlos)", "Systembeteiligung bei einem dualen System (z.B. Grüner Punkt)", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["Grüner Punkt (optional)", "Materialkennzeichnung (z.B. PAP 21)"]',
-
-          eco_fee:
-            'ca. 0,85 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die LUCID-Registrierung für dich", "✅ Wir schließen den Vertrag mit dem dualen System ab", "✅ Wir melden deine Verpackungsmengen jährlich"]',
-
+          labeling_reqs: '[]',
+          requirements_json: '[]',
+          labeling_json: '[]',
+          eco_fee: '',
+          steps_json: '[]',
           representative_required: 0,
           notary_required: 0,
           notary_cost: '',
-
-          registration_url:
-            'https://lucid.verpackungsregister.org',
-
-          flag: '🇩🇪'
+          registration_url: 'https://www.verpackungsregister.org/',
+          flag: '🇩🇪',
+          data_status: 'verified'
         },
-
-
-        {
-          code: 'AT',
-          name: 'Österreich',
-          register_body: 'EDM-Portal / ARA',
-
-          labeling_reqs:
-            '["Keine spezielle Kennzeichnungspflicht", "Materialkennzeichnung empfohlen"]',
-
-          requirements_json:
-            '["Registrierung im EDM-Portal (kostenlos)", "Verpackungslizenzierung bei ARA oder Reclay", "NOTARIELLE BEGLAUBIGUNG der Vollmacht!", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["Keine spezielle Kennzeichnungspflicht", "Materialkennzeichnung empfohlen"]',
-
-          eco_fee:
-            'ca. 0,80 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die EDM-Registrierung für dich", "✅ Wir kümmern uns um die NOTARIELLE BEGLAUBIGUNG", "✅ Wir schließen den ARA-Lizenzvertrag ab", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
-          notary_required: 1,
-          notary_cost: 'ca. 45 € (digital)',
-
-          registration_url:
-            'https://www.ara.at',
-
-          flag: '🇦🇹'
-        },
-
-
-        {
-          code: 'FR',
-          name: 'Frankreich',
-          register_body: 'ADEME / CITEO',
-
-          labeling_reqs:
-            '["Triman-Logo", "Sortieranweisung (Consigne de tri)", "Materialkennzeichnung"]',
-
-          requirements_json:
-            '["Registrierung bei CITEO oder LEKO", "Triman-Logo auf Verpackung oder Beipackzettel", "Sortieranweisung (Consigne de tri) angeben", "Jährliche Mengenmeldung an CITEO"]',
-
-          labeling_json:
-            '["Triman-Logo", "Sortieranweisung (Consigne de tri)", "Materialkennzeichnung"]',
-
-          eco_fee:
-            'ca. 1,20 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir schließen den CITEO-Vertrag für dich ab", "✅ Wir kümmern uns um das Triman-Logo", "✅ Wir melden deine Mengen jährlich an CITEO"]',
-
-          representative_required: 1,
-          notary_required: 0,
-          notary_cost: '',
-
-          registration_url:
-            'https://www.citeo.com',
-
-          flag: '🇫🇷'
-        },
-
-
-        {
-          code: 'IT',
-          name: 'Italien',
-          register_body: 'CONAI',
-
-          labeling_reqs:
-            '["CONAI-Materialcode (z.B. C/PAP 21)", "Materialkennzeichnung pro Fraktion"]',
-
-          requirements_json:
-            '["Registrierung bei CONAI", "CONAI-Materialcode angeben (z.B. C/PAP 21)", "Getrennte Materialkennzeichnung pro Fraktion", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["CONAI-Materialcode (z.B. C/PAP 21)", "Materialkennzeichnung pro Fraktion"]',
-
-          eco_fee:
-            'ca. 0,95 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die CONAI-Registrierung für dich", "✅ Wir kümmern uns um die Materialcodes", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
-          notary_required: 0,
-          notary_cost: '',
-
-          registration_url:
-            'https://www.conai.org',
-
-          flag: '🇮🇹'
-        },
-
-
-        {
-          code: 'ES',
-          name: 'Spanien',
-          register_body: 'Ecoembes / MITERD',
-
-          labeling_reqs:
-            '["Punto Verde-Symbol (empfohlen)", "Materialcode bei kompostierbaren Anteilen"]',
-
-          requirements_json:
-            '["Registrierung im staatlichen Register (MITERD)", "Vertrag mit Ecoembes", "Punto Verde-Symbol empfohlen", "Materialcode bei kompostierbaren Anteilen"]',
-
-          labeling_json:
-            '["Punto Verde-Symbol (empfohlen)", "Materialcode bei kompostierbaren Anteilen"]',
-
-          eco_fee:
-            'ca. 0,75 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die MITERD-Registrierung für dich", "✅ Wir schließen den Ecoembes-Vertrag ab", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
-          notary_required: 0,
-          notary_cost: '',
-
-          registration_url:
-            'https://www.ecoembes.com',
-
-          flag: '🇪🇸'
-        },
-
-
-        {
-          code: 'BE',
-          name: 'Belgien',
-          register_body: 'FPS Health',
-
-          labeling_reqs:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          requirements_json:
-            '["Registrierung bei FPS Health", "Nur 11 Pflichtfelder (einfachstes System)", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          eco_fee:
-            'ca. 0,90 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die FPS Health-Registrierung für dich", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
-          notary_required: 0,
-          notary_cost: '',
-
-          registration_url:
-            'https://www.health.belgium.be',
-
-          flag: '🇧🇪'
-        },
-
-
-        {
-          code: 'NL',
-          name: 'Niederlande',
-          register_body: 'Eigenes System',
-
-          labeling_reqs:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          requirements_json:
-            '["Registrierung im niederländischen System", "Bagatellgrenze 50t bis Ende 2026", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          eco_fee:
-            'ca. 0,85 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die niederländische Registrierung für dich", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 0,
-          notary_required: 0,
-          notary_cost: '',
-
-          registration_url:
-            'https://www.verpakkingen.nl',
-
-          flag: '🇳🇱'
-        },
-
 
         {
           code: 'PL',
           name: 'Polen',
           register_body: 'BDO',
-
-          labeling_reqs:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          requirements_json:
-            '["Registrierung im BDO-System", "Nationale e-Identity erforderlich", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          eco_fee:
-            'ca. 0,65 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die BDO-Registrierung für dich", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
+          labeling_reqs: '[]',
+          requirements_json: '[]',
+          labeling_json: '[]',
+          eco_fee: '',
+          steps_json: '[]',
+          representative_required: 0,
           notary_required: 0,
           notary_cost: '',
-
-          registration_url:
-            'https://bdo.mos.gov.pl',
-
-          flag: '🇵🇱'
+          registration_url: 'https://rejestr-bdo.mos.gov.pl/',
+          flag: '🇵🇱',
+          data_status: 'needs_verification'
         },
-
 
         {
-          code: 'SE',
-          name: 'Schweden',
-          register_body: 'Naturvårdsverket',
-
-          labeling_reqs:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          requirements_json:
-            '["Registrierung bei Naturvårdsverket", "21 Pflichtfelder (die meisten!)", "Nationale e-Identity erforderlich", "Jährliche Mengenmeldung"]',
-
-          labeling_json:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          eco_fee:
-            'ca. 0,95 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die Naturvårdsverket-Registrierung für dich", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
+          code: 'BE',
+          name: 'Belgien',
+          register_body: 'FPS Health',
+          labeling_reqs: '[]',
+          requirements_json: '[]',
+          labeling_json: '[]',
+          eco_fee: '',
+          steps_json: '[]',
+          representative_required: 0,
           notary_required: 0,
           notary_cost: '',
-
-          registration_url:
-            'https://www.naturvardsverket.se',
-
-          flag: '🇸🇪'
+          registration_url: '',
+          flag: '🇧🇪',
+          data_status: 'needs_verification'
         },
 
+        {
+          code: 'CH',
+          name: 'Schweiz',
+          register_body: 'Schweizer Verpackungsrecht',
+          labeling_reqs: '[]',
+          requirements_json: '[]',
+          labeling_json: '[]',
+          eco_fee: '',
+          steps_json: '[]',
+          representative_required: 0,
+          notary_required: 0,
+          notary_cost: '',
+          registration_url: '',
+          flag: '🇨🇭',
+          data_status: 'needs_verification'
+        },
 
         {
           code: 'DK',
           name: 'Dänemark',
-          register_body: 'Dansk Producentansvar',
-
-          labeling_reqs:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          requirements_json:
-            '["Registrierung im dänischen System", "Jährliche Mengenmeldung", "Dänische Steuernummer erforderlich"]',
-
-          labeling_json:
-            '["Keine spezielle Kennzeichnungspflicht"]',
-
-          eco_fee:
-            'ca. 0,70 €/kg Pappe',
-
-          steps_json:
-            '["✅ Wir beantragen die dänische Registrierung für dich", "✅ Wir melden deine Mengen jährlich"]',
-
-          representative_required: 1,
+          register_body: 'DPA',
+          labeling_reqs: '[]',
+          requirements_json: '[]',
+          labeling_json: '[]',
+          eco_fee: '',
+          steps_json: '[]',
+          representative_required: 0,
           notary_required: 0,
           notary_cost: '',
-
-          registration_url:
-            'https://www.dpa-system.dk',
-
-          flag: '🇩🇰'
+          registration_url: 'https://www.dpa-system.dk/',
+          flag: '🇩🇰',
+          data_status: 'needs_verification'
         }
-
       ];
 
+      const insertMany = db.transaction(rows => {
+        for (const row of rows) {
+          insertCountry.run(row);
+        }
+      });
 
-      const insertMany =
-        db.transaction(rows => {
+      insertMany(countries);
 
-          rows.forEach(row =>
-            insert.run(row)
-          );
-
-        });
-
-
-      insertMany(seed);
-
-      console.log(
-        '✅ Länder mit allen Details wurden in die Datenbank eingefügt'
-      );
+      console.log('✅ Grund-Länder angelegt');
     }
 
 
-    console.log(
-      '✅ Datenbank-Initialisierung abgeschlossen'
-    );
+    // --------------------------------------------------------
+    // 8. SICHERHEITSINDEX
+    // --------------------------------------------------------
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS
+      idx_activations_customer
+      ON activations(customer_id);
+
+      CREATE INDEX IF NOT EXISTS
+      idx_activations_country
+      ON activations(country_code);
+
+      CREATE INDEX IF NOT EXISTS
+      idx_activations_mode
+      ON activations(mode);
+
+      CREATE INDEX IF NOT EXISTS
+      idx_product_packaging_customer
+      ON product_packaging(customer_id);
+    `);
 
 
-  } catch (err) {
+    console.log('✅ Datenbank-Initialisierung abgeschlossen');
+
+  } catch (error) {
 
     console.error(
       '❌ Fehler bei der Datenbank-Initialisierung:',
-      err.message
+      error
     );
 
-    throw err;
+    throw error;
   }
 }
 
 
 module.exports = db;
-
 module.exports.init = init;
