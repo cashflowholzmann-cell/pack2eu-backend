@@ -1,9 +1,14 @@
 // ============================================================
-// PACK2EU – COMPLIANCE ENGINE
+// PACK2EU – ZENTRALE COMPLIANCE ENGINE
 // ============================================================
 //
-// WICHTIG:
-// Keine verifizierte Länderregel = niemals automatisch grün.
+// Grundregel:
+//
+// 1. Nur eine explizit verifizierte Regel darf "verified" sein.
+// 2. Keine Regel = needs_review.
+// 3. needs_review darf niemals automatisch grün werden.
+// 4. Die tatsächliche Bevollmächtigtenpflicht kommt aus
+//    compliance_rules und NICHT aus einer pauschalen EU-Regel.
 // ============================================================
 
 
@@ -39,15 +44,16 @@ const EU_CODES = new Set([
 
 
 // ============================================================
-// LANDESCODE NORMALISIEREN
+// NORMALISIERUNG
 // ============================================================
 
 function normalizeCode(code) {
 
-  return String(code || '')
+  return String(
+    code || ''
+  )
     .trim()
     .toUpperCase();
-
 }
 
 
@@ -60,7 +66,6 @@ function isEUCountry(code) {
   return EU_CODES.has(
     normalizeCode(code)
   );
-
 }
 
 
@@ -86,12 +91,13 @@ function decide({
 
 
   // ----------------------------------------------------------
-  // LAND NICHT VORHANDEN
+  // Zielland existiert nicht
   // ----------------------------------------------------------
 
   if (!destinationMeta) {
 
     return {
+
       status: 'unsupported',
 
       registrationRequired: false,
@@ -100,21 +106,74 @@ function decide({
 
       notaryRequired: false,
 
-      confidence: 'unsupported',
+      legalLabel:
+        'Zielland nicht unterstützt',
 
-      originCountry: origin,
+      explanation:
+        'Das Zielland wurde nicht in der Pack2EU-Länderdatenbank gefunden.',
 
-      destinationCountry: destination
+      legalBasis: '',
+
+      confidence:
+        'unsupported',
+
+      policyVersion:
+        '',
+
+      sourceUrl:
+        '',
+
+      sourceType:
+        'internal',
+
+      providerAvailable:
+        false,
+
+      providerId:
+        null,
+
+      providerCostEur:
+        null,
+
+      originEU,
+
+      originCountry:
+        origin,
+
+      destinationCountry:
+        destination
     };
-
   }
 
 
   // ----------------------------------------------------------
-  // VERIFIZIERTE REGEL VORHANDEN
+  // VERIFIZIERTE REGEL
   // ----------------------------------------------------------
 
   if (rule) {
+
+    const confidence =
+      rule.confidence ||
+      'needs_review';
+
+
+    const registrationRequired =
+      Number(
+        rule.registration_required
+      ) === 1;
+
+
+    const representativeRequired =
+      Number(
+        rule.representative_required
+      ) === 1;
+
+
+    const notaryRequired =
+      Number(
+        rule.notary_required
+      ) === 1;
+
 
     return {
 
@@ -122,14 +181,11 @@ function decide({
         rule.status ||
         'needs_review',
 
-      registrationRequired:
-        Number(rule.registration_required) === 1,
+      registrationRequired,
 
-      representativeRequired:
-        Number(rule.representative_required) === 1,
+      representativeRequired,
 
-      notaryRequired:
-        Number(rule.notary_required) === 1,
+      notaryRequired,
 
       legalLabel:
         rule.legal_label ||
@@ -143,9 +199,7 @@ function decide({
         rule.legal_basis ||
         '',
 
-      confidence:
-        rule.confidence ||
-        'needs_review',
+      confidence,
 
       policyVersion:
         rule.policy_version ||
@@ -160,7 +214,9 @@ function decide({
         'internal',
 
       providerAvailable:
-        Number(rule.provider_available) === 1,
+        Number(
+          rule.provider_available
+        ) === 1,
 
       providerId:
         rule.provider_id ||
@@ -168,6 +224,10 @@ function decide({
 
       providerCostEur:
         rule.provider_cost_eur ??
+        null,
+
+      effectiveFrom:
+        rule.effective_from ||
         null,
 
       originEU,
@@ -178,14 +238,15 @@ function decide({
       destinationCountry:
         destination
     };
-
   }
 
 
   // ----------------------------------------------------------
   // KEINE VERIFIZIERTE REGEL
+  // ----------------------------------------------------------
   //
-  // NIEMALS GRÜN
+  // Ganz wichtig:
+  // NIEMALS automatisch "green".
   // ----------------------------------------------------------
 
   return {
@@ -206,10 +267,10 @@ function decide({
       'Nationale Regel wird geprüft',
 
     explanation:
-      'Für dieses Länderpaar liegt in Pack2EU noch keine verifizierte nationale Regel vor. Pack2EU zeigt deshalb bewusst keine pauschale Rechtssicherheit an.',
+      'Für dieses Länderpaar liegt bei Pack2EU noch keine verifizierte nationale Regel vor. Deshalb wird keine pauschale Bevollmächtigtenpflicht angenommen.',
 
     legalBasis:
-      'EU baseline: Regulation (EU) 2025/40',
+      'Regulation (EU) 2025/40',
 
     confidence:
       'needs_national_rule',
@@ -232,6 +293,9 @@ function decide({
     providerCostEur:
       null,
 
+    effectiveFrom:
+      null,
+
     originEU,
 
     originCountry:
@@ -240,22 +304,22 @@ function decide({
     destinationCountry:
       destination
   };
-
 }
 
 
 // ============================================================
-// VERIFIZIERTE ENTSCHEIDUNG?
+// IST ENTSCHEIDUNG RECHTLICH VERIFIZIERT?
 // ============================================================
 
 function isVerifiedDecision(decision) {
 
-  return !!decision &&
+  return Boolean(
+    decision &&
     decision.confidence ===
       'primary_source_verified' &&
     decision.status !==
-      'needs_review';
-
+      'needs_review'
+  );
 }
 
 
@@ -274,5 +338,4 @@ module.exports = {
   decide,
 
   isVerifiedDecision
-
 };
