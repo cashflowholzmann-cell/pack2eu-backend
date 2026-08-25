@@ -12,6 +12,11 @@ const {
 } = require('../compliance-engine');
 
 const router = express.Router();
+function normalizeCountryCode(code) {
+  return String(code || '')
+    .trim()
+    .toUpperCase();
+}
 
 router.use(
   requireAuth,
