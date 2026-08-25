@@ -13,16 +13,27 @@ if (!JWT_SECRET) {
 // TOKEN ERSTELLEN
 // ============================================================
 
-function signToken(identity) {
-  const role = identity.role || 'customer';
+function signToken(identity = {}) {
+
+  const userId =
+    identity.sub ??
+    identity.id ??
+    identity.userId;
+
+  const role =
+    identity.role || 'customer';
+
+  if (!userId) {
+    throw new Error('Keine Benutzer-ID für JWT vorhanden.');
+  }
 
   return jwt.sign(
     {
-      sub: identity.sub,
+      sub: Number(userId),
       role,
       customerNumber:
-        identity.customer_number ||
-        identity.customerNumber ||
+        identity.customer_number ??
+        identity.customerNumber ??
         null
     },
     JWT_SECRET,
@@ -56,27 +67,46 @@ function requireAuth(req, res, next) {
   try {
 
     const payload =
-      jwt.verify(token, JWT_SECRET);
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
 
+    const userId =
+      Number(payload.sub);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(401).json({
+        error: 'Token enthält keine gültige Benutzer-ID.'
+      });
+    }
+
+    // NEUES AUTH-SYSTEM
     req.auth = {
-      userId: Number(payload.sub),
-
-      role:
-        payload.role ||
-        'customer',
-
+      userId,
+      role: payload.role || 'customer',
       customerNumber:
-        payload.customerNumber ||
-        null
+        payload.customerNumber || null
+    };
+
+    // KOMPATIBILITÄT MIT ÄLTEREM CODE
+    req.customer = {
+      id: userId,
+      customer_number:
+        payload.customerNumber || null
     };
 
     next();
 
-  } catch (error) {
+  } catch (err) {
+
+    console.error(
+      '❌ JWT-Fehler:',
+      err.message
+    );
 
     return res.status(401).json({
-      error:
-        'Token ungültig oder abgelaufen.'
+      error: 'Token ungültig oder abgelaufen.'
     });
   }
 }
@@ -92,10 +122,8 @@ function requireCustomer(req, res, next) {
     !req.auth ||
     req.auth.role !== 'customer'
   ) {
-
     return res.status(403).json({
-      error:
-        'Nur Händler dürfen diese Funktion verwenden.'
+      error: 'Nur Händler dürfen diese Funktion verwenden.'
     });
   }
 
@@ -113,10 +141,8 @@ function requireRepresentative(req, res, next) {
     !req.auth ||
     req.auth.role !== 'representative'
   ) {
-
     return res.status(403).json({
-      error:
-        'Nur Beauftragte dürfen diese Funktion verwenden.'
+      error: 'Nur Beauftragte dürfen diese Funktion verwenden.'
     });
   }
 
@@ -125,7 +151,7 @@ function requireRepresentative(req, res, next) {
 
 
 // ============================================================
-// EXPORTS
+// EXPORT
 // ============================================================
 
 module.exports = {
