@@ -15,26 +15,24 @@ if (!JWT_SECRET) {
 
 function signToken(identity = {}) {
 
-  const userId =
-    identity.sub ??
-    identity.id ??
-    identity.userId;
-
   const role =
-    identity.role || 'customer';
+    identity.role ||
+    'customer';
 
-  if (!userId) {
-    throw new Error('Keine Benutzer-ID für JWT vorhanden.');
-  }
+  const subject =
+    identity.sub ??
+    identity.id;
+
+  const customerNumber =
+    identity.customer_number ??
+    identity.customerNumber ??
+    null;
 
   return jwt.sign(
     {
-      sub: Number(userId),
+      sub: subject,
       role,
-      customerNumber:
-        identity.customer_number ??
-        identity.customerNumber ??
-        null
+      customerNumber
     },
     JWT_SECRET,
     {
@@ -55,7 +53,7 @@ function requireAuth(req, res, next) {
 
   const token =
     header.startsWith('Bearer ')
-      ? header.slice(7)
+      ? header.slice(7).trim()
       : null;
 
   if (!token) {
@@ -81,28 +79,23 @@ function requireAuth(req, res, next) {
       });
     }
 
-    // NEUES AUTH-SYSTEM
     req.auth = {
       userId,
-      role: payload.role || 'customer',
+      role:
+        payload.role ||
+        'customer',
       customerNumber:
-        payload.customerNumber || null
-    };
-
-    // KOMPATIBILITÄT MIT ÄLTEREM CODE
-    req.customer = {
-      id: userId,
-      customer_number:
-        payload.customerNumber || null
+        payload.customerNumber ||
+        null
     };
 
     next();
 
-  } catch (err) {
+  } catch (error) {
 
     console.error(
-      '❌ JWT-Fehler:',
-      err.message
+      '❌ JWT Fehler:',
+      error.message
     );
 
     return res.status(401).json({
@@ -122,8 +115,10 @@ function requireCustomer(req, res, next) {
     !req.auth ||
     req.auth.role !== 'customer'
   ) {
+
     return res.status(403).json({
-      error: 'Nur Händler dürfen diese Funktion verwenden.'
+      error:
+        'Nur Händler dürfen diese Funktion verwenden.'
     });
   }
 
@@ -141,8 +136,10 @@ function requireRepresentative(req, res, next) {
     !req.auth ||
     req.auth.role !== 'representative'
   ) {
+
     return res.status(403).json({
-      error: 'Nur Beauftragte dürfen diese Funktion verwenden.'
+      error:
+        'Nur Bevollmächtigte dürfen diese Funktion verwenden.'
     });
   }
 
