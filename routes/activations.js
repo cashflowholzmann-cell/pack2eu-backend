@@ -1,4 +1,5 @@
 const express = require('express');
+
 const db = require('../db');
 
 const {
@@ -8,39 +9,14 @@ const {
 
 const {
   decide,
+  normalizeCode,
   isVerifiedDecision
 } = require('../compliance-engine');
 
-const router = express.Router();
-function normalizeCountryCode(code) {
-  return String(code || '')
-    .trim()
-    .toUpperCase();
-}
 
-router.use(
-  requireAuth,
-  requireCustomer
-);
+const router =
+  express.Router();
 
-
-// ============================================================
-// COUNTRY CODE NORMALISIEREN
-// ============================================================
-// Absichtlich lokal in dieser Route.
-// Dadurch funktioniert die Aktivierung auch dann,
-// wenn eine ältere compliance-engine.js auf Render geladen ist.
-// ============================================================
-
-function normalizeCode(code) {
-  return String(code || '')
-    .trim()
-    .toUpperCase();
-}
-
-// ============================================================
-// AUTH
-// ============================================================
 
 router.use(
   requireAuth,
@@ -53,15 +29,20 @@ router.use(
 // ============================================================
 
 function clean(value) {
-  return String(value ?? '').trim();
+
+  return String(
+    value ?? ''
+  ).trim();
 }
 
 
 // ============================================================
-// HÄNDLER LADEN
+// KUNDE
 // ============================================================
 
-function getCustomer(customerId) {
+function getCustomer(
+  customerId
+) {
 
   return db.prepare(`
     SELECT
@@ -72,37 +53,40 @@ function getCustomer(customerId) {
       plan
     FROM customers
     WHERE id = ?
-  `).get(customerId);
-
+  `).get(
+    customerId
+  );
 }
 
 
 // ============================================================
-// LAND LADEN
+// LAND
 // ============================================================
 
-function getCountry(countryCode) {
+function getCountry(
+  countryCode
+) {
 
   return db.prepare(`
     SELECT *
     FROM countries
     WHERE code = ?
   `).get(
-    normalizeCode(countryCode)
+    normalizeCode(
+      countryCode
+    )
   );
-
 }
 
 
 // ============================================================
-// COMPLIANCE-REGEL LADEN
-//
-// WICHTIG:
-// Es wird ausschließlich eine aktive Regel verwendet.
-// Keine Regel = keine Rechtssicherheit = niemals grün.
+// COMPLIANCE-REGEL
 // ============================================================
 
-function getRule(originCountry, destinationCountry) {
+function getRule(
+  originCountry,
+  destinationCountry
+) {
 
   return db.prepare(`
     SELECT *
@@ -113,28 +97,48 @@ function getRule(originCountry, destinationCountry) {
     ORDER BY id DESC
     LIMIT 1
   `).get(
-    normalizeCode(originCountry),
-    normalizeCode(destinationCountry)
-  );
 
+    normalizeCode(
+      originCountry
+    ),
+
+    normalizeCode(
+      destinationCountry
+    )
+
+  );
 }
 
 
 // ============================================================
-// COMPLIANCE ENTSCHEIDUNG
+// ENTSCHEIDUNG
 // ============================================================
 
-function getDecision(customerId, countryCode) {
+function getDecision(
+  customerId,
+  countryCode
+) {
 
   const customer =
-    getCustomer(customerId);
+    getCustomer(
+      customerId
+    );
+
 
   const country =
-    getCountry(countryCode);
+    getCountry(
+      countryCode
+    );
 
-  if (!customer || !country) {
+
+  if (
+    !customer ||
+    !country
+  ) {
+
     return null;
   }
+
 
   const rule =
     getRule(
@@ -142,8 +146,10 @@ function getDecision(customerId, countryCode) {
       country.code
     );
 
+
   const decision =
     decide({
+
       originCountry:
         customer.origin_country,
 
@@ -154,43 +160,40 @@ function getDecision(customerId, countryCode) {
 
       destinationMeta:
         country
+
     });
 
-  return {
-    customer,
-    country,
-    rule,
-    decision
-  };
 
+  return {
+
+    customer,
+
+    country,
+
+    rule,
+
+    decision
+
+  };
 }
 
 
 // ============================================================
-// BEVOLLMÄCHTIGTEN AUS REQUEST LESEN
-//
-// Wir akzeptieren beide Formate:
-//
-// 1.
-// representative: {
-//   name,
-//   company,
-//   email
-// }
-//
-// 2.
-// representative_name
-// representative_company
-// representative_email
+// REPRESENTATIVE AUS REQUEST
 // ============================================================
 
-function readRepresentative(body = {}) {
+function readRepresentative(
+  body = {}
+) {
 
   const nested =
     body.representative &&
     typeof body.representative === 'object'
+
       ? body.representative
+
       : {};
+
 
   return {
 
@@ -216,143 +219,66 @@ function readRepresentative(body = {}) {
       )
 
   };
-
 }
 
 
 // ============================================================
-// BEVOLLMÄCHTIGTER VOLLSTÄNDIG?
-//
-// Für Pack2EU gilt:
-// Name + E-Mail = vorhandener Bevollmächtigter.
-// Firma ist optional.
+// STATUS BERECHNEN
 // ============================================================
 
-function hasRepresentative(representative) {
+function calculateState({
 
-  return Boolean(
-    representative &&
-    representative.name &&
-    representative.email
-  );
-
-}
-
-
-// ============================================================
-// AKTIVIERUNGSSTATUS BERECHNEN
-//
-// GRÜN / ACTIVE gibt es NUR wenn:
-//
-// 1. Regel ist primärquelle-verifiziert
-// 2. Registrierung ist erledigt
-// 3. erforderlicher Bevollmächtigter ist vorhanden
-//
-// Eine EPR-Nummer alleine reicht NICHT.
-// Ein Bevollmächtigter alleine reicht NICHT.
-// Eine unbekannte / unsichere Regel reicht NICHT.
-// ============================================================
-
-function deriveState({
   decision,
+
   existingNumber,
-  representative
+
+  representative,
+
+  providerStatus
+
 }) {
 
-  const hasEpr =
+  const hasNumber =
     Boolean(
       clean(existingNumber)
     );
 
-  const hasRep =
-    hasRepresentative(
-      representative
+
+  const hasRepresentative =
+    Boolean(
+      representative &&
+      clean(representative.name) &&
+      clean(representative.email)
     );
+
 
   const verified =
     isVerifiedDecision(
       decision
     );
 
+
   const registrationRequired =
     Boolean(
-      decision?.registrationRequired
+      decision.registrationRequired
     );
+
 
   const representativeRequired =
     Boolean(
-      decision?.representativeRequired
+      decision.representativeRequired
     );
 
 
-  // ----------------------------------------------------------
-  // REGISTRIERUNG
-  // ----------------------------------------------------------
-
-  let registrationStatus;
-
-  if (!registrationRequired) {
-
-    registrationStatus =
-      'not_required';
-
-  } else if (hasEpr) {
-
-    registrationStatus =
-      'active';
-
-  } else {
-
-    registrationStatus =
-      'required';
-
-  }
-
-
-  // ----------------------------------------------------------
-  // BEVOLLMÄCHTIGTER
-  // ----------------------------------------------------------
-
-  let representativeStatus;
-
-  if (!representativeRequired) {
-
-    representativeStatus =
-      hasRep
-        ? 'active'
-        : 'not_required';
-
-  } else if (hasRep) {
-
-    representativeStatus =
-      'active';
-
-  } else {
-
-    representativeStatus =
-      'required';
-
-  }
-
-
-  // ----------------------------------------------------------
-  // VOLLSTÄNDIG
-  // ----------------------------------------------------------
-
   const registrationComplete =
     !registrationRequired ||
-    hasEpr;
+    hasNumber;
 
 
   const representativeComplete =
     !representativeRequired ||
-    hasRep;
+    hasRepresentative;
 
-
-  // ----------------------------------------------------------
-  // ENTSCHEIDEND:
-  // Ohne verifizierte Rechtsgrundlage NIEMALS GRÜN
-  // ----------------------------------------------------------
 
   const fullyConfigured =
     verified &&
@@ -366,42 +292,53 @@ function deriveState({
       : 'pending';
 
 
-  // ----------------------------------------------------------
-  // MODUS
-  // ----------------------------------------------------------
-
   const mode =
     verified
       ? 'verified'
       : 'grauzone';
 
 
-  // ----------------------------------------------------------
-  // PROVIDER STATUS
-  // ----------------------------------------------------------
+  const registrationStatus =
+    !registrationRequired
 
-  let providerStatus =
-    'not_required';
+      ? 'not_required'
+
+      : hasNumber
+
+        ? 'active'
+
+        : 'required';
+
+
+  let finalRepresentativeStatus;
 
 
   if (
-    representativeRequired &&
-    !hasRep
+    !representativeRequired
   ) {
 
-    providerStatus =
-      decision?.providerAvailable
-        ? 'required'
-        : 'required_manual_check';
+    finalRepresentativeStatus =
+      'not_required';
 
   } else if (
-    representativeRequired &&
-    hasRep
+    hasRepresentative
   ) {
 
-    providerStatus =
+    finalRepresentativeStatus =
       'active';
 
+  } else if (
+    providerStatus ===
+    'paid_pending_provider'
+  ) {
+
+    finalRepresentativeStatus =
+      'paid_pending_provider';
+
+  } else {
+
+    finalRepresentativeStatus =
+      'required';
   }
 
 
@@ -413,9 +350,9 @@ function deriveState({
 
     fullyConfigured,
 
-    hasEpr,
+    hasNumber,
 
-    hasRepresentative: hasRep,
+    hasRepresentative,
 
     registrationRequired,
 
@@ -427,18 +364,18 @@ function deriveState({
 
     registrationStatus,
 
-    representativeStatus,
+    representativeStatus:
+      finalRepresentativeStatus,
 
-    providerStatus,
-
-    verified,
-
-    confidence:
-      decision?.confidence ||
-      'needs_review'
+    providerStatus:
+      providerStatus ||
+      (
+        representativeRequired
+          ? 'required'
+          : 'not_required'
+      )
 
   };
-
 }
 
 
@@ -446,1399 +383,1130 @@ function deriveState({
 // SNAPSHOT
 // ============================================================
 
-function buildSnapshot(
+function buildSnapshot({
+
   decision,
+
   state,
-  representative,
-  existingNumber
-) {
+
+  existingNumber,
+
+  representative
+
+}) {
 
   return JSON.stringify({
 
-    decision,
+    generatedAt:
+      new Date().toISOString(),
+
+    compliance:
+      decision,
+
+    state,
 
     existingNumber:
-      Boolean(
-        clean(existingNumber)
-      ),
+      existingNumber ||
+      null,
 
-    existingRepresentative:
-      state.hasRepresentative,
-
-    representativeRequired:
-      state.representativeRequired,
-
-    registrationRequired:
-      state.registrationRequired,
-
-    registrationComplete:
-      state.registrationComplete,
-
-    representativeComplete:
-      state.representativeComplete,
-
-    fullyConfigured:
-      state.fullyConfigured,
-
-    verified:
-      state.verified,
-
-    representative: {
-
-      name:
-        representative.name || null,
-
-      company:
-        representative.company || null,
-
-      email:
-        representative.email || null
-
-    },
-
-    calculatedAt:
-      new Date().toISOString()
+    representative:
+      representative ||
+      null
 
   });
-
 }
 
 
 // ============================================================
+// ALLE AKTIVIERUNGEN
 // GET /api/activations
-//
-// ALLE AKTIVIERUNGEN DES HÄNDLERS
 // ============================================================
 
-router.get('/', (req, res) => {
+router.get(
+  '/',
+  (req, res) => {
 
-  try {
+    try {
 
-    // WICHTIG:
-    // NICHT req.customer.sub
-    // sondern req.auth.userId
+      const rows =
+        db.prepare(`
+          SELECT
 
-    const customerId =
-      req.auth.userId;
+            a.id,
+
+            a.country_code,
+
+            a.status,
+
+            a.signed_at,
+
+            a.existing_number,
+
+            a.representative_name,
+
+            a.representative_company,
+
+            a.representative_email,
+
+            a.provider_id,
+
+            a.provider_epr_number,
+
+            a.provider_status,
+
+            a.lappa_representative_id,
+
+            a.lappa_status,
+
+            a.mode,
+
+            a.mode_updated_at,
+
+            a.compliance_status,
+
+            a.registration_status,
+
+            a.representative_status,
+
+            a.created_at,
+
+            c.name,
+
+            c.register_body,
+
+            c.flag,
+
+            c.representative_required,
+
+            c.notary_required,
+
+            c.notary_cost,
+
+            c.registration_url,
+
+            c.data_status
+
+          FROM activations a
+
+          JOIN countries c
+            ON c.code =
+               a.country_code
+
+          WHERE a.customer_id = ?
+
+          ORDER BY c.name ASC
+
+        `).all(
+          req.auth.userId
+        );
 
 
-    const rows =
-      db.prepare(`
-        SELECT
-          a.*,
+      res.json(
+        rows.map(
+          row => ({
 
-          c.name,
-          c.register_body,
-          c.flag,
+            ...row,
 
-          c.representative_required,
-          c.notary_required,
-          c.notary_cost,
+            mode:
+              row.mode ||
+              'grauzone',
 
-          c.registration_url
+            has_existing_number:
+              Boolean(
+                row.existing_number
+              ),
 
-        FROM activations a
+            has_representative:
+              Boolean(
+                row.representative_name &&
+                row.representative_email
+              )
 
-        JOIN countries c
-          ON c.code = a.country_code
-
-        WHERE a.customer_id = ?
-
-        ORDER BY c.name ASC
-      `).all(
-        customerId
+          })
+        )
       );
 
+    } catch (error) {
 
-    const result =
-      rows.map(row => {
+      console.error(
+        '❌ Fehler beim Laden der Aktivierungen:',
+        error
+      );
 
-        const representative = {
-
-          name:
-            row.representative_name || '',
-
-          company:
-            row.representative_company || '',
-
-          email:
-            row.representative_email || ''
-
-        };
-
-
-        const result =
-          getDecision(
-            customerId,
-            row.country_code
-          );
+      res.status(500).json({
+        error:
+          'Fehler beim Laden der Aktivierungen: ' +
+          error.message
+      });
+    }
+  }
+);
 
 
-        const decision =
-          result?.decision || {
+// ============================================================
+// PREVIEW
+// GET /api/activations/DE/preview
+// ============================================================
 
-            status:
-              'needs_review',
+router.get(
+  '/:countryCode/preview',
+  (req, res) => {
 
-            registrationRequired:
-              true,
+    try {
 
-            representativeRequired:
-              false,
-
-            confidence:
-              'needs_review'
-
-          };
-
-
-        const state =
-          deriveState({
-
-            decision,
-
-            existingNumber:
-              row.existing_number,
-
-            representative
-
-          });
+      const countryCode =
+        normalizeCode(
+          req.params.countryCode
+        );
 
 
-        return {
-
-          ...row,
-
-
-          // --------------------------------------------------
-          // KOMPATIBILITÄT
-          // --------------------------------------------------
-
-          mode:
-            state.mode,
+      const result =
+        getDecision(
+          req.auth.userId,
+          countryCode
+        );
 
 
-          // --------------------------------------------------
-          // EPR
-          // --------------------------------------------------
+      if (!result) {
 
-          has_existing_number:
-            state.hasEpr,
-
-          existing_number:
-            row.existing_number || null,
+        return res.status(404).json({
+          error:
+            `Land ${countryCode} wird nicht unterstützt.`
+        });
+      }
 
 
-          // --------------------------------------------------
-          // BEVOLLMÄCHTIGTER
-          // --------------------------------------------------
+      return res.json({
 
-          representative_name:
-            representative.name,
+        country_code:
+          result.country.code,
 
-          representative_company:
-            representative.company,
+        name:
+          result.country.name,
 
-          representative_email:
-            representative.email,
+        flag:
+          result.country.flag,
 
-          has_representative:
-            state.hasRepresentative,
+        register_body:
+          result.country.register_body,
 
-          representative_complete:
-            state.representativeComplete,
+        registration_url:
+          result.country.registration_url ||
+          '',
 
-
-          // --------------------------------------------------
-          // COMPLIANCE
-          // --------------------------------------------------
-
-          compliance:
-            decision,
-
-          compliance_confidence:
-            state.confidence,
-
-          registration_required:
-            state.registrationRequired,
-
-          registration_complete:
-            state.registrationComplete,
-
-          representative_required:
-            state.representativeRequired,
-
-          representative_status_calculated:
-            state.representativeStatus,
-
-
-          // --------------------------------------------------
-          // STATUS
-          // --------------------------------------------------
-
-          calculated_status:
-            state.status,
-
-          fully_configured:
-            state.fullyConfigured,
-
-          rule_verified:
-            state.verified,
-
-          rule_needs_review:
-            !state.verified
-
-        };
+        compliance:
+          result.decision
 
       });
 
+    } catch (error) {
 
-    res.json(result);
+      console.error(
+        '❌ Activation preview error:',
+        error
+      );
 
-
-  } catch (error) {
-
-    console.error(
-      '❌ Fehler beim Laden der Aktivierungen:',
-      error
-    );
-
-
-    res.status(500).json({
-
-      error:
-        'Fehler beim Laden der Aktivierungen: ' +
-        error.message
-
-    });
-
+      return res.status(500).json({
+        error:
+          'Fehler bei der Länderprüfung: ' +
+          error.message
+      });
+    }
   }
-
-});
+);
 
 
 // ============================================================
-// POST /api/activations/:countryCode
-//
 // LAND AKTIVIEREN
+// POST /api/activations/DE
 // ============================================================
 
-router.post('/:countryCode', (req, res) => {
-
-  try {
-
-    const customerId =
-      req.auth.userId;
-
-
-    const countryCode =
-      normalizeCode(
-        req.params.countryCode
-      );
-
-
-    const existingNumber =
-      clean(
-        req.body?.existing_number
-      );
-
-
-    const representative =
-      readRepresentative(
-        req.body
-      );
-
-
-    // --------------------------------------------------------
-    // LAND
-    // --------------------------------------------------------
-
-    const result =
-      getDecision(
-        customerId,
-        countryCode
-      );
-
-
-    if (!result) {
-
-      return res.status(404).json({
-
-        error:
-          `Land ${countryCode} wird von Pack2EU noch nicht unterstützt.`
-
-      });
-
-    }
-
-
-    const {
-      customer,
-      country,
-      decision
-    } =
-      result;
-
-
-    // --------------------------------------------------------
-    // BEREITS AKTIVIERT?
-    // --------------------------------------------------------
-
-    const existing =
-      db.prepare(`
-        SELECT
-          id
-        FROM activations
-        WHERE customer_id = ?
-          AND country_code = ?
-      `).get(
-        customerId,
-        countryCode
-      );
-
-
-    if (existing) {
-
-      return res.status(409).json({
-
-        error:
-          'Dieses Land ist bereits aktiviert.'
-
-      });
-
-    }
-
-
-    // --------------------------------------------------------
-    // PLAN-LIMIT
-    // --------------------------------------------------------
-
-    const maxCountries =
-      customer.plan === 'S'
-        ? 2
-        : 27;
-
-
-    const activeCount =
-      db.prepare(`
-        SELECT
-          COUNT(*) AS n
-        FROM activations
-        WHERE customer_id = ?
-      `).get(
-        customerId
-      ).n;
-
-
-    if (
-      activeCount >=
-      maxCountries
-    ) {
-
-      return res.status(403).json({
-
-        error:
-          `Dein ${customer.plan} Plan erlaubt maximal ${maxCountries} Länder.`
-
-      });
-
-    }
-
-
-    // --------------------------------------------------------
-    // STATUS
-    // --------------------------------------------------------
-
-    const state =
-      deriveState({
-
-        decision,
-
-        existingNumber,
-
-        representative
-
-      });
-
-
-    const snapshot =
-      buildSnapshot(
-        decision,
-        state,
-        representative,
-        existingNumber
-      );
-
-
-    // --------------------------------------------------------
-    // AKTIVIERUNG SPEICHERN
-    // --------------------------------------------------------
-
-    db.prepare(`
-      INSERT INTO activations (
-
-        customer_id,
-        country_code,
-
-        status,
-
-        existing_number,
-
-        representative_name,
-        representative_company,
-        representative_email,
-
-        mode,
-
-        compliance_status,
-        registration_status,
-        representative_status,
-
-        compliance_snapshot,
-
-        provider_status
-
-      )
-
-      VALUES (
-
-        ?,
-        ?,
-
-        ?,
-
-        ?,
-
-        ?,
-        ?,
-        ?,
-
-        ?,
-
-        ?,
-        ?,
-        ?,
-
-        ?,
-
-        ?
-
-      )
-    `).run(
-
-      customerId,
-      countryCode,
-
-      state.status,
-
-      existingNumber || null,
-
-      representative.name || null,
-      representative.company || null,
-      representative.email || null,
-
-      state.mode,
-
-      decision.status,
-
-      state.registrationStatus,
-
-      state.representativeStatus,
-
-      snapshot,
-
-      state.providerStatus
-
-    );
-
-
-    // --------------------------------------------------------
-    // COMPLIANCE CASE
-    //
-    // Falls die Tabelle vorhanden ist.
-    // --------------------------------------------------------
+router.post(
+  '/:countryCode',
+  (req, res) => {
 
     try {
+
+      const countryCode =
+        normalizeCode(
+          req.params.countryCode
+        );
+
+
+      const result =
+        getDecision(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      if (!result) {
+
+        return res.status(404).json({
+          error:
+            `Land ${countryCode} wird nicht unterstützt.`
+        });
+      }
+
+
+      const existingActivation =
+        db.prepare(`
+          SELECT *
+          FROM activations
+          WHERE customer_id = ?
+            AND country_code = ?
+        `).get(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      if (existingActivation) {
+
+        return res.status(409).json({
+          error:
+            'Dieses Land ist bereits aktiviert.',
+          activation:
+            existingActivation
+        });
+      }
+
+
+      const existingNumber =
+        clean(
+          req.body?.existing_number
+        );
+
+
+      const representative =
+        readRepresentative(
+          req.body
+        );
+
+
+      const state =
+        calculateState({
+
+          decision:
+            result.decision,
+
+          existingNumber,
+
+          representative,
+
+          providerStatus:
+            result.decision.representativeRequired
+              ? (
+                  result.decision.providerAvailable
+                    ? 'required'
+                    : 'required_manual_check'
+                )
+              : 'not_required'
+
+        });
+
+
+      const snapshot =
+        buildSnapshot({
+
+          decision:
+            result.decision,
+
+          state,
+
+          existingNumber,
+
+          representative:
+            representative.name
+              ? representative
+              : null
+
+        });
+
+
+      const insert =
+        db.prepare(`
+          INSERT INTO activations (
+
+            customer_id,
+
+            country_code,
+
+            status,
+
+            existing_number,
+
+            representative_name,
+
+            representative_company,
+
+            representative_email,
+
+            provider_id,
+
+            provider_status,
+
+            status,
+
+            mode,
+
+            mode_updated_at,
+
+            compliance_status,
+
+            registration_status,
+
+            representative_status,
+
+            compliance_snapshot
+
+          )
+
+          VALUES (
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            datetime('now'),
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?
+
+          )
+        `);
+
+
+      // --------------------------------------------------------
+      // SQLite erlaubt nicht zweimal dieselbe Spalte.
+      // Deshalb verwenden wir die korrigierte INSERT-Version
+      // weiter unten.
+      // --------------------------------------------------------
+
+      const insertFixed =
+        db.prepare(`
+          INSERT INTO activations (
+
+            customer_id,
+
+            country_code,
+
+            status,
+
+            existing_number,
+
+            representative_name,
+
+            representative_company,
+
+            representative_email,
+
+            provider_id,
+
+            provider_status,
+
+            mode,
+
+            mode_updated_at,
+
+            compliance_status,
+
+            registration_status,
+
+            representative_status,
+
+            compliance_snapshot
+
+          )
+
+          VALUES (
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?,
+
+            datetime('now'),
+
+            ?,
+
+            ?,
+
+            ?,
+
+            ?
+
+          )
+        `);
+
+
+      const providerId =
+        result.decision.providerAvailable
+          ? (
+              result.decision.providerId ||
+              'lappa'
+            )
+          : null;
+
+
+      const runResult =
+        insertFixed.run(
+
+          req.auth.userId,
+
+          countryCode,
+
+          state.status,
+
+          existingNumber ||
+            null,
+
+          representative.name ||
+            null,
+
+          representative.company ||
+            null,
+
+          representative.email ||
+            null,
+
+          providerId,
+
+          state.providerStatus,
+
+          state.mode,
+
+          result.decision.status,
+
+          state.registrationStatus,
+
+          state.representativeStatus,
+
+          snapshot
+
+        );
+
+
+      // --------------------------------------------------------
+      // COMPLIANCE CASE
+      // --------------------------------------------------------
 
       db.prepare(`
         INSERT INTO compliance_cases (
 
           customer_id,
-          country_code,
 
-          compliance_status,
-          registration_status,
-          representative_status,
+          country_code,
 
           provider_id,
 
-          snapshot_json,
+          representative_status,
 
-          external_number
+          external_status,
+
+          updated_at
 
         )
 
         VALUES (
 
           ?,
-          ?,
-
-          ?,
-          ?,
-          ?,
 
           ?,
 
-          ?,
-
-          ?
-
-        )
-
-        ON CONFLICT(
-          customer_id,
-          country_code
-        )
-
-        DO UPDATE SET
-
-          compliance_status =
-            excluded.compliance_status,
-
-          registration_status =
-            excluded.registration_status,
-
-          representative_status =
-            excluded.representative_status,
-
-          provider_id =
-            excluded.provider_id,
-
-          snapshot_json =
-            excluded.snapshot_json,
-
-          external_number =
-            excluded.external_number,
-
-          updated_at =
-            datetime('now')
-      `).run(
-
-        customerId,
-        countryCode,
-
-        decision.status,
-
-        state.registrationStatus,
-
-        state.representativeStatus,
-
-        decision.providerId ||
-          null,
-
-        snapshot,
-
-        existingNumber ||
-          null
-
-      );
-
-    } catch (caseError) {
-
-      console.warn(
-        'ℹ️ Compliance Case konnte nicht gespeichert werden:',
-        caseError.message
-      );
-
-    }
-
-
-    // --------------------------------------------------------
-    // AKTIVIERUNG NEU LADEN
-    // --------------------------------------------------------
-
-    const activation =
-      db.prepare(`
-        SELECT
-          a.*,
-
-          c.name,
-          c.flag,
-          c.register_body,
-
-          c.representative_required,
-          c.notary_required,
-          c.notary_cost,
-
-          c.registration_url
-
-        FROM activations a
-
-        JOIN countries c
-          ON c.code = a.country_code
-
-        WHERE a.customer_id = ?
-          AND a.country_code = ?
-      `).get(
-        customerId,
-        countryCode
-      );
-
-
-    console.log(
-      `✅ Land gespeichert: ${countryCode} / Kunde ${customerId}`
-    );
-
-
-    console.log(
-      '📊 Compliance:',
-      decision
-    );
-
-
-    console.log(
-      '📊 Aktivierungsstatus:',
-      state
-    );
-
-
-    // --------------------------------------------------------
-    // ANTWORT
-    // --------------------------------------------------------
-
-    res.status(201).json({
-
-      ok: true,
-
-      countryCode,
-
-      status:
-        state.status,
-
-      mode:
-        state.mode,
-
-      message:
-        state.fullyConfigured
-
-          ? `${country.name} wurde vollständig eingerichtet.`
-
-          : `${country.name} wurde gespeichert. Weitere Einrichtung oder Prüfung ist noch erforderlich.`,
-
-      activation,
-
-      compliance:
-        decision,
-
-      fullyConfigured:
-        state.fullyConfigured,
-
-      registrationStatus:
-        state.registrationStatus,
-
-      representativeStatus:
-        state.representativeStatus,
-
-      existing_number:
-        existingNumber || null,
-
-      representative:
-        state.hasRepresentative
-
-          ? {
-
-              name:
-                representative.name,
-
-              company:
-                representative.company,
-
-              email:
-                representative.email
-
-            }
-
-          : null
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      '❌ Fehler bei der Länderaktivierung:',
-      error
-    );
-
-
-    res.status(500).json({
-
-      error:
-        'Fehler bei der Länderaktivierung: ' +
-        error.message
-
-    });
-
-  }
-
-});
-
-
-// ============================================================
-// PUT /api/activations/:countryCode
-//
-// AKTIVIERUNG AKTUALISIEREN
-// ============================================================
-
-router.put('/:countryCode', (req, res) => {
-
-  try {
-
-    const customerId =
-      req.auth.userId;
-
-
-    const countryCode =
-      normalizeCode(
-        req.params.countryCode
-      );
-
-
-    const existingNumber =
-      clean(
-        req.body?.existing_number
-      );
-
-
-    const representative =
-      readRepresentative(
-        req.body
-      );
-
-
-    // --------------------------------------------------------
-    // AKTIVIERUNG
-    // --------------------------------------------------------
-
-    const existing =
-      db.prepare(`
-        SELECT
-          id
-        FROM activations
-        WHERE customer_id = ?
-          AND country_code = ?
-      `).get(
-        customerId,
-        countryCode
-      );
-
-
-    if (!existing) {
-
-      return res.status(404).json({
-
-        error:
-          'Land nicht aktiviert.'
-
-      });
-
-    }
-
-
-    // --------------------------------------------------------
-    // COMPLIANCE
-    // --------------------------------------------------------
-
-    const result =
-      getDecision(
-        customerId,
-        countryCode
-      );
-
-
-    if (!result) {
-
-      return res.status(404).json({
-
-        error:
-          'Land nicht gefunden.'
-
-      });
-
-    }
-
-
-    const {
-      decision
-    } =
-      result;
-
-
-    // --------------------------------------------------------
-    // STATUS
-    // --------------------------------------------------------
-
-    const state =
-      deriveState({
-
-        decision,
-
-        existingNumber,
-
-        representative
-
-      });
-
-
-    const snapshot =
-      buildSnapshot(
-        decision,
-        state,
-        representative,
-        existingNumber
-      );
-
-
-    // --------------------------------------------------------
-    // AKTUALISIEREN
-    // --------------------------------------------------------
-
-    db.prepare(`
-      UPDATE activations
-
-      SET
-
-        existing_number = ?,
-
-        representative_name = ?,
-        representative_company = ?,
-        representative_email = ?,
-
-        status = ?,
-
-        mode = ?,
-
-        compliance_status = ?,
-        registration_status = ?,
-        representative_status = ?,
-
-        compliance_snapshot = ?,
-
-        provider_status = ?
-
-      WHERE customer_id = ?
-        AND country_code = ?
-    `).run(
-
-      existingNumber || null,
-
-      representative.name || null,
-      representative.company || null,
-      representative.email || null,
-
-      state.status,
-
-      state.mode,
-
-      decision.status,
-
-      state.registrationStatus,
-
-      state.representativeStatus,
-
-      snapshot,
-
-      state.providerStatus,
-
-      customerId,
-
-      countryCode
-
-    );
-
-
-    // --------------------------------------------------------
-    // COMPLIANCE CASE AKTUALISIEREN
-    // --------------------------------------------------------
-
-    try {
-
-      db.prepare(`
-        INSERT INTO compliance_cases (
-
-          customer_id,
-          country_code,
-
-          compliance_status,
-          registration_status,
-          representative_status,
-
-          provider_id,
-
-          snapshot_json,
-
-          external_number
-
-        )
-
-        VALUES (
-
-          ?,
-          ?,
-
-          ?,
-          ?,
           ?,
 
           ?,
 
           ?,
 
-          ?
-
-        )
-
-        ON CONFLICT(
-          customer_id,
-          country_code
-        )
-
-        DO UPDATE SET
-
-          compliance_status =
-            excluded.compliance_status,
-
-          registration_status =
-            excluded.registration_status,
-
-          representative_status =
-            excluded.representative_status,
-
-          provider_id =
-            excluded.provider_id,
-
-          snapshot_json =
-            excluded.snapshot_json,
-
-          external_number =
-            excluded.external_number,
-
-          updated_at =
-            datetime('now')
-      `).run(
-
-        customerId,
-        countryCode,
-
-        decision.status,
-
-        state.registrationStatus,
-
-        state.representativeStatus,
-
-        decision.providerId ||
-          null,
-
-        snapshot,
-
-        existingNumber ||
-          null
-
-      );
-
-    } catch (caseError) {
-
-      console.warn(
-        'ℹ️ Compliance Case konnte nicht aktualisiert werden:',
-        caseError.message
-      );
-
-    }
-
-
-    // --------------------------------------------------------
-    // NEU LADEN
-    // --------------------------------------------------------
-
-    const activation =
-      db.prepare(`
-        SELECT
-          a.*,
-
-          c.name,
-          c.flag,
-          c.register_body,
-
-          c.representative_required,
-          c.notary_required,
-          c.notary_cost,
-
-          c.registration_url
-
-        FROM activations a
-
-        JOIN countries c
-          ON c.code = a.country_code
-
-        WHERE a.id = ?
-      `).get(
-        existing.id
-      );
-
-
-    res.json({
-
-      ok: true,
-
-      activation,
-
-      status:
-        state.status,
-
-      mode:
-        state.mode,
-
-      fullyConfigured:
-        state.fullyConfigured,
-
-      compliance:
-        decision,
-
-      registrationStatus:
-        state.registrationStatus,
-
-      representativeStatus:
-        state.representativeStatus
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      '❌ Fehler beim Aktualisieren:',
-      error
-    );
-
-
-    res.status(500).json({
-
-      error:
-        'Fehler beim Aktualisieren der Aktivierung: ' +
-        error.message
-
-    });
-
-  }
-
-});
-
-
-// ============================================================
-// POST /api/activations/:countryCode/sign
-//
-// VOLLMACHT SIGNIEREN
-// ============================================================
-
-router.post('/:countryCode/sign', (req, res) => {
-
-  try {
-
-    const customerId =
-      req.auth.userId;
-
-
-    const countryCode =
-      normalizeCode(
-        req.params.countryCode
-      );
-
-
-    const activation =
-      db.prepare(`
-        SELECT
-          id,
-          status,
-          representative_status,
-          registration_status
-        FROM activations
-        WHERE customer_id = ?
-          AND country_code = ?
-      `).get(
-        customerId,
-        countryCode
-      );
-
-
-    if (!activation) {
-
-      return res.status(404).json({
-
-        error:
-          'Keine Aktivierung für dieses Land gefunden.'
-
-      });
-
-    }
-
-
-    // Signieren bedeutet NICHT automatisch,
-    // dass die Compliance vollständig ist.
-    //
-    // Deshalb:
-    // - wenn noch Anforderungen offen sind => signed
-    // - active bleibt active
-    //
-    const newStatus =
-      activation.status === 'active'
-        ? 'active'
-        : 'signed';
-
-
-    db.prepare(`
-      UPDATE activations
-
-      SET
-
-        status = ?,
-
-        signed_at =
           datetime('now')
 
-      WHERE customer_id = ?
-        AND country_code = ?
-    `).run(
+        )
 
-      newStatus,
+        ON CONFLICT(
+          customer_id,
+          country_code
+        )
 
-      customerId,
+        DO UPDATE SET
 
-      countryCode
+          provider_id =
+            excluded.provider_id,
 
-    );
+          representative_status =
+            excluded.representative_status,
 
+          external_status =
+            excluded.external_status,
 
-    res.json({
+          updated_at =
+            datetime('now')
 
-      ok: true,
+      `).run(
 
-      countryCode,
+        req.auth.userId,
 
-      status:
-        newStatus
+        countryCode,
 
-    });
+        providerId,
 
+        state.representativeStatus,
 
-  } catch (error) {
+        result.decision.status
 
-    console.error(
-      '❌ Fehler beim Signieren:',
-      error
-    );
-
-
-    res.status(500).json({
-
-      error:
-        'Fehler beim Signieren: ' +
-        error.message
-
-    });
-
-  }
-
-});
-
-
-// ============================================================
-// GET /api/activations/:countryCode/status
-// ============================================================
-
-router.get('/:countryCode/status', (req, res) => {
-
-  try {
-
-    const customerId =
-      req.auth.userId;
-
-
-    const countryCode =
-      normalizeCode(
-        req.params.countryCode
       );
 
 
-    const activation =
-      db.prepare(`
-        SELECT
-          *
-        FROM activations
+      const activation =
+        db.prepare(`
+          SELECT
 
-        WHERE customer_id = ?
-          AND country_code = ?
-      `).get(
-        customerId,
-        countryCode
-      );
+            a.*,
+
+            c.name,
+
+            c.flag,
+
+            c.register_body,
+
+            c.representative_required,
+
+            c.notary_required,
+
+            c.notary_cost,
+
+            c.registration_url,
+
+            c.data_status
+
+          FROM activations a
+
+          JOIN countries c
+            ON c.code =
+               a.country_code
+
+          WHERE a.id = ?
+
+        `).get(
+          runResult.lastInsertRowid
+        );
 
 
-    if (!activation) {
+      return res.status(201).json({
 
-      return res.status(404).json({
+        ok: true,
 
-        error:
-          'Land nicht aktiviert.'
+        activation,
+
+        compliance:
+          result.decision,
+
+        fullyConfigured:
+          state.fullyConfigured
 
       });
 
+    } catch (error) {
+
+      console.error(
+        '❌ Fehler bei der Länderaktivierung:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Fehler bei der Länderaktivierung: ' +
+          error.message
+      });
     }
+  }
+);
 
 
-    const result =
-      getDecision(
-        customerId,
+// ============================================================
+// AKTIVIERUNG AKTUALISIEREN
+// PUT /api/activations/DE
+// ============================================================
+
+router.put(
+  '/:countryCode',
+  (req, res) => {
+
+    try {
+
+      const countryCode =
+        normalizeCode(
+          req.params.countryCode
+        );
+
+
+      const result =
+        getDecision(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      if (!result) {
+
+        return res.status(404).json({
+          error:
+            'Land nicht gefunden.'
+        });
+      }
+
+
+      const activation =
+        db.prepare(`
+          SELECT *
+          FROM activations
+          WHERE customer_id = ?
+            AND country_code = ?
+        `).get(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      if (!activation) {
+
+        return res.status(404).json({
+          error:
+            'Land ist noch nicht aktiviert.'
+        });
+      }
+
+
+      const existingNumber =
+        clean(
+          req.body?.existing_number
+        );
+
+
+      const representative =
+        readRepresentative(
+          req.body
+        );
+
+
+      const providerStatus =
+        activation.provider_status ||
+        (
+          result.decision.representativeRequired
+            ? 'required'
+            : 'not_required'
+        );
+
+
+      const state =
+        calculateState({
+
+          decision:
+            result.decision,
+
+          existingNumber,
+
+          representative,
+
+          providerStatus
+
+        });
+
+
+      const snapshot =
+        buildSnapshot({
+
+          decision:
+            result.decision,
+
+          state,
+
+          existingNumber,
+
+          representative
+
+        });
+
+
+      db.prepare(`
+        UPDATE activations
+
+        SET
+
+          existing_number = ?,
+
+          representative_name = ?,
+
+          representative_company = ?,
+
+          representative_email = ?,
+
+          status = ?,
+
+          mode = ?,
+
+          mode_updated_at =
+            datetime('now'),
+
+          compliance_status = ?,
+
+          registration_status = ?,
+
+          representative_status = ?,
+
+          compliance_snapshot = ?
+
+        WHERE customer_id = ?
+
+          AND country_code = ?
+
+      `).run(
+
+        existingNumber ||
+          null,
+
+        representative.name ||
+          null,
+
+        representative.company ||
+          null,
+
+        representative.email ||
+          null,
+
+        state.status,
+
+        state.mode,
+
+        result.decision.status,
+
+        state.registrationStatus,
+
+        state.representativeStatus,
+
+        snapshot,
+
+        req.auth.userId,
+
         countryCode
+
       );
 
 
-    const decision =
-      result?.decision || {
+      const updated =
+        db.prepare(`
+          SELECT
+            a.*,
+            c.name,
+            c.flag,
+            c.register_body,
+            c.representative_required,
+            c.notary_required,
+            c.notary_cost,
+            c.registration_url
+          FROM activations a
+          JOIN countries c
+            ON c.code =
+               a.country_code
+          WHERE a.customer_id = ?
+            AND a.country_code = ?
+        `).get(
+          req.auth.userId,
+          countryCode
+        );
 
-        status:
-          'needs_review',
 
-        registrationRequired:
-          true,
+      return res.json({
 
-        representativeRequired:
-          false,
+        ok: true,
 
-        confidence:
-          'needs_review'
+        activation:
+          updated,
+
+        compliance:
+          result.decision,
+
+        fullyConfigured:
+          state.fullyConfigured
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ Fehler beim Aktualisieren:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Fehler beim Aktualisieren der Aktivierung: ' +
+          error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// SIGNATUR
+// POST /api/activations/DE/sign
+// ============================================================
+
+router.post(
+  '/:countryCode/sign',
+  (req, res) => {
+
+    try {
+
+      const countryCode =
+        normalizeCode(
+          req.params.countryCode
+        );
+
+
+      const result =
+        getDecision(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      if (!result) {
+
+        return res.status(404).json({
+          error:
+            'Land nicht gefunden.'
+        });
+      }
+
+
+      const activation =
+        db.prepare(`
+          SELECT *
+          FROM activations
+          WHERE customer_id = ?
+            AND country_code = ?
+        `).get(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      if (!activation) {
+
+        return res.status(404).json({
+          error:
+            'Keine Aktivierung für dieses Land gefunden.'
+        });
+      }
+
+
+      const representative = {
+
+        name:
+          activation.representative_name ||
+          '',
+
+        company:
+          activation.representative_company ||
+          '',
+
+        email:
+          activation.representative_email ||
+          ''
 
       };
 
 
-    const representative = {
+      const state =
+        calculateState({
 
-      name:
-        activation.representative_name || '',
+          decision:
+            result.decision,
 
-      company:
-        activation.representative_company || '',
+          existingNumber:
+            activation.existing_number,
 
-      email:
-        activation.representative_email || ''
+          representative,
 
-    };
+          providerStatus:
+            activation.provider_status
+
+        });
 
 
-    const state =
-      deriveState({
+      if (!state.fullyConfigured) {
 
-        decision,
+        return res.status(400).json({
 
-        existingNumber:
-          activation.existing_number,
+          error:
+            'Die Aktivierung kann noch nicht signiert werden.',
 
-        representative
+          compliance:
+            result.decision,
+
+          state
+
+        });
+      }
+
+
+      db.prepare(`
+        UPDATE activations
+
+        SET
+
+          signed_at =
+            datetime('now'),
+
+          status =
+            'active',
+
+          mode =
+            'verified',
+
+          mode_updated_at =
+            datetime('now')
+
+        WHERE customer_id = ?
+
+          AND country_code = ?
+
+      `).run(
+
+        req.auth.userId,
+
+        countryCode
+
+      );
+
+
+      const updated =
+        db.prepare(`
+          SELECT *
+          FROM activations
+          WHERE customer_id = ?
+            AND country_code = ?
+        `).get(
+          req.auth.userId,
+          countryCode
+        );
+
+
+      return res.json({
+
+        ok: true,
+
+        activation:
+          updated,
+
+        compliance:
+          result.decision
 
       });
 
+    } catch (error) {
 
-    res.json({
+      console.error(
+        '❌ Signaturfehler:',
+        error
+      );
 
-      ok: true,
-
-      countryCode,
-
-      status:
-        state.status,
-
-      mode:
-        state.mode,
-
-      existing_number:
-        activation.existing_number,
-
-      representative_name:
-        activation.representative_name,
-
-      representative_company:
-        activation.representative_company,
-
-      representative_email:
-        activation.representative_email,
-
-      provider_id:
-        activation.provider_id || null,
-
-      epr_number:
-        activation.provider_epr_number || null,
-
-      provider_status:
-        activation.provider_status || null,
-
-      compliance:
-        decision,
-
-      compliance_confidence:
-        state.confidence,
-
-      registration_required:
-        state.registrationRequired,
-
-      registration_complete:
-        state.registrationComplete,
-
-      representative_required:
-        state.representativeRequired,
-
-      representative_complete:
-        state.representativeComplete,
-
-      registration_status:
-        state.registrationStatus,
-
-      representative_status:
-        state.representativeStatus,
-
-      fully_configured:
-        state.fullyConfigured,
-
-      rule_verified:
-        state.verified,
-
-      rule_needs_review:
-        !state.verified
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      '❌ Fehler beim Status:',
-      error
-    );
-
-
-    res.status(500).json({
-
-      error:
-        'Fehler beim Abrufen des Status: ' +
-        error.message
-
-    });
-
+      return res.status(500).json({
+        error:
+          'Signatur konnte nicht gespeichert werden: ' +
+          error.message
+      });
+    }
   }
-
-});
+);
 
 
 // ============================================================
-// EXPORT
+// STATUS
 // ============================================================
+
+router.get(
+  '/status',
+  (req, res) => {
+
+    try {
+
+      const rows =
+        db.prepare(`
+          SELECT
+            a.*,
+            c.name,
+            c.flag
+          FROM activations a
+          JOIN countries c
+            ON c.code =
+               a.country_code
+          WHERE a.customer_id = ?
+          ORDER BY c.name
+        `).all(
+          req.auth.userId
+        );
+
+
+      return res.json(
+        rows
+      );
+
+    } catch (error) {
+
+      console.error(
+        '❌ Aktivierungsstatus:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Aktivierungsstatus konnte nicht geladen werden.'
+      });
+    }
+  }
+);
+
 
 module.exports = router;
