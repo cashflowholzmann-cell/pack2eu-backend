@@ -1,4 +1,5 @@
 const express = require('express');
+
 const db = require('../db');
 
 const {
@@ -27,10 +28,12 @@ router.use(
 
 
 // ============================================================
-// HÄNDLER
+// KUNDE
 // ============================================================
 
-function getCustomer(customerId) {
+function getCustomer(
+  customerId
+) {
 
   return db.prepare(`
     SELECT
@@ -41,7 +44,9 @@ function getCustomer(customerId) {
       plan
     FROM customers
     WHERE id = ?
-  `).get(customerId);
+  `).get(
+    customerId
+  );
 }
 
 
@@ -49,14 +54,16 @@ function getCustomer(customerId) {
 // LAND
 // ============================================================
 
-function getCountry(countryCode) {
+function getCountry(
+  code
+) {
 
   return db.prepare(`
     SELECT *
     FROM countries
     WHERE code = ?
   `).get(
-    normalizeCode(countryCode)
+    normalizeCode(code)
   );
 }
 
@@ -66,8 +73,8 @@ function getCountry(countryCode) {
 // ============================================================
 
 function getRule(
-  originCountry,
-  destinationCountry
+  origin,
+  destination
 ) {
 
   return db.prepare(`
@@ -79,8 +86,11 @@ function getRule(
     ORDER BY id DESC
     LIMIT 1
   `).get(
-    normalizeCode(originCountry),
-    normalizeCode(destinationCountry)
+
+    normalizeCode(origin),
+
+    normalizeCode(destination)
+
   );
 }
 
@@ -91,26 +101,31 @@ function getRule(
 
 function buildDecision(
   customer,
-  destinationCode
+  destination
 ) {
 
-  const destination =
+  const code =
     normalizeCode(
-      destinationCode
+      destination
     );
 
   const country =
-    getCountry(destination);
+    getCountry(
+      code
+    );
+
 
   if (!country) {
     return null;
   }
 
+
   const rule =
     getRule(
       customer.origin_country,
-      destination
+      code
     );
+
 
   return decide({
 
@@ -118,7 +133,7 @@ function buildDecision(
       customer.origin_country,
 
     destinationCountry:
-      destination,
+      code,
 
     rule,
 
@@ -130,12 +145,63 @@ function buildDecision(
 
 
 // ============================================================
-// EINZELNES LAND
-// GET /api/compliance/DE
+// COUNTRY PAYLOAD
+// ============================================================
+
+function countryPayload(
+  country
+) {
+
+  return {
+
+    country_code:
+      country.code,
+
+    name:
+      country.name,
+
+    flag:
+      country.flag,
+
+    register_body:
+      country.register_body,
+
+    registration_url:
+      country.registration_url ||
+      '',
+
+    data_status:
+      country.data_status ||
+      'needs_verification',
+
+    representative_required:
+      Number(
+        country.representative_required
+      ) === 1,
+
+    notary_required:
+      Number(
+        country.notary_required
+      ) === 1,
+
+    notary_cost:
+      country.notary_cost ||
+      ''
+
+  };
+}
+
+
+// ============================================================
+// CHECK
+//
+// DAS IST DER ENTSCHEIDENDE ENDPOINT FÜR DAS ECHTE FRONTEND:
+//
+// GET /api/compliance/check?destination=PL
 // ============================================================
 
 router.get(
-  '/:destination',
+  '/check',
   (req, res) => {
 
     try {
@@ -144,6 +210,7 @@ router.get(
         getCustomer(
           req.auth.userId
         );
+
 
       if (!customer) {
 
@@ -156,12 +223,23 @@ router.get(
 
       const code =
         normalizeCode(
-          req.params.destination
+          req.query.destination
         );
 
 
+      if (!code) {
+
+        return res.status(400).json({
+          error:
+            'Zielland fehlt.'
+        });
+      }
+
+
       const country =
-        getCountry(code);
+        getCountry(
+          code
+        );
 
 
       if (!country) {
@@ -187,8 +265,130 @@ router.get(
           WHERE customer_id = ?
             AND country_code = ?
         `).get(
+
           customer.id,
+
           code
+
+        ) || null;
+
+
+      return res.json({
+
+        country:
+          countryPayload(
+            country
+          ),
+
+        compliance,
+
+        activation,
+
+        customer: {
+
+          id:
+            customer.id,
+
+          company_name:
+            customer.company_name,
+
+          origin_country:
+            customer.origin_country,
+
+          is_eu:
+            customer.is_eu === 1,
+
+          plan:
+            customer.plan
+
+        }
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ Compliance check error:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Compliance-Prüfung fehlgeschlagen: ' +
+          error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// EINZELNES LAND
+//
+// GET /api/compliance/DE
+// ============================================================
+
+router.get(
+  '/:destination',
+  (req, res) => {
+
+    try {
+
+      const customer =
+        getCustomer(
+          req.auth.userId
+        );
+
+
+      if (!customer) {
+
+        return res.status(404).json({
+          error:
+            'Kunde nicht gefunden.'
+        });
+      }
+
+
+      const code =
+        normalizeCode(
+          req.params.destination
+        );
+
+
+      const country =
+        getCountry(
+          code
+        );
+
+
+      if (!country) {
+
+        return res.status(404).json({
+          error:
+            `Zielland ${code} wird nicht unterstützt.`
+        });
+      }
+
+
+      const compliance =
+        buildDecision(
+          customer,
+          code
+        );
+
+
+      const activation =
+        db.prepare(`
+          SELECT *
+          FROM activations
+          WHERE customer_id = ?
+            AND country_code = ?
+        `).get(
+
+          customer.id,
+
+          code
+
         );
 
 
@@ -222,6 +422,7 @@ router.get(
         activation:
           activation ||
           null
+
       });
 
     } catch (error) {
@@ -243,6 +444,7 @@ router.get(
 
 // ============================================================
 // ALLE LÄNDER
+//
 // GET /api/compliance
 // ============================================================
 
@@ -286,8 +488,7 @@ router.get(
 
       const activations =
         db.prepare(`
-          SELECT
-            *
+          SELECT *
           FROM activations
           WHERE customer_id = ?
         `).all(
@@ -325,25 +526,9 @@ router.get(
 
             return {
 
-              country_code:
-                country.code,
-
-              name:
-                country.name,
-
-              flag:
-                country.flag,
-
-              register_body:
-                country.register_body,
-
-              data_status:
-                country.data_status ||
-                'needs_verification',
-
-              registration_url:
-                country.registration_url ||
-                '',
+              ...countryPayload(
+                country
+              ),
 
               status:
                 activation?.status ||
@@ -361,24 +546,17 @@ router.get(
                 activation?.provider_epr_number ||
                 null,
 
-              representative_required:
-                country.representative_required === 1,
-
-              notary_required:
-                country.notary_required === 1,
-
-              notary_cost:
-                country.notary_cost ||
-                '',
-
               compliance
 
             };
+
           }
         );
 
 
-      return res.json(result);
+      return res.json(
+        result
+      );
 
     } catch (error) {
 
