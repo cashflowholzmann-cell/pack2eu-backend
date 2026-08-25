@@ -13,7 +13,6 @@ router.get('/annual/:year', (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
 
-        // Hole alle Bestellungen + Verpackungsdaten für das Jahr
         const orders = db.prepare(`
             SELECT 
                 destination_country,
@@ -23,7 +22,6 @@ router.get('/annual/:year', (req, res) => {
             AND strftime('%Y', created_at) = ?
         `).all(userId, String(year));
 
-        // Aggregiere die Daten pro Land und Material
         const reportData = {};
 
         orders.forEach(order => {
@@ -69,7 +67,6 @@ router.get('/export/pdf/:year', async (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
 
-        // Daten holen
         const orders = db.prepare(`
             SELECT 
                 destination_country,
@@ -104,7 +101,6 @@ router.get('/export/pdf/:year', async (req, res) => {
             });
         });
 
-        // PDF generieren
         const doc = new PDFDocument({ margin: 50 });
         const filename = `Pack2EU_Report_${year}.pdf`;
 
@@ -113,25 +109,25 @@ router.get('/export/pdf/:year', async (req, res) => {
 
         doc.pipe(res);
 
-        // Kopf
         doc.fontSize(20).text('Pack2EU - Jahresreport', { align: 'center' });
         doc.fontSize(12).text(`Berichtsjahr: ${year}`, { align: 'center' });
         doc.moveDown();
 
-        // Für jedes Land
-        Object.entries(reportData).forEach(([country, data]) => {
-            doc.fontSize(14).text(`📦 ${country}`, { underline: true });
-            doc.fontSize(10).text(`Gesamt: ${data.total_kg.toFixed(2)} kg`);
-            
-            // Materialien
-            Object.entries(data.materials).forEach(([material, kg]) => {
-                doc.text(`  • ${material}: ${kg.toFixed(2)} kg`);
+        if (Object.keys(reportData).length === 0) {
+            doc.fontSize(12).text('Keine Verpackungsdaten für dieses Jahr vorhanden.');
+        } else {
+            Object.entries(reportData).forEach(([country, data]) => {
+                doc.fontSize(14).text(`📦 ${country}`, { underline: true });
+                doc.fontSize(10).text(`Gesamt: ${data.total_kg.toFixed(2)} kg`);
+                
+                Object.entries(data.materials).forEach(([material, kg]) => {
+                    doc.text(`  • ${material}: ${kg.toFixed(2)} kg`);
+                });
+                
+                doc.moveDown();
             });
-            
-            doc.moveDown();
-        });
+        }
 
-        // Fuß
         doc.fontSize(10).text(`Erstellt am: ${new Date().toLocaleDateString()}`, { align: 'center' });
         doc.end();
 
@@ -149,7 +145,6 @@ router.get('/export/csv/:year', (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
 
-        // Daten holen
         const orders = db.prepare(`
             SELECT 
                 destination_country,
@@ -184,15 +179,18 @@ router.get('/export/csv/:year', (req, res) => {
             });
         });
 
-        // CSV generieren
         const rows = [];
         rows.push(['Land', 'Material', 'Gewicht (kg)', 'Jahr']);
 
-        Object.entries(reportData).forEach(([country, data]) => {
-            Object.entries(data.materials).forEach(([material, kg]) => {
-                rows.push([country, material, kg.toFixed(3), year]);
+        if (Object.keys(reportData).length === 0) {
+            rows.push(['Keine Daten', '-', '0', year]);
+        } else {
+            Object.entries(reportData).forEach(([country, data]) => {
+                Object.entries(data.materials).forEach(([material, kg]) => {
+                    rows.push([country, material, kg.toFixed(3), year]);
+                });
             });
-        });
+        }
 
         const csv = rows.map(row => row.join(';')).join('\n');
         const filename = `Pack2EU_Report_${year}.csv`;
@@ -204,6 +202,56 @@ router.get('/export/csv/:year', (req, res) => {
     } catch (error) {
         console.error('❌ CSV Export Fehler:', error);
         res.status(500).json({ error: 'CSV konnte nicht erstellt werden' });
+    }
+});
+
+// ============================================================
+// 4. MONTHLY REPORTS (für das Dashboard)
+// ============================================================
+router.get('/monthly', (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Prüfe, ob die Tabelle existiert
+        const tableCheck = db.prepare(`
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='orders'
+        `).get();
+
+        if (!tableCheck) {
+            return res.json([]);
+        }
+        
+        const reports = db.prepare(`
+            SELECT 
+                strftime('%Y-%m', created_at) as period,
+                destination_country as country,
+                COUNT(*) as orders,
+                SUM(total_weight_grams) / 1000.0 as total_kg
+            FROM orders
+            WHERE user_id = ?
+            GROUP BY strftime('%Y-%m', created_at), destination_country
+            ORDER BY period DESC
+            LIMIT 12
+        `).all(userId);
+        
+        // Formatiere die Daten für das Frontend
+        const formatted = reports.map(r => ({
+            period: r.period,
+            country_code: r.country,
+            totals: {
+                orders: r.orders,
+                orderPackagingKg: r.total_kg || 0,
+                submissionKg: 0
+            },
+            status: 'draft'
+        }));
+        
+        res.json(formatted);
+        
+    } catch (error) {
+        console.error('❌ Monthly Reports Fehler:', error);
+        res.status(500).json({ error: 'Monatsreports konnten nicht geladen werden' });
     }
 });
 
