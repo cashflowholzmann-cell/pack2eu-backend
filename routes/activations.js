@@ -1,6 +1,6 @@
 const express = require('express');
 
-const db = require('../db');
+const { db } = require('../db');
 
 const {
   requireAuth,
@@ -1537,4 +1537,4 @@ router.get(
 );
 
 
-module.exports = router;
+module.exports = route
