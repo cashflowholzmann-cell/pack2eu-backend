@@ -1,16 +1,6 @@
 // ============================================================
 // PACK2EU – ZENTRALE COMPLIANCE ENGINE
 // ============================================================
-//
-// Grundregel:
-//
-// 1. Nur eine explizit verifizierte Regel darf "verified" sein.
-// 2. Keine Regel = needs_review.
-// 3. needs_review darf niemals automatisch grün werden.
-// 4. Die tatsächliche Bevollmächtigtenpflicht kommt aus
-//    compliance_rules und NICHT aus einer pauschalen EU-Regel.
-// ============================================================
-
 
 const EU_CODES = new Set([
   'AT',
@@ -44,13 +34,13 @@ const EU_CODES = new Set([
 
 
 // ============================================================
-// NORMALISIERUNG
+// CODE NORMALISIEREN
 // ============================================================
 
 function normalizeCode(code) {
 
   return String(
-    code || ''
+    code ?? ''
   )
     .trim()
     .toUpperCase();
@@ -58,7 +48,7 @@ function normalizeCode(code) {
 
 
 // ============================================================
-// EU-LAND?
+// EU LAND?
 // ============================================================
 
 function isEUCountry(code) {
@@ -81,10 +71,14 @@ function decide({
 }) {
 
   const origin =
-    normalizeCode(originCountry);
+    normalizeCode(
+      originCountry
+    );
 
   const destination =
-    normalizeCode(destinationCountry);
+    normalizeCode(
+      destinationCountry
+    );
 
   const originEU =
     isEUCountry(origin);
@@ -98,21 +92,26 @@ function decide({
 
     return {
 
-      status: 'unsupported',
+      status:
+        'unsupported',
 
-      registrationRequired: false,
+      registrationRequired:
+        false,
 
-      representativeRequired: false,
+      representativeRequired:
+        false,
 
-      notaryRequired: false,
+      notaryRequired:
+        false,
 
       legalLabel:
         'Zielland nicht unterstützt',
 
       explanation:
-        'Das Zielland wurde nicht in der Pack2EU-Länderdatenbank gefunden.',
+        'Das Zielland wurde in der Pack2EU-Länderdatenbank nicht gefunden.',
 
-      legalBasis: '',
+      legalBasis:
+        '',
 
       confidence:
         'unsupported',
@@ -135,6 +134,9 @@ function decide({
       providerCostEur:
         null,
 
+      effectiveFrom:
+        null,
+
       originEU,
 
       originCountry:
@@ -142,38 +144,16 @@ function decide({
 
       destinationCountry:
         destination
+
     };
   }
 
 
   // ----------------------------------------------------------
-  // VERIFIZIERTE REGEL
+  // VERIFIZIERTE REGEL VORHANDEN
   // ----------------------------------------------------------
 
   if (rule) {
-
-    const confidence =
-      rule.confidence ||
-      'needs_review';
-
-
-    const registrationRequired =
-      Number(
-        rule.registration_required
-      ) === 1;
-
-
-    const representativeRequired =
-      Number(
-        rule.representative_required
-      ) === 1;
-
-
-    const notaryRequired =
-      Number(
-        rule.notary_required
-      ) === 1;
-
 
     return {
 
@@ -181,11 +161,20 @@ function decide({
         rule.status ||
         'needs_review',
 
-      registrationRequired,
+      registrationRequired:
+        Number(
+          rule.registration_required
+        ) === 1,
 
-      representativeRequired,
+      representativeRequired:
+        Number(
+          rule.representative_required
+        ) === 1,
 
-      notaryRequired,
+      notaryRequired:
+        Number(
+          rule.notary_required
+        ) === 1,
 
       legalLabel:
         rule.legal_label ||
@@ -199,7 +188,9 @@ function decide({
         rule.legal_basis ||
         '',
 
-      confidence,
+      confidence:
+        rule.confidence ||
+        'needs_review',
 
       policyVersion:
         rule.policy_version ||
@@ -237,6 +228,7 @@ function decide({
 
       destinationCountry:
         destination
+
     };
   }
 
@@ -245,8 +237,9 @@ function decide({
   // KEINE VERIFIZIERTE REGEL
   // ----------------------------------------------------------
   //
-  // Ganz wichtig:
-  // NIEMALS automatisch "green".
+  // Wichtig:
+  // Nicht automatisch behaupten, dass ein
+  // Bevollmächtigter erforderlich ist.
   // ----------------------------------------------------------
 
   return {
@@ -303,12 +296,13 @@ function decide({
 
     destinationCountry:
       destination
+
   };
 }
 
 
 // ============================================================
-// IST ENTSCHEIDUNG RECHTLICH VERIFIZIERT?
+// ENTSCHEIDUNG VERIFIZIERT?
 // ============================================================
 
 function isVerifiedDecision(decision) {
@@ -338,4 +332,5 @@ module.exports = {
   decide,
 
   isVerifiedDecision
+
 };
