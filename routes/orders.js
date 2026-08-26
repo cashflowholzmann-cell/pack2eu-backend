@@ -1,5 +1,11 @@
+// routes/orders.js
+const express = require('express');
+const { db } = require('../db');
+
+const router = express.Router();
+
 // ============================================================
-// MANUELLE BESTELLUNG (Backend)
+// MANUELLE BESTELLUNG
 // ============================================================
 router.post('/manual', (req, res) => {
     try {
@@ -13,6 +19,7 @@ router.post('/manual', (req, res) => {
         `).get();
         
         if (!tableCheck) {
+            // Tabelle erstellen
             db.prepare(`
                 CREATE TABLE IF NOT EXISTS orders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,11 +33,13 @@ router.post('/manual', (req, res) => {
                 )
             `).run();
             
+            // Index erstellen
             db.prepare(`
                 CREATE INDEX IF NOT EXISTS idx_orders_user_year ON orders(user_id, created_at)
             `).run();
         }
         
+        // Bestellung speichern
         const stmt = db.prepare(`
             INSERT INTO orders (
                 user_id, 
@@ -65,3 +74,26 @@ router.post('/manual', (req, res) => {
         });
     }
 });
+
+// ============================================================
+// BESTELLUNGEN ABFRAGEN
+// ============================================================
+router.get('/', (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const orders = db.prepare(`
+            SELECT * FROM orders 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC
+        `).all(userId);
+        
+        res.json(orders);
+        
+    } catch (error) {
+        console.error('❌ Orders Fehler:', error);
+        res.status(500).json({ error: 'Bestellungen konnten nicht geladen werden' });
+    }
+});
+
+module.exports = router;
