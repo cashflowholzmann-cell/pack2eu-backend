@@ -29,6 +29,9 @@ const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
 const lappaRoutes = require('./routes/lappa');
 
+// ⭐⭐⭐ NEU: Orders-Route hinzufügen ⭐⭐⭐
+const orderRoutes = require('./routes/orders');
+
 // ⭐ NEU: zentrale Compliance-Logik
 const complianceRoutes = require('./routes/compliance');
 
@@ -171,8 +174,10 @@ app.use('/api/billing', billingRoutes);
 
 app.use('/api/lappa', lappaRoutes);
 
-// ⭐ NEU
-// Zentrale Compliance-Entscheidung
+// ⭐⭐⭐ NEU: Orders-Route registrieren ⭐⭐⭐
+app.use('/api/orders', orderRoutes);
+
+// ⭐ NEU: Zentrale Compliance-Entscheidung
 app.use(
   '/api/compliance',
   complianceLimiter,
@@ -224,6 +229,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Dashboard: http://localhost:${PORT}/Dashboard.html`);
   console.log(`❤️ Health: http://localhost:${PORT}/api/health`);
   console.log(`⚖️ Compliance: http://localhost:${PORT}/api/compliance`);
+  console.log(`📊 Reports: http://localhost:${PORT}/api/reports/annual/2026`);
   console.log(
     `💳 Stripe Webhook: http://localhost:${PORT}/api/billing/webhooks/stripe`
   );
