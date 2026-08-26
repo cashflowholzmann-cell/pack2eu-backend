@@ -8,13 +8,11 @@ const router = express.Router();
 // ============================================================
 router.use((req, res, next) => {
     try {
-        // 1. Versuche, den User aus dem Authorization-Header zu holen
         const authHeader = req.headers.authorization;
         const token = authHeader?.split(' ')[1];
         
         if (token) {
             try {
-                // 2. Token parsen und User-ID extrahieren
                 const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
                 const userId = payload.sub;
                 
@@ -22,7 +20,6 @@ router.use((req, res, next) => {
                     const user = db.prepare('SELECT id FROM customers WHERE id = ?').get(userId);
                     if (user) {
                         req.user = { id: user.id };
-                        console.log('✅ Bulk-Import User authentifiziert (ID:', user.id, ')');
                         return next();
                     }
                 }
@@ -31,17 +28,12 @@ router.use((req, res, next) => {
             }
         }
         
-        // 3. FALLBACK: Ersten User verwenden (NUR FÜR ENTWICKLUNG!)
-        console.warn('⚠️ Bulk-Import: Kein gültiger Token, verwende Fallback-User');
         const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
         if (firstUser) {
             req.user = { id: firstUser.id };
-            console.warn('⚠️ Bulk-Import Fallback: Verwende User (ID:', firstUser.id, ')');
             return next();
         }
         
-        // 4. Kein User gefunden
-        console.warn('❌ Bulk-Import: Kein User in der Datenbank gefunden');
         res.status(401).json({ error: 'Nicht authentifiziert' });
         
     } catch (error) {
@@ -51,26 +43,59 @@ router.use((req, res, next) => {
 });
 
 // ============================================================
+// TABELLE SICHERSTELLEN
+// ============================================================
+function ensureSkusTable() {
+    const tableCheck = db.prepare(`
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='skus'
+    `).get();
+    
+    if (!tableCheck) {
+        console.log('📦 Tabelle "skus" wird erstellt...');
+        db.prepare(`
+            CREATE TABLE IF NOT EXISTS skus (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                sku_name TEXT NOT NULL,
+                shopify_product_id TEXT,
+                destination TEXT NOT NULL,
+                materials_json TEXT DEFAULT '[]',
+                total_weight_grams REAL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES customers(id)
+            )
+        `).run();
+        
+        db.prepare(`CREATE INDEX IF NOT EXISTS idx_skus_user_id ON skus(user_id)`).run();
+        db.prepare(`CREATE INDEX IF NOT EXISTS idx_skus_destination ON skus(destination)`).run();
+        console.log('✅ Tabelle "skus" erstellt');
+    }
+}
+
+// ============================================================
 // CSV IMPORT
 // ============================================================
 router.post('/csv', (req, res) => {
     try {
+        // ⭐ Tabelle sicherstellen
+        ensureSkusTable();
+        
         const userId = req.user.id;
         const { products } = req.body;
         
         let successCount = 0;
         let errorRows = [];
 
-        // Validiere jede Zeile
         products.forEach((row, index) => {
-            const errors = validateRow(row, index + 2); // +2 wegen Header und 0-basiert
+            const errors = validateRow(row, index + 2);
             
             if (errors.length > 0) {
                 errorRows.push({ row: index + 2, errors, data: row });
                 return;
             }
             
-            // Speichere das Produkt
             try {
                 saveProduct(userId, row);
                 successCount++;
@@ -107,35 +132,29 @@ function validateRow(row, rowNumber) {
     const validMaterials = ['Karton/Pappe', 'Kunststoff', 'Papier', 'Glas', 'Metall', 'Holz', 'Sonstige'];
     const validRecyclable = ['Ja', 'Nein', 'TRUE', 'FALSE', 'true', 'false', '1', '0', 'Yes', 'No'];
     
-    // 1. SKU prüfen
     if (!row.sku || row.sku.trim().length === 0) {
         errors.push('SKU fehlt');
     }
     
-    // 2. Produktname prüfen
     if (!row.produktname || row.produktname.trim().length === 0) {
         errors.push('Produktname fehlt');
     }
     
-    // 3. Zielland prüfen
     if (!row.zielland || row.zielland.trim().length !== 2) {
-        errors.push(`Zielland '${row.zielland}' ist ungültig (z.B. DE, AT, FR)`);
+        errors.push(`Zielland '${row.zielland}' ist ungültig`);
     }
     
-    // 4. Material prüfen
     if (!row.material || !validMaterials.includes(row.material)) {
-        errors.push(`Material '${row.material}' ist nicht erlaubt. Erlaubt: ${validMaterials.join(', ')}`);
+        errors.push(`Material '${row.material}' ist nicht erlaubt`);
     }
     
-    // 5. Gewicht prüfen (muss Zahl sein)
     const weight = parseFloat(row.gewicht_g);
     if (isNaN(weight) || weight <= 0) {
         errors.push(`Gewicht '${row.gewicht_g}' ist keine gültige Zahl`);
     }
     
-    // 6. Recycelbar prüfen
     if (!row.recycelbar || !validRecyclable.includes(row.recycelbar)) {
-        errors.push(`Recycelbar '${row.recycelbar}' ist ungültig. Erlaubt: Ja/Nein oder TRUE/FALSE`);
+        errors.push(`Recycelbar '${row.recycelbar}' ist ungültig`);
     }
     
     return errors;
@@ -145,7 +164,6 @@ function validateRow(row, rowNumber) {
 // SPEICHERN
 // ============================================================
 function saveProduct(userId, row) {
-    // Prüfe, ob das SKU bereits existiert
     const existing = db.prepare(`
         SELECT id, materials_json FROM skus 
         WHERE user_id = ? AND sku_name = ? AND destination = ?
@@ -158,7 +176,6 @@ function saveProduct(userId, row) {
     };
     
     if (existing) {
-        // Bestehendes SKU: Material hinzufügen
         const materials = JSON.parse(existing.materials_json || '[]');
         materials.push(material);
         const totalWeight = materials.reduce((sum, m) => sum + m.weight_grams, 0);
@@ -169,7 +186,6 @@ function saveProduct(userId, row) {
             WHERE id = ?
         `).run(JSON.stringify(materials), totalWeight, existing.id);
     } else {
-        // Neues SKU anlegen
         const materials = [material];
         const totalWeight = materials.reduce((sum, m) => sum + m.weight_grams, 0);
         
