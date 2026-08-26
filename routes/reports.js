@@ -6,32 +6,37 @@ const PDFDocument = require('pdfkit');
 const router = express.Router();
 
 // ============================================================
-// AUTH-MIDDLEWARE (für alle Report-Routen)
+// AUTH-MIDDLEWARE (mit Fallback für Entwicklung)
 // ============================================================
 router.use((req, res, next) => {
     try {
-        // Versuche, den User aus dem Token zu holen
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-            // Fallback: Hole den ersten User (für Testzwecke)
-            const firstUser = db.prepare('SELECT id FROM customers LIMIT 1').get();
-            if (firstUser) {
-                req.user = { id: firstUser.id };
-                console.warn('⚠️ Fallback: Verwende ersten User (ID:', firstUser.id, ')');
+        // 1. Versuche, den Token zu holen
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1];
+        
+        if (token) {
+            // 2. Versuche den User zu finden (pass deine Logik an!)
+            // Beispiel: User anhand Token in DB suchen
+            const user = db.prepare('SELECT id FROM customers WHERE token = ?').get(token);
+            if (user) {
+                req.user = { id: user.id };
+                console.log('✅ User authentifiziert (ID:', user.id, ')');
                 return next();
             }
-            return res.status(401).json({ error: 'Nicht authentifiziert' });
         }
         
-        // Hier müsstest du den Token validieren
-        // Da wir den Auth-Code nicht kennen, verwenden wir den Fallback
+        // 3. FALLBACK: Ersten User verwenden (NUR FÜR ENTWICKLUNG!)
         const firstUser = db.prepare('SELECT id FROM customers LIMIT 1').get();
         if (firstUser) {
             req.user = { id: firstUser.id };
+            console.warn('⚠️ Fallback: Verwende User (ID:', firstUser.id, ')');
             return next();
         }
         
-        res.status(401).json({ error: 'Kein User gefunden' });
+        // 4. Kein User gefunden
+        console.warn('❌ Kein User gefunden');
+        res.status(401).json({ error: 'Nicht authentifiziert' });
+        
     } catch (error) {
         console.error('❌ Auth-Fehler:', error);
         res.status(500).json({ error: 'Auth-Fehler' });
@@ -46,8 +51,19 @@ router.get('/annual/:year', (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
 
-        if (!userId) {
-            return res.status(401).json({ error: 'Nicht authentifiziert' });
+        // Prüfe, ob die Tabelle existiert
+        const tableCheck = db.prepare(`
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='orders'
+        `).get();
+
+        if (!tableCheck) {
+            return res.json({
+                year: year,
+                countries: {},
+                total_kg: 0,
+                message: 'Tabelle "orders" existiert noch nicht.'
+            });
         }
 
         const orders = db.prepare(`
@@ -111,8 +127,13 @@ router.get('/monthly', (req, res) => {
     try {
         const userId = req.user.id;
 
-        if (!userId) {
-            return res.status(401).json({ error: 'Nicht authentifiziert' });
+        const tableCheck = db.prepare(`
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='orders'
+        `).get();
+
+        if (!tableCheck) {
+            return res.json([]);
         }
 
         const reports = db.prepare(`
@@ -157,10 +178,6 @@ router.get('/export/pdf/:year', async (req, res) => {
     try {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
-
-        if (!userId) {
-            return res.status(401).json({ error: 'Nicht authentifiziert' });
-        }
 
         const orders = db.prepare(`
             SELECT 
@@ -244,10 +261,6 @@ router.get('/export/csv/:year', (req, res) => {
     try {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
-
-        if (!userId) {
-            return res.status(401).json({ error: 'Nicht authentifiziert' });
-        }
 
         const orders = db.prepare(`
             SELECT 
