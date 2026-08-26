@@ -4,37 +4,41 @@ const { db } = require('../db');
 const router = express.Router();
 
 // ============================================================
-// AUTH-MIDDLEWARE
+// AUTH-MIDDLEWARE (OHNE FALLBACK!)
 // ============================================================
 router.use((req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
         const token = authHeader?.split(' ')[1];
         
-        if (token) {
-            try {
-                const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-                const userId = payload.sub;
-                
-                if (userId) {
-                    const user = db.prepare('SELECT id FROM customers WHERE id = ?').get(userId);
-                    if (user) {
-                        req.user = { id: user.id };
-                        return next();
-                    }
-                }
-            } catch (e) {
-                console.warn('⚠️ Bulk-Import: Token konnte nicht geparst werden');
+        if (!token) {
+            console.warn('❌ Bulk-Import: Kein Token gefunden');
+            return res.status(401).json({ error: 'Nicht authentifiziert' });
+        }
+        
+        try {
+            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+            const userId = payload.sub;
+            
+            if (!userId) {
+                console.warn('❌ Bulk-Import: Keine User-ID im Token');
+                return res.status(401).json({ error: 'Ungültiger Token' });
             }
+            
+            const user = db.prepare('SELECT id FROM customers WHERE id = ?').get(userId);
+            if (!user) {
+                console.warn('❌ Bulk-Import: User nicht gefunden (ID:', userId, ')');
+                return res.status(401).json({ error: 'User nicht gefunden' });
+            }
+            
+            req.user = { id: user.id };
+            console.log('✅ Bulk-Import User authentifiziert (ID:', user.id, ')');
+            next();
+            
+        } catch (e) {
+            console.warn('❌ Bulk-Import: Token konnte nicht geparst werden');
+            res.status(401).json({ error: 'Ungültiger Token' });
         }
-        
-        const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
-        if (firstUser) {
-            req.user = { id: firstUser.id };
-            return next();
-        }
-        
-        res.status(401).json({ error: 'Nicht authentifiziert' });
         
     } catch (error) {
         console.error('❌ Bulk-Import Auth-Fehler:', error);
@@ -79,7 +83,6 @@ function ensureSkusTable() {
 // ============================================================
 router.post('/csv', (req, res) => {
     try {
-        // ⭐ Tabelle sicherstellen
         ensureSkusTable();
         
         const userId = req.user.id;
