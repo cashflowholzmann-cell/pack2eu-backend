@@ -4,6 +4,53 @@ const { db } = require('../db');
 const router = express.Router();
 
 // ============================================================
+// AUTH-MIDDLEWARE
+// ============================================================
+router.use((req, res, next) => {
+    try {
+        // 1. Versuche, den User aus dem Authorization-Header zu holen
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1];
+        
+        if (token) {
+            try {
+                // 2. Token parsen und User-ID extrahieren
+                const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+                const userId = payload.sub;
+                
+                if (userId) {
+                    const user = db.prepare('SELECT id FROM customers WHERE id = ?').get(userId);
+                    if (user) {
+                        req.user = { id: user.id };
+                        console.log('✅ Bulk-Import User authentifiziert (ID:', user.id, ')');
+                        return next();
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Bulk-Import: Token konnte nicht geparst werden');
+            }
+        }
+        
+        // 3. FALLBACK: Ersten User verwenden (NUR FÜR ENTWICKLUNG!)
+        console.warn('⚠️ Bulk-Import: Kein gültiger Token, verwende Fallback-User');
+        const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
+        if (firstUser) {
+            req.user = { id: firstUser.id };
+            console.warn('⚠️ Bulk-Import Fallback: Verwende User (ID:', firstUser.id, ')');
+            return next();
+        }
+        
+        // 4. Kein User gefunden
+        console.warn('❌ Bulk-Import: Kein User in der Datenbank gefunden');
+        res.status(401).json({ error: 'Nicht authentifiziert' });
+        
+    } catch (error) {
+        console.error('❌ Bulk-Import Auth-Fehler:', error);
+        res.status(500).json({ error: 'Auth-Fehler' });
+    }
+});
+
+// ============================================================
 // CSV IMPORT
 // ============================================================
 router.post('/csv', (req, res) => {
