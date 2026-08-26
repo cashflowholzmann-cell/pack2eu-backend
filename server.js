@@ -32,6 +32,9 @@ const lappaRoutes = require('./routes/lappa');
 // ⭐⭐⭐ NEU: Orders-Route hinzufügen ⭐⭐⭐
 const orderRoutes = require('./routes/orders');
 
+// ⭐⭐ NEU: Bulk-Import-Route (CSV)
+const bulkImportRoutes = require('./routes/bulk-import');
+
 // ⭐ NEU: zentrale Compliance-Logik
 const complianceRoutes = require('./routes/compliance');
 
@@ -176,6 +179,9 @@ app.use('/api/lappa', lappaRoutes);
 
 // ⭐⭐⭐ NEU: Orders-Route registrieren ⭐⭐⭐
 app.use('/api/orders', orderRoutes);
+
+// ⭐⭐ NEU: Bulk-Import-Route registrieren
+app.use('/api/bulk', bulkImportRoutes);
 
 // ⭐ NEU: Zentrale Compliance-Entscheidung
 app.use(
