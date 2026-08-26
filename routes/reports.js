@@ -6,35 +6,31 @@ const PDFDocument = require('pdfkit');
 const router = express.Router();
 
 // ============================================================
-// AUTH-MIDDLEWARE (mit Fallback für Entwicklung)
+// AUTH-MIDDLEWARE (OHNE token-Spalte)
 // ============================================================
 router.use((req, res, next) => {
     try {
-        // 1. Versuche, den Token zu holen
-        const authHeader = req.headers.authorization;
-        const token = authHeader?.split(' ')[1];
+        // 1. Prüfe, ob die customers-Tabelle existiert
+        const tableCheck = db.prepare(`
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='customers'
+        `).get();
         
-        if (token) {
-            // 2. Versuche den User zu finden (pass deine Logik an!)
-            // Beispiel: User anhand Token in DB suchen
-            const user = db.prepare('SELECT id FROM customers WHERE token = ?').get(token);
-            if (user) {
-                req.user = { id: user.id };
-                console.log('✅ User authentifiziert (ID:', user.id, ')');
-                return next();
-            }
+        if (!tableCheck) {
+            console.warn('⚠️ customers-Tabelle existiert nicht');
+            return res.status(500).json({ error: 'Datenbankfehler' });
         }
         
-        // 3. FALLBACK: Ersten User verwenden (NUR FÜR ENTWICKLUNG!)
-        const firstUser = db.prepare('SELECT id FROM customers LIMIT 1').get();
+        // 2. Hole den ersten User (Fallback)
+        const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
         if (firstUser) {
             req.user = { id: firstUser.id };
-            console.warn('⚠️ Fallback: Verwende User (ID:', firstUser.id, ')');
+            console.log('✅ User gefunden (ID:', firstUser.id, ')');
             return next();
         }
         
-        // 4. Kein User gefunden
-        console.warn('❌ Kein User gefunden');
+        // 3. Kein User in der DB
+        console.warn('❌ Kein User in der Datenbank gefunden');
         res.status(401).json({ error: 'Nicht authentifiziert' });
         
     } catch (error) {
@@ -51,7 +47,7 @@ router.get('/annual/:year', (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.user.id;
 
-        // Prüfe, ob die Tabelle existiert
+        // Prüfe, ob die orders-Tabelle existiert
         const tableCheck = db.prepare(`
             SELECT name FROM sqlite_master 
             WHERE type='table' AND name='orders'
@@ -136,18 +132,38 @@ router.get('/monthly', (req, res) => {
             return res.json([]);
         }
 
-        const reports = db.prepare(`
-            SELECT 
-                strftime('%Y-%m', created_at) as period,
-                destination_country as country,
-                COUNT(*) as orders,
-                SUM(total_weight_grams) / 1000.0 as total_kg
-            FROM orders
-            WHERE user_id = ?
-            GROUP BY strftime('%Y-%m', created_at), destination_country
-            ORDER BY period DESC
-            LIMIT 12
-        `).all(userId);
+        // Prüfe, ob die Spalte total_weight_grams existiert
+        const columns = db.prepare(`PRAGMA table_info(orders)`).all();
+        const hasTotalWeight = columns.some(col => col.name === 'total_weight_grams');
+
+        let reports;
+        if (hasTotalWeight) {
+            reports = db.prepare(`
+                SELECT 
+                    strftime('%Y-%m', created_at) as period,
+                    destination_country as country,
+                    COUNT(*) as orders,
+                    SUM(total_weight_grams) / 1000.0 as total_kg
+                FROM orders
+                WHERE user_id = ?
+                GROUP BY strftime('%Y-%m', created_at), destination_country
+                ORDER BY period DESC
+                LIMIT 12
+            `).all(userId);
+        } else {
+            reports = db.prepare(`
+                SELECT 
+                    strftime('%Y-%m', created_at) as period,
+                    destination_country as country,
+                    COUNT(*) as orders,
+                    0.0 as total_kg
+                FROM orders
+                WHERE user_id = ?
+                GROUP BY strftime('%Y-%m', created_at), destination_country
+                ORDER BY period DESC
+                LIMIT 12
+            `).all(userId);
+        }
 
         const formatted = reports.map(r => ({
             period: r.period,
