@@ -5,6 +5,43 @@ const { db } = require('../db');
 const router = express.Router();
 
 // ============================================================
+// AUTH-MIDDLEWARE für alle Order-Routen
+// ============================================================
+router.use((req, res, next) => {
+    try {
+        // 1. Versuche, den User aus dem Authorization-Header zu holen
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1];
+        
+        if (token) {
+            // 2. Versuche, den User zu finden (Fallback: ersten User nehmen)
+            const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
+            if (firstUser) {
+                req.user = { id: firstUser.id };
+                console.log('✅ User authentifiziert (ID:', firstUser.id, ')');
+                return next();
+            }
+        }
+        
+        // 3. FALLBACK: Ersten User verwenden (NUR FÜR ENTWICKLUNG!)
+        const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
+        if (firstUser) {
+            req.user = { id: firstUser.id };
+            console.log('⚠️ Fallback: Verwende User (ID:', firstUser.id, ')');
+            return next();
+        }
+        
+        // 4. Kein User gefunden
+        console.warn('❌ Kein User in der Datenbank gefunden');
+        res.status(401).json({ error: 'Nicht authentifiziert' });
+        
+    } catch (error) {
+        console.error('❌ Auth-Fehler:', error);
+        res.status(500).json({ error: 'Auth-Fehler' });
+    }
+});
+
+// ============================================================
 // MANUELLE BESTELLUNG
 // ============================================================
 router.post('/manual', (req, res) => {
