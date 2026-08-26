@@ -1,0 +1,6 @@
+sku;produktname;shopify_id;zielland;material;gewicht_g;recycelbar
+PROD-001;Karton-Box Gross;123456789;DE;Karton/Pappe;180;Ja
+PROD-001;Karton-Box Gross;123456789;DE;Kunststoff;5;Nein
+PROD-002;Plastikbeutel Klein;;AT;Kunststoff;15;Nein
+PROD-003;Glasflasche Wein;987654321;FR;Glas;450;Ja
+PROD-004;Flyer Beilage;;DE;Papier;5;Ja
