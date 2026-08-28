@@ -783,6 +783,147 @@ function init() {
     );
 
 
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Registar proizvođača s proširenom odgovornosti (RPPO)',
+        requirements_json = ?,
+        data_status = 'verified'
+      WHERE code = 'HR'
+    `).run(
+      JSON.stringify([
+        'Seit 2025 existiert das kroatische Register für erweiterte Herstellerverantwortung (RPPO), in dem sich Verpackungs-Inverkehrbringer registrieren müssen.',
+        'Registrierungs- und EPR-Pflichten gelten für jeden Mitgliedstaat gesondert, in dem Verpackung erstmals in Verkehr gebracht wird.',
+        'Für Kleinstunternehmen mit geringen Verpackungsmengen sind in bestimmten Fällen Erleichterungen vorgesehen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Stand 08/2026 noch nicht errichtet – EU-Vorgabe sieht Einrichtung binnen 18 Monaten nach dem ersten Durchführungsrechtsakt der Kommission vor)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'SI'
+    `).run(
+      JSON.stringify([
+        'Das slowenische Umweltministerium hat einen Verordnungsentwurf zur Umsetzung des PRO-Systems für Verpackungen vorbereitet; das nationale Register war Stand 08/2026 noch nicht in Betrieb.',
+        'PPWR unterscheidet klar zwischen „Hersteller" (Konformität der Verpackung) und „Produzent" (EPR-Pflichten wie Registrierung und Finanzierung der Entsorgung).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Aplinkos apsaugos agentūra (Umweltschutzagentur)',
+        registration_url = 'https://aaa.lrv.lt',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'LT'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht bei der litauischen Umweltschutzagentur (Aplinkos apsaugos agentūra) für jedes Unternehmen, das Verpackungen erstmals in Litauen in Verkehr bringt.',
+        'Ausländische Unternehmen ohne Sitz in Litauen benötigen einen Bevollmächtigten für die erweiterte Herstellerverantwortung (EPR).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Valsts vides dienests (Staatlicher Umweltdienst)',
+        registration_url = 'https://www.vvd.gov.lv',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'LV'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung erfolgt über den Staatlichen Umweltdienst (Valsts vides dienests, VVD).',
+        'Bestehende lettische Steuer- und EPR-Pflichten (u. a. Verpackungssteuer) werden durch die PPWR nicht automatisch ersetzt, sondern bestehen zusätzlich fort.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kliimaministeerium (Klimaministerium) – eigenständiges estnisches Produzentenregister voraussichtlich erst um 2028 fertig',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'EE'
+    `).run(
+      JSON.stringify([
+        'Unternehmen müssen sich in jedem Mitgliedstaat registrieren, in dem sie Verpackungen erstmals in Verkehr bringen; ohne gültige Registrierung darf in Estland keine verpackte Ware in Verkehr gebracht werden.',
+        'Das eigenständige estnische Produzentenregister wird laut Kliimaministeerium voraussichtlich erst um 2028 fertiggestellt sein.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Ministerium für Umwelt und Wasser – Systembeteiligung z. B. über Ecopak oder andere lizenzierte Organisationen',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'BG'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung bei den vom bulgarischen Umweltministerium lizenzierten Rückgewinnungsorganisationen (z. B. Ecopak) erforderlich.',
+        'Konformitätsbewertung, technische Dokumentation und EU-Konformitätserklärung ab 12.08.2026 vorgeschrieben.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Valorlux',
+        registration_url = 'https://www.valorlux.lu',
+        requirements_json = ?,
+        eco_fee = 'Mitgliedsbeitrag an Valorlux (einzige zugelassene Systembetreiberin), material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'LU'
+    `).run(
+      JSON.stringify([
+        'Valorlux ist die einzige zugelassene Systembetreiberin (PRO) für Verpackungen in Luxemburg – Mitgliedschaft ist verpflichtend, eine individuelle Erfüllung ist nicht vorgesehen.',
+        'Ausländische Unternehmen ohne Sitz in Luxemburg benötigen seit 12.08.2026 einen dort ansässigen Bevollmächtigten.',
+        'Meldung der Verpackungsmengen über das Valorlux-Portal Valbase; für Industrieverpackungen läuft das Meldefenster jährlich von Anfang Januar bis Ende Februar.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Stand 08/2026 keine konkrete Stelle bestätigt)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'MT'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht in jedem Mitgliedstaat, in dem Verpackungen erstmals in Verkehr gebracht werden – auch in Malta.',
+        'Eine spezifische maltesische Zuständigkeitsstelle für die PPWR-Registrierung konnte Stand 08/2026 nicht abschließend bestätigt werden.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Green Dot Cyprus / Department of Environment',
+        requirements_json = ?,
+        data_status = 'verified'
+      WHERE code = 'CY'
+    `).run(
+      JSON.stringify([
+        'Green Dot Cyprus ist seit 2002 das etablierte System für die erweiterte Herstellerverantwortung bei Verpackungen in Zypern; Registrierung zusätzlich beim Department of Environment.',
+        'Ausländische Unternehmen ohne Sitz in Zypern benötigen einen Bevollmächtigten in Zypern.'
+      ])
+    );
+
+
     // ========================================================
     // 6. JURISDIKTIONEN
     // ========================================================
