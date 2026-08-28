@@ -9,6 +9,63 @@ const router = express.Router();
 router.use(requireAuth);
 
 // ============================================================
+// HILFSFUNKTIONEN
+//
+// Bestellungen stammen aus zwei Tabellen: manuell erfasste
+// (orders) und über Shopify synchronisierte (shopify_orders).
+// Für Reports müssen beide Quellen zusammengeführt werden.
+// ============================================================
+function fetchOrdersForYear(userId, year) {
+    return db.prepare(`
+        SELECT destination_country, packaging_data, created_at
+        FROM orders
+        WHERE user_id = ?
+        AND strftime('%Y', created_at) = ?
+
+        UNION ALL
+
+        SELECT destination_country, packaging_data, created_at
+        FROM shopify_orders
+        WHERE customer_id = ?
+        AND strftime('%Y', created_at) = ?
+    `).all(userId, String(year), userId, String(year));
+}
+
+function buildReportData(orders) {
+    const reportData = {};
+
+    orders.forEach(order => {
+        const country = order.destination_country || 'Unbekannt';
+        let materials = [];
+        try {
+            materials = JSON.parse(order.packaging_data || '[]');
+        } catch (e) {
+            materials = [];
+        }
+
+        if (!reportData[country]) {
+            reportData[country] = {
+                total_kg: 0,
+                materials: {}
+            };
+        }
+
+        materials.forEach(m => {
+            const weightKg = (m.weight_grams || 0) / 1000;
+            reportData[country].total_kg += weightKg;
+
+            const material = m.material || 'sonstige';
+            if (!reportData[country].materials[material]) {
+                reportData[country].materials[material] = 0;
+            }
+            reportData[country].materials[material] += weightKg;
+        });
+    });
+
+    return reportData;
+}
+
+// ============================================================
 // 1. REPORT DATEN GENERIEREN
 // ============================================================
 router.get('/annual/:year', (req, res) => {
@@ -16,59 +73,8 @@ router.get('/annual/:year', (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.customer.sub;
 
-        // Prüfe, ob die orders-Tabelle existiert
-        const tableCheck = db.prepare(`
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='orders'
-        `).get();
-
-        if (!tableCheck) {
-            return res.json({
-                year: year,
-                countries: {},
-                total_kg: 0,
-                message: 'Tabelle "orders" existiert noch nicht.'
-            });
-        }
-
-        const orders = db.prepare(`
-            SELECT 
-                destination_country,
-                packaging_data
-            FROM orders 
-            WHERE user_id = ? 
-            AND strftime('%Y', created_at) = ?
-        `).all(userId, String(year));
-
-        const reportData = {};
-
-        orders.forEach(order => {
-            const country = order.destination_country || 'Unbekannt';
-            let materials = [];
-            try {
-                materials = JSON.parse(order.packaging_data || '[]');
-            } catch (e) {
-                materials = [];
-            }
-
-            if (!reportData[country]) {
-                reportData[country] = {
-                    total_kg: 0,
-                    materials: {}
-                };
-            }
-
-            materials.forEach(m => {
-                const weightKg = (m.weight_grams || 0) / 1000;
-                reportData[country].total_kg += weightKg;
-
-                const material = m.material || 'sonstige';
-                if (!reportData[country].materials[material]) {
-                    reportData[country].materials[material] = 0;
-                }
-                reportData[country].materials[material] += weightKg;
-            });
-        });
+        const orders = fetchOrdersForYear(userId, year);
+        const reportData = buildReportData(orders);
 
         res.json({
             year: year,
@@ -92,47 +98,27 @@ router.get('/monthly', (req, res) => {
     try {
         const userId = req.customer.sub;
 
-        const tableCheck = db.prepare(`
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='orders'
-        `).get();
-
-        if (!tableCheck) {
-            return res.json([]);
-        }
-
-        // Prüfe, ob die Spalte total_weight_grams existiert
-        const columns = db.prepare(`PRAGMA table_info(orders)`).all();
-        const hasTotalWeight = columns.some(col => col.name === 'total_weight_grams');
-
-        let reports;
-        if (hasTotalWeight) {
-            reports = db.prepare(`
-                SELECT 
-                    strftime('%Y-%m', created_at) as period,
-                    destination_country as country,
-                    COUNT(*) as orders,
-                    SUM(total_weight_grams) / 1000.0 as total_kg
+        const reports = db.prepare(`
+            SELECT
+                strftime('%Y-%m', created_at) as period,
+                destination_country as country,
+                COUNT(*) as orders,
+                SUM(total_weight_grams) / 1000.0 as total_kg
+            FROM (
+                SELECT created_at, destination_country, total_weight_grams
                 FROM orders
                 WHERE user_id = ?
-                GROUP BY strftime('%Y-%m', created_at), destination_country
-                ORDER BY period DESC
-                LIMIT 12
-            `).all(userId);
-        } else {
-            reports = db.prepare(`
-                SELECT 
-                    strftime('%Y-%m', created_at) as period,
-                    destination_country as country,
-                    COUNT(*) as orders,
-                    0.0 as total_kg
-                FROM orders
-                WHERE user_id = ?
-                GROUP BY strftime('%Y-%m', created_at), destination_country
-                ORDER BY period DESC
-                LIMIT 12
-            `).all(userId);
-        }
+
+                UNION ALL
+
+                SELECT created_at, destination_country, total_weight_grams
+                FROM shopify_orders
+                WHERE customer_id = ?
+            )
+            GROUP BY strftime('%Y-%m', created_at), destination_country
+            ORDER BY period DESC
+            LIMIT 12
+        `).all(userId, userId);
 
         const formatted = reports.map(r => ({
             period: r.period,
@@ -164,44 +150,8 @@ router.get('/export/pdf/:year', async (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.customer.sub;
 
-        const orders = db.prepare(`
-            SELECT 
-                destination_country,
-                packaging_data
-            FROM orders 
-            WHERE user_id = ? 
-            AND strftime('%Y', created_at) = ?
-        `).all(userId, String(year));
-
-        const reportData = {};
-
-        orders.forEach(order => {
-            const country = order.destination_country || 'Unbekannt';
-            let materials = [];
-            try {
-                materials = JSON.parse(order.packaging_data || '[]');
-            } catch (e) {
-                materials = [];
-            }
-
-            if (!reportData[country]) {
-                reportData[country] = {
-                    total_kg: 0,
-                    materials: {}
-                };
-            }
-
-            materials.forEach(m => {
-                const weightKg = (m.weight_grams || 0) / 1000;
-                reportData[country].total_kg += weightKg;
-
-                const material = m.material || 'sonstige';
-                if (!reportData[country].materials[material]) {
-                    reportData[country].materials[material] = 0;
-                }
-                reportData[country].materials[material] += weightKg;
-            });
-        });
+        const orders = fetchOrdersForYear(userId, year);
+        const reportData = buildReportData(orders);
 
         const doc = new PDFDocument({ margin: 50 });
         const filename = `Pack2EU_Report_${year}.pdf`;
@@ -247,44 +197,8 @@ router.get('/export/csv/:year', (req, res) => {
         const year = parseInt(req.params.year) || new Date().getFullYear();
         const userId = req.customer.sub;
 
-        const orders = db.prepare(`
-            SELECT 
-                destination_country,
-                packaging_data
-            FROM orders 
-            WHERE user_id = ? 
-            AND strftime('%Y', created_at) = ?
-        `).all(userId, String(year));
-
-        const reportData = {};
-
-        orders.forEach(order => {
-            const country = order.destination_country || 'Unbekannt';
-            let materials = [];
-            try {
-                materials = JSON.parse(order.packaging_data || '[]');
-            } catch (e) {
-                materials = [];
-            }
-
-            if (!reportData[country]) {
-                reportData[country] = {
-                    total_kg: 0,
-                    materials: {}
-                };
-            }
-
-            materials.forEach(m => {
-                const weightKg = (m.weight_grams || 0) / 1000;
-                reportData[country].total_kg += weightKg;
-
-                const material = m.material || 'sonstige';
-                if (!reportData[country].materials[material]) {
-                    reportData[country].materials[material] = 0;
-                }
-                reportData[country].materials[material] += weightKg;
-            });
-        });
+        const orders = fetchOrdersForYear(userId, year);
+        const reportData = buildReportData(orders);
 
         const rows = [];
         rows.push(['Land', 'Material', 'Gewicht (kg)', 'Jahr']);
