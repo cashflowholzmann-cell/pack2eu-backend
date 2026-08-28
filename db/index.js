@@ -358,6 +358,16 @@ function init() {
       "TEXT NOT NULL DEFAULT 'needs_verification'"
     );
 
+    // Nur auf 0 gesetzt, wenn recherchiert bestätigt ist, dass das Land
+    // aktuell überhaupt keine Verpackungs-Registrierung/Bevollmächtigung
+    // verlangt (z. B. Schweiz, China, Thailand) – nicht gleichzusetzen mit
+    // "noch nicht recherchiert" (dafür gibt es data_status).
+    addColumnIfMissing(
+      'countries',
+      'registration_generally_required',
+      'INTEGER NOT NULL DEFAULT 1'
+    );
+
 
     // ========================================================
     // 4. ALLE LÄNDER SICHERSTELLEN
@@ -689,6 +699,7 @@ function init() {
         register_body = 'Kein einheitliches gesetzliches Pflichtsystem – freiwillige Branchenlösungen (z. B. PET-Recycling Schweiz, Swiss Recycle/VetroSwiss für Glas)',
         requirements_json = ?,
         eco_fee = 'Keine gesetzliche Öko-Gebühr; ggf. freiwillige Beiträge an Branchenlösungen.',
+        registration_generally_required = 0,
         data_status = 'verified'
       WHERE code = 'CH'
     `).run(
@@ -824,6 +835,7 @@ function init() {
         register_body = 'Kein einheitliches nationales Pflichtregister für Verpackungen – bislang nur sektorspezifische EPR-Pilotregelung für papierbasierte Getränke-Verbundverpackungen (Solid Waste Law 2020)',
         requirements_json = ?,
         eco_fee = 'Keine allgemeine gesetzliche Öko-Gebühr für Verpackungen; ggf. sektorspezifische Beiträge im Pilotprogramm für Getränke-Verbundverpackungen.',
+        registration_generally_required = 0,
         data_status = 'needs_verification'
       WHERE code = 'CN'
     `).run(
@@ -859,6 +871,7 @@ function init() {
       SET
         register_body = 'Noch kein verpflichtendes nationales System – Entwurf des "Sustainable Packaging Act" in Konsultation, verbindliche EPR laut Fahrplan erst ab ca. 2027 erwartet',
         requirements_json = ?,
+        registration_generally_required = 0,
         data_status = 'needs_verification'
       WHERE code = 'TH'
     `).run(
