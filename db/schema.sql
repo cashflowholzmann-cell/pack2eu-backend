@@ -230,6 +230,8 @@ CREATE TABLE IF NOT EXISTS product_packaging (
 
   shopify_variant_id TEXT,
 
+  destination TEXT,
+
   materials_json TEXT NOT NULL,
 
   total_weight_grams INTEGER NOT NULL,
@@ -242,6 +244,31 @@ CREATE TABLE IF NOT EXISTS product_packaging (
     DEFAULT (datetime('now')),
 
   updated_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
+-- BESTELLUNGEN (MANUELL ERFASST)
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS orders (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  user_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  shopify_order_id TEXT,
+
+  destination_country TEXT NOT NULL,
+
+  total_weight_grams REAL NOT NULL DEFAULT 0,
+
+  packaging_data TEXT NOT NULL DEFAULT '[]',
+
+  created_at TEXT NOT NULL
     DEFAULT (datetime('now'))
 );
 
@@ -458,3 +485,7 @@ ON product_packaging(customer_id);
 CREATE INDEX IF NOT EXISTS
 idx_shopify_orders_customer
 ON shopify_orders(customer_id);
+
+CREATE INDEX IF NOT EXISTS
+idx_orders_user_year
+ON orders(user_id, created_at);

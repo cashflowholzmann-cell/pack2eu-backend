@@ -1271,6 +1271,12 @@ function init() {
       'TEXT'
     );
 
+    addColumnIfMissing(
+      'product_packaging',
+      'destination',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 12. OAUTH STATES
@@ -1642,6 +1648,7 @@ function init() {
       'countries',
       'activations',
       'product_packaging',
+      'orders',
       'shopify_orders',
       'submissions',
       'representatives',

@@ -7,44 +7,10 @@ const router = express.Router();
 router.use(requireAuth);
 
 // ============================================================
-// TABELLE SICHERSTELLEN
-// ============================================================
-function ensureSkusTable() {
-    const tableCheck = db.prepare(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='skus'
-    `).get();
-    
-    if (!tableCheck) {
-        console.log('📦 Tabelle "skus" wird erstellt...');
-        db.prepare(`
-            CREATE TABLE IF NOT EXISTS skus (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                sku_name TEXT NOT NULL,
-                shopify_product_id TEXT,
-                destination TEXT NOT NULL,
-                materials_json TEXT DEFAULT '[]',
-                total_weight_grams REAL DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES customers(id)
-            )
-        `).run();
-        
-        db.prepare(`CREATE INDEX IF NOT EXISTS idx_skus_user_id ON skus(user_id)`).run();
-        db.prepare(`CREATE INDEX IF NOT EXISTS idx_skus_destination ON skus(destination)`).run();
-        console.log('✅ Tabelle "skus" erstellt');
-    }
-}
-
-// ============================================================
 // CSV IMPORT
 // ============================================================
 router.post('/csv', (req, res) => {
     try {
-        ensureSkusTable();
-
         const userId = req.customer.sub;
         const { products } = req.body;
         
@@ -128,39 +94,39 @@ function validateRow(row, rowNumber) {
 // ============================================================
 function saveProduct(userId, row) {
     const existing = db.prepare(`
-        SELECT id, materials_json FROM skus 
-        WHERE user_id = ? AND sku_name = ? AND destination = ?
+        SELECT id, materials_json FROM product_packaging
+        WHERE customer_id = ? AND sku_name = ? AND destination = ?
     `).get(userId, row.produktname, row.zielland);
-    
+
     const material = {
         material: row.material,
         weight_grams: parseFloat(row.gewicht_g),
         is_recyclable: ['Ja', 'TRUE', 'true', '1', 'Yes', 'yes'].includes(row.recycelbar) ? 1 : 0
     };
-    
+
     if (existing) {
         const materials = JSON.parse(existing.materials_json || '[]');
         materials.push(material);
         const totalWeight = materials.reduce((sum, m) => sum + m.weight_grams, 0);
-        
+
         db.prepare(`
-            UPDATE skus 
-            SET materials_json = ?, total_weight_grams = ?
+            UPDATE product_packaging
+            SET materials_json = ?, total_weight_grams = ?, updated_at = datetime('now')
             WHERE id = ?
         `).run(JSON.stringify(materials), totalWeight, existing.id);
     } else {
         const materials = [material];
         const totalWeight = materials.reduce((sum, m) => sum + m.weight_grams, 0);
-        
+
         db.prepare(`
-            INSERT INTO skus (
-                user_id, sku_name, shopify_product_id, 
+            INSERT INTO product_packaging (
+                customer_id, sku_name, shopify_product_id,
                 destination, materials_json, total_weight_grams
             ) VALUES (?, ?, ?, ?, ?, ?)
         `).run(
             userId,
             row.produktname,
-            row.shopify_id || '',
+            row.shopify_id || null,
             row.zielland,
             JSON.stringify(materials),
             totalWeight
