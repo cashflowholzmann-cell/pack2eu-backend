@@ -186,7 +186,19 @@ function countryPayload(
 
     notary_cost:
       country.notary_cost ||
-      ''
+      '',
+
+    representative_provider_name:
+      country.representative_provider_name ||
+      '',
+
+    representative_provider_url:
+      country.representative_provider_url ||
+      '',
+
+    representative_data_status:
+      country.representative_data_status ||
+      'needs_verification'
 
   };
 }
@@ -480,7 +492,10 @@ router.get(
             registration_url,
             representative_required,
             notary_required,
-            notary_cost
+            notary_cost,
+            representative_provider_name,
+            representative_provider_url,
+            representative_data_status
           FROM countries
           ORDER BY name
         `).all();
