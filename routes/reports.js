@@ -2,52 +2,11 @@
 const express = require('express');
 const { db } = require('../db');
 const PDFDocument = require('pdfkit');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// ============================================================
-// AUTH-MIDDLEWARE (VERBESSERT!)
-// ============================================================
-router.use((req, res, next) => {
-    try {
-        // 1. Versuche, den User aus dem Authorization-Header zu holen
-        const authHeader = req.headers.authorization;
-        const token = authHeader?.split(' ')[1];
-        
-        if (token) {
-            // 2. Versuche, den User anhand der ID aus dem Token zu finden
-            // (Der Token enthält die User-ID als "sub")
-            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-            const userId = payload.sub;
-            
-            if (userId) {
-                const user = db.prepare('SELECT id FROM customers WHERE id = ?').get(userId);
-                if (user) {
-                    req.user = { id: user.id };
-                    console.log('✅ User authentifiziert (ID:', user.id, ')');
-                    return next();
-                }
-            }
-        }
-        
-        // 3. FALLBACK: Ersten User verwenden (NUR FÜR ENTWICKLUNG!)
-        console.warn('⚠️ Kein gültiger Token, verwende Fallback-User');
-        const firstUser = db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get();
-        if (firstUser) {
-            req.user = { id: firstUser.id };
-            console.warn('⚠️ Fallback: Verwende User (ID:', firstUser.id, ')');
-            return next();
-        }
-        
-        // 4. Kein User gefunden
-        console.warn('❌ Kein User in der Datenbank gefunden');
-        res.status(401).json({ error: 'Nicht authentifiziert' });
-        
-    } catch (error) {
-        console.error('❌ Auth-Fehler:', error);
-        res.status(500).json({ error: 'Auth-Fehler' });
-    }
-});
+router.use(requireAuth);
 
 // ============================================================
 // 1. REPORT DATEN GENERIEREN
@@ -55,7 +14,7 @@ router.use((req, res, next) => {
 router.get('/annual/:year', (req, res) => {
     try {
         const year = parseInt(req.params.year) || new Date().getFullYear();
-        const userId = req.user.id;
+        const userId = req.customer.sub;
 
         // Prüfe, ob die orders-Tabelle existiert
         const tableCheck = db.prepare(`
@@ -131,7 +90,7 @@ router.get('/annual/:year', (req, res) => {
 // ============================================================
 router.get('/monthly', (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.customer.sub;
 
         const tableCheck = db.prepare(`
             SELECT name FROM sqlite_master 
@@ -203,7 +162,7 @@ router.get('/monthly', (req, res) => {
 router.get('/export/pdf/:year', async (req, res) => {
     try {
         const year = parseInt(req.params.year) || new Date().getFullYear();
-        const userId = req.user.id;
+        const userId = req.customer.sub;
 
         const orders = db.prepare(`
             SELECT 
@@ -286,7 +245,7 @@ router.get('/export/pdf/:year', async (req, res) => {
 router.get('/export/csv/:year', (req, res) => {
     try {
         const year = parseInt(req.params.year) || new Date().getFullYear();
-        const userId = req.user.id;
+        const userId = req.customer.sub;
 
         const orders = db.prepare(`
             SELECT 
