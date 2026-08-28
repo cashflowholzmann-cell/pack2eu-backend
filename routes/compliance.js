@@ -561,6 +561,22 @@ router.get(
                 activation?.provider_epr_number ||
                 null,
 
+              existing_number:
+                activation?.existing_number ||
+                null,
+
+              representative_name:
+                activation?.representative_name ||
+                null,
+
+              representative_company:
+                activation?.representative_company ||
+                null,
+
+              representative_status:
+                activation?.representative_status ||
+                null,
+
               compliance
 
             };
