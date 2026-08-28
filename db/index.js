@@ -2091,6 +2091,7 @@ function init() {
       'activations',
       'product_packaging',
       'orders',
+      'customer_package_sizes',
       'shopify_orders',
       'submissions',
       'representatives',

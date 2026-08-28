@@ -256,6 +256,31 @@ CREATE TABLE IF NOT EXISTS product_packaging (
 
 
 -- ================================================================
+-- PAKETGRÖSSEN (KUNDENINDIVIDUELL)
+--
+-- Größen-Presets für den Produkt-Konfigurator (z.B. "S – 240 g").
+-- Die drei Standardgrößen S/M/L werden im Frontend immer angezeigt;
+-- diese Tabelle enthält nur vom Kunden selbst hinzugefügte Größen.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS customer_package_sizes (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  label TEXT NOT NULL,
+
+  weight_grams INTEGER NOT NULL,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
 -- BESTELLUNGEN (MANUELL ERFASST)
 -- ================================================================
 
@@ -496,3 +521,7 @@ ON shopify_orders(customer_id);
 CREATE INDEX IF NOT EXISTS
 idx_orders_user_year
 ON orders(user_id, created_at);
+
+CREATE INDEX IF NOT EXISTS
+idx_customer_package_sizes_customer
+ON customer_package_sizes(customer_id);

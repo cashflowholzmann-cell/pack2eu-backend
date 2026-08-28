@@ -24,6 +24,7 @@ const activationRoutes = require('./routes/activations');
 const submissionRoutes = require('./routes/submissions');
 const exportRoutes = require('./routes/exports');
 const skusRoutes = require('./routes/skus');
+const packageSizesRoutes = require('./routes/package-sizes');
 const shopifyRoutes = require('./routes/shopify');
 const representativeRoutes = require('./routes/representatives');
 const billingRoutes = require('./routes/billing');
@@ -168,6 +169,7 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/exports', exportRoutes);
 
 app.use('/api/skus', skusRoutes);
+app.use('/api/package-sizes', packageSizesRoutes);
 
 app.use('/api/shopify', shopifyRoutes);
 
