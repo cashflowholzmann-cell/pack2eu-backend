@@ -84,7 +84,14 @@ CREATE TABLE IF NOT EXISTS countries (
   flag TEXT DEFAULT '🌍',
 
   data_status TEXT NOT NULL
-    DEFAULT 'needs_verification'
+    DEFAULT 'needs_verification',
+
+  -- Nur auf 0 gesetzt, wenn recherchiert bestätigt ist, dass das Land
+  -- für Verpackungen aktuell überhaupt keine Registrierung/Bevollmächtigung
+  -- verlangt (z. B. Schweiz, China, Thailand, Stand 08/2026) – NICHT
+  -- gleichzusetzen mit "noch nicht recherchiert" (dafür gibt es data_status).
+  registration_generally_required INTEGER NOT NULL
+    DEFAULT 1
 );
 
 

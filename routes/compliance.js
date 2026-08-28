@@ -198,7 +198,12 @@ function countryPayload(
 
     representative_data_status:
       country.representative_data_status ||
-      'needs_verification'
+      'needs_verification',
+
+    registration_generally_required:
+      Number(
+        country.registration_generally_required
+      ) !== 0
 
   };
 }
@@ -426,6 +431,11 @@ router.get(
           country.data_status ||
           'needs_verification',
 
+        registration_generally_required:
+          Number(
+            country.registration_generally_required
+          ) !== 0,
+
         plan:
           customer.plan,
 
@@ -495,7 +505,8 @@ router.get(
             notary_cost,
             representative_provider_name,
             representative_provider_url,
-            representative_data_status
+            representative_data_status,
+            registration_generally_required
           FROM countries
           ORDER BY name
         `).all();
