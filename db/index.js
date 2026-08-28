@@ -799,6 +799,116 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
+        register_body = 'Japan Containers and Packaging Recycling Association (JCPRA) – Registrierung/Gebührenzahlung nach dem japanischen Verpackungsrecyclinggesetz (容器包装リサイクル法)',
+        registration_url = 'https://www.jcpra.or.jp',
+        requirements_json = ?,
+        labeling_json = ?,
+        eco_fee = 'Recycling-Beitragsgebühr an die JCPRA, gestaffelt nach Material und Menge.',
+        data_status = 'needs_verification'
+      WHERE code = 'JP'
+    `).run(
+      JSON.stringify([
+        'Hersteller, Vertreiber und Importeure von "spezifizierten Verpackungen" (Glas, PET-Flaschen, Papier, Kunststoff) müssen ihrer Recyclingpflicht nachkommen – in der Praxis meist durch Auslagerung an die JCPRA gegen Recycling- und Kommunalbeitragsgebühr.',
+        'Zum 24.01.2026 traten neue, verschärfte Zertifizierungskriterien in Kraft (u. a. für PET-Flaschen sowie Kosmetik-/Reinigungsmittelverpackungen), die den Materialeinsatz senken und den Rezyklatanteil erhöhen sollen.',
+        'Kleinunternehmen unterhalb bestimmter Umsatz-/Mitarbeitergrenzen sind teils von der individuellen Meldepflicht befreit, müssen sich aber ggf. dennoch registrieren – genaue Schwellenwerte für ausländische Fernabsatzhändler waren Stand 08/2026 nicht abschließend bestätigt.'
+      ]),
+      JSON.stringify([
+        'Gesetzliche Kennzeichnungspflicht (Identifikationsmarken) nach dem Ressourcennutzungsgesetz: PETマーク (PET-Flaschen), プラマーク (sonstige Kunststoffverpackungen), 紙マーク (Papierverpackungen), sowie Kennzeichen für Alu- und Stahldosen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kein einheitliches nationales Pflichtregister für Verpackungen – bislang nur sektorspezifische EPR-Pilotregelung für papierbasierte Getränke-Verbundverpackungen (Solid Waste Law 2020)',
+        requirements_json = ?,
+        eco_fee = 'Keine allgemeine gesetzliche Öko-Gebühr für Verpackungen; ggf. sektorspezifische Beiträge im Pilotprogramm für Getränke-Verbundverpackungen.',
+        data_status = 'needs_verification'
+      WHERE code = 'CN'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026 existiert keine umfassende, verpflichtende Verpackungs-EPR-Registrierung für (ausländische) Online-Händler in China.',
+        'Die einzige konkrete EPR-Pflicht betrifft papierbasierte Getränke-Verbundverpackungen im Rahmen eines seit 2024/2025 laufenden Pilotprogramms nach dem Solid Waste Law von 2020.',
+        'Für bestimmte Warengruppen (z. B. Kosmetik, Lebensmittel, Spielzeug) gelten nationale GB-Normen gegen "übermäßige Verpackung" (过度包装) – das sind Produktstandards, keine Registrierungspflicht.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Central Pollution Control Board (CPCB) – zentrales EPR-Portal für Plastikverpackungen',
+        registration_url = 'https://eprplastic.cpcb.gov.in/',
+        requirements_json = ?,
+        eco_fee = 'EPR-Gebühr/Zertifikatspflicht abhängig von Verpackungskategorie und Recyclingzielerreichung.',
+        data_status = 'verified'
+      WHERE code = 'IN'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht auf dem zentralen CPCB-EPR-Portal für "PIBOs" (Producers, Importers, Brand Owners) von Kunststoffverpackungen – Voraussetzung für Inverkehrbringen und jährliche Meldung.',
+        'Jährliche Recyclingquoten nach Kategorie: starre (I) und kompostierbare (IV) Verpackungen 60 % (2025/26) steigend auf 70 % (2026/27); flexible (II) und mehrschichtige (III) Verpackungen 40 % steigend auf 50 %.',
+        'Die PWM-Änderungsverordnung vom 31.03.2026 hat Zertifikate, Audits und den Umgang mit Zielverfehlungen neu geregelt.',
+        'Nichteinhaltung kann zu Umweltausgleichszahlungen (bis 1 Lakh INR pro Tag) sowie zur Blockade der Zollabfertigung für Importeure führen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Noch kein verpflichtendes nationales System – Entwurf des "Sustainable Packaging Act" in Konsultation, verbindliche EPR laut Fahrplan erst ab ca. 2027 erwartet',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'TH'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026 gibt es in Thailand keine gesetzliche Pflicht zur erweiterten Herstellerverantwortung für Verpackungen.',
+        'Das Pollution Control Department hat im März 2024 einen Entwurf des "Sustainable Packaging Act" zur öffentlichen Konsultation gestellt; laut Non-Plastic-Waste-Management-Fahrplan (Phase II, 2023–2027) wird die Verabschiedung für ca. 2026, die verbindliche Umsetzung ab 2027 erwartet.',
+        'TIPMSE (Thailand Institute of Packaging and Recycling Management) betreibt seit Januar 2024 ein freiwilliges EPR-Pilotprojekt mit 10 Kommunen in der Provinz Chonburi.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Úrvinnslusjóður (isländischer Recyclingfonds) – Erhebung der Recyclinggebühr (úrvinnslugjald) über die Steuerbehörde (Skatturinn) beim Import',
+        registration_url = 'https://www.urvinnslusjodur.is/framleidendaabyrgd',
+        requirements_json = ?,
+        eco_fee = 'Úrvinnslugjald (Recyclinggebühr), material- und mengenabhängig, erhoben über den Zoll/Importeur.',
+        data_status = 'needs_verification'
+      WHERE code = 'IS'
+    `).run(
+      JSON.stringify([
+        'Island ist EWR-Mitglied (nicht EU) – die Herstellerverantwortung für Verpackungen basiert auf dem bestehenden Gesetz Nr. 162/2002 über die Recyclinggebühr, nicht auf einem eigenständigen PPWR-Produzentenregister.',
+        'Die Recyclinggebühr wird beim Zoll vom isländischen Importeur erhoben; ein ausländischer Verkäufer ohne eigene Niederlassung in Island erfüllt seine Pflicht in der Praxis über diesen Importeur.',
+        'Wer selbst gebührenpflichtig wird, muss sich spätestens 15 Tage vor Aufnahme der Tätigkeit bei der Steuerbehörde (Skatturinn) registrieren.',
+        'Ob und wie die EU-PPWR-Fristen (12.08.2026) für Island übernommen werden, war Stand 08/2026 noch nicht abschließend bestätigt.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Amt für Umwelt (Office of Environment), Liechtensteinische Landesverwaltung – kein eigenständiges Verpackungsregister bekannt; enge Zoll- und Wirtschaftsunion mit der Schweiz',
+        registration_url = 'https://www.llv.li/en/national-administration/office-of-environment',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'LI'
+    `).run(
+      JSON.stringify([
+        'Liechtenstein ist EWR-Mitglied, gleichzeitig aber über den Zollvertrag von 1923 wirtschaftlich eng mit der Schweiz verbunden, die selbst kein gesetzliches Pflichtsystem für Verpackungen kennt.',
+        'Stand 08/2026 konnte keine eigenständige, bestätigte Verpackungs-Registrierungspflicht oder -stelle für Liechtenstein identifiziert werden; einige Compliance-Quellen zählen Liechtenstein pauschal zu den EWR-Staaten, für die die PPWR ab 12.08.2026 gilt – das ist jedoch unbestätigt und steht im Widerspruch zur engen Anlehnung an das Schweizer System.',
+        'Bis zur Klärung wird empfohlen, die Entwicklung über das Amt für Umwelt zu beobachten, bevor von einer Registrierungspflicht ausgegangen wird.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
         register_body = 'Nationales Produzentenregister (noch im Aufbau – EU-weiter Durchführungsrechtsakt für das Registrierungsformat war Stand 08/2026 noch in öffentlicher Konsultation)',
         requirements_json = ?,
         data_status = 'needs_verification'
