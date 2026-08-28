@@ -53,19 +53,36 @@ router.post('/manual', (req, res) => {
 
 // ============================================================
 // BESTELLUNGEN ABFRAGEN
+//
+// Vereint manuell angelegte Bestellungen (orders) und über Shopify
+// synchronisierte Bestellungen (shopify_orders) in einer Liste - beide
+// füllen denselben "Bestellungen"-Bereich im Dashboard, waren vorher aber
+// versehentlich getrennt (das Dashboard fragte nur /api/shopify/orders ab,
+// wodurch manuell angelegte Bestellungen nie im Dashboard erschienen).
 // ============================================================
 router.get('/', (req, res) => {
     try {
         const userId = req.customer.sub;
 
+        // "id" ist pro Tabelle nur eigenständig eindeutig (beide sind
+        // unabhängige AUTOINCREMENT-Spalten) - "source" macht das Paar
+        // (source, id) über beide Tabellen hinweg eindeutig identifizierbar.
         const orders = db.prepare(`
-            SELECT * FROM orders 
-            WHERE user_id = ? 
+            SELECT 'manual' AS source, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            FROM orders
+            WHERE user_id = ?
+
+            UNION ALL
+
+            SELECT 'shopify' AS source, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            FROM shopify_orders
+            WHERE customer_id = ?
+
             ORDER BY created_at DESC
-        `).all(userId);
-        
+        `).all(userId, userId);
+
         res.json(orders);
-        
+
     } catch (error) {
         console.error('❌ Orders Fehler:', error);
         res.status(500).json({ error: 'Bestellungen konnten nicht geladen werden' });
