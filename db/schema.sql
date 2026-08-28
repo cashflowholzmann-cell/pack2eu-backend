@@ -74,6 +74,13 @@ CREATE TABLE IF NOT EXISTS countries (
 
   registration_url TEXT,
 
+  representative_provider_name TEXT,
+
+  representative_provider_url TEXT,
+
+  representative_data_status TEXT NOT NULL
+    DEFAULT 'needs_verification',
+
   flag TEXT DEFAULT '🌍',
 
   data_status TEXT NOT NULL

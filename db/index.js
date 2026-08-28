@@ -340,6 +340,24 @@ function init() {
       "TEXT NOT NULL DEFAULT 'needs_verification'"
     );
 
+    addColumnIfMissing(
+      'countries',
+      'representative_provider_name',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'countries',
+      'representative_provider_url',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'countries',
+      'representative_data_status',
+      "TEXT NOT NULL DEFAULT 'needs_verification'"
+    );
+
 
     // ========================================================
     // 4. ALLE LÄNDER SICHERSTELLEN
@@ -434,28 +452,127 @@ function init() {
       UPDATE countries
       SET
         register_body = 'LUCID / ZSVR',
-        registration_url =
-          'https://lucid.verpackungsregister.org'
+        registration_url = 'https://lucid.verpackungsregister.org',
+        requirements_json = ?,
+        labeling_json = ?,
+        eco_fee = 'Lizenzentgelt je nach Material/Gewicht beim gewählten dualen System (Systembeteiligung); die Registrierung bei LUCID selbst ist kostenlos.',
+        representative_provider_name = 'REP-Germany',
+        representative_provider_url = 'https://rep-germany.de/bestellen/',
+        representative_data_status = 'verified',
+        data_status = 'verified'
       WHERE code = 'DE'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht im Verpackungsregister LUCID für jedes Unternehmen, das verpackte Ware erstmals in Deutschland in Verkehr bringt – unabhängig von Menge oder Unternehmensgröße.',
+        'Systembeteiligung (Lizenzierung) bei einem dualen System für alle mit Ware befüllten Verkaufsverpackungen.',
+        'Bevollmächtigter in Deutschland zwingend erforderlich für Unternehmen ohne Sitz in Deutschland, seit 12.08.2026 (VerpackDG/PPWR).'
+      ]),
+      JSON.stringify([
+        'Herstellerkennzeichnung (Name, Postanschrift) auf der Verpackung.',
+        'Kennzeichnungspflichten zur Recyclingfähigkeit gemäß PPWR (stufenweise Einführung).'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
         register_body = 'ADEME / SYDEREP',
-        registration_url =
-          'https://syderep.ademe.fr/'
+        registration_url = 'https://syderep.ademe.fr/',
+        requirements_json = ?,
+        labeling_json = ?,
+        eco_fee = 'Éco-contribution an das gewählte Eco-organisme, gestaffelt nach Material, Gewicht und Recyclingfähigkeit.',
+        representative_provider_name = 'EPR Representative (France)',
+        representative_provider_url = 'https://eprrepresentative.com/fr/mandataire-rep-france',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
       WHERE code = 'FR'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Mandataire (Bevollmächtigter) in Frankreich zwingend seit 10.07.2026 für Unternehmen ohne Sitz in Frankreich.',
+        'Mitgliedschaft bei einem Eco-organisme und jährliche Meldung der Verpackungsmengen über SYDEREP/ADEME.',
+        'Eindeutige REP-Kennung (identifiant unique) erforderlich.'
+      ]),
+      JSON.stringify([
+        'Triman-Logo und Sortieranweisung (Info-tri) auf Verkaufsverpackungen vorgeschrieben.'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'EDM-Portal / ARA'
+        register_body = 'EDM-Portal / ARA',
+        registration_url = 'https://edm.gv.at/edm_portal/cms.do?get=%2Fportal%2Finformationen%2Fanwendungenthemen%2Fverpackung.main',
+        requirements_json = ?,
+        eco_fee = 'Lizenzentgelt beim gewählten Sammel-/Verwertungssystem (z. B. ARA), abhängig von Material und Menge.',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
       WHERE code = 'AT'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Einmalige Registrierung im elektronischen Verpackungsregister (EDM), z. B. über das Unternehmensserviceportal (USP).',
+        'Systembeteiligung/Lizenzierung über ein genehmigtes Sammel- und Verwertungssystem wie ARA.',
+        'Bevollmächtigter in Österreich bereits vor PPWR für ausländische Erstinverkehrbringer verpflichtend.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'CONAI (Übergang – nationales PPWR-Produzentenregister RENAP für Verpackungen noch nicht vollständig aktiv)',
+        registration_url = 'https://www.conai.org',
+        requirements_json = ?,
+        eco_fee = 'CONAI-Umweltbeitrag (Contributo Ambientale CONAI, CAC), materialabhängig gestaffelt.',
+        data_status = 'needs_verification'
+      WHERE code = 'IT'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026: Die EPR-Pflichten für Verpackungen laufen weiterhin über CONAI; ein eigenständiges PPWR-Produzentenregister (RENAP) ist für Verpackungen noch nicht vollständig in Betrieb.',
+        'Paralleler Weiterbetrieb von CONAI und PPWR-System voraussichtlich bis 11.08.2028 vorgesehen.',
+        'Nationale Durchführungsbestimmungen zu Registrierung und Bevollmächtigten werden im Laufe 2026 erwartet – noch nicht final.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Registro de Productores de Envases (RPE) / MITECO',
+        registration_url = 'https://www.miteco.gob.es/es/calidad-y-evaluacion-ambiental/temas/prevencion-y-gestion-residuos/prevencion-y-gestion-residuos/registro-productores-producto-seccion-envases.html',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an das gewählte SCRAP (z. B. Ecoembes), material- und mengenabhängig.',
+        representative_provider_name = 'Heura',
+        representative_provider_url = 'https://heura.net/representante-autorizado-en-espana-ppwr/',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
+      WHERE code = 'ES'
+    `).run(
+      JSON.stringify([
+        'Zweistufige Registrierung: Eintragung im RPE (MITECO) und Beitritt zu einem SCRAP (Sistema Colectivo, z. B. Ecoembes).',
+        'Jährliche Meldung der Verpackungsmengen bis 31. März.',
+        'Bevollmächtigter in Spanien bereits seit 1.1.2023 für Unternehmen ohne Sitz in Spanien verpflichtend.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Verpact (Übergang – eigenständiges nationales Produzentenregister erst für 2027/2028 vorgesehen)',
+        registration_url = 'https://www.verpact.nl',
+        requirements_json = ?,
+        eco_fee = 'Afvalbeheersbijdrage an Verpact, material- und mengenabhängig.',
+        data_status = 'needs_verification'
+      WHERE code = 'NL'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht bei Verpact derzeit ab 50.000 kg Verpackung/Jahr; diese Schwelle könnte künftig gesenkt werden.',
+        'Ein eigenständiges nationales Produzentenregister ist erst für 2027/2028 vorgesehen.',
+        'Stand 08/2026 war noch offen, wie die Bevollmächtigten-Pflicht für EU-Händler in den Niederlanden konkret ausgestaltet wird.'
+      ])
+    );
 
 
     db.prepare(`
