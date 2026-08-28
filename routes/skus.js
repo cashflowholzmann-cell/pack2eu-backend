@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
 // ============================================================
 router.post('/', (req, res) => {
   try {
-    const { sku_name, shopify_product_id, materials } = req.body;
+    const { sku_name, shopify_product_id, destination, materials } = req.body;
     const customer_id = req.customer.sub;
 
     if (!sku_name || !materials || materials.length === 0) {
@@ -38,10 +38,10 @@ router.post('/', (req, res) => {
     const materials_json = JSON.stringify(materials);
 
     const result = db.prepare(`
-      INSERT INTO product_packaging 
-      (customer_id, sku_name, shopify_product_id, materials_json, total_weight_grams)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(customer_id, sku_name, shopify_product_id || null, materials_json, total_weight);
+      INSERT INTO product_packaging
+      (customer_id, sku_name, shopify_product_id, destination, materials_json, total_weight_grams)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(customer_id, sku_name, shopify_product_id || null, destination || null, materials_json, total_weight);
 
     const newSku = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(newSku);
@@ -57,7 +57,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { sku_name, shopify_product_id, materials } = req.body;
+    const { sku_name, shopify_product_id, destination, materials } = req.body;
     const customer_id = req.customer.sub;
 
     // Prüfen, ob SKU existiert und dem Kunden gehört
@@ -71,10 +71,10 @@ router.put('/:id', (req, res) => {
     const materials_json = JSON.stringify(materials);
 
     db.prepare(`
-      UPDATE product_packaging 
-      SET sku_name = ?, shopify_product_id = ?, materials_json = ?, total_weight_grams = ?, updated_at = datetime('now')
+      UPDATE product_packaging
+      SET sku_name = ?, shopify_product_id = ?, destination = ?, materials_json = ?, total_weight_grams = ?, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
-    `).run(sku_name, shopify_product_id || null, materials_json, total_weight, id, customer_id);
+    `).run(sku_name, shopify_product_id || null, destination || null, materials_json, total_weight, id, customer_id);
 
     const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
     res.json(updated);
