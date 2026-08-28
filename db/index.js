@@ -578,17 +578,109 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Register / EPR-System'
+        register_body = 'EPRiBEL / Fost Plus',
+        registration_url = 'https://www.fostplus.be',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an Fost Plus (Haushaltsverpackungen) bzw. Valipac (Transport-/B2B-Verpackungen), material- und mengenabhängig.',
+        data_status = 'needs_verification'
       WHERE code = 'BE'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Registrierung im nationalen Produzentenregister über EPRiBEL Pflicht für alle Unternehmen, die Verpackungen auf dem belgischen Markt in Verkehr bringen.',
+        'Mitglieder von Fost Plus (Haushaltsverpackungen) bzw. Valipac (Transport-/B2B-Verpackungen) lassen die Registrierung meist kollektiv über ihre PRO abwickeln.',
+        'Ausländische Unternehmen ohne Sitz in Belgien benötigen seit 12.08.2026 einen bei EPRiBEL registrierten Bevollmächtigten (Vertegenwoordiger voor EPR) in Belgien.'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Register / EPR-System'
+        register_body = 'BDO (Baza Danych o Odpadach)',
+        registration_url = 'https://bdo.mos.gov.pl',
+        requirements_json = ?,
+        eco_fee = 'Recyclingbeitrag über das gewählte Rückgewinnungssystem, material- und mengenabhängig.',
+        data_status = 'verified'
       WHERE code = 'PL'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht in der BDO-Datenbank (Baza Danych o Odpadach) für jedes Unternehmen, das Verpackungen auf dem polnischen Markt in Verkehr bringt – auch ausländische Fernabsatzhändler.',
+        'Jährliche Verpackungsmeldung sowie Einstufung der Recyclingfähigkeit (Klassen A–E) erforderlich.',
+        'Bevollmächtigter mit Sitz in Polen (oder einem anderen EU-Land) für Unternehmen ohne Sitz in Polen erforderlich.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Naturvårdsverket + Producentansvarsorganisation (NPA / TMR)',
+        registration_url = 'https://www.naturvardsverket.se/vagledning-och-stod/producentansvar/eu-forordningen-om-forpackningar-ppwr/',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an die gewählte Producentansvarsorganisation (NPA oder TMR), material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'SE'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung bei der schwedischen Umweltbehörde Naturvårdsverket erforderlich.',
+        'Anschluss an eine anerkannte Produzentenverantwortungsorganisation, z. B. Näringslivets Producentansvar (NPA) oder Tailor-Made Responsibility (TMR).',
+        'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Dansk Producentansvar (DPA)',
+        registration_url = 'https://producentansvar.dk',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an Dansk Producentansvar (DPA), material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'DK'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht im nationalen Produzentenregister bei Dansk Producentansvar (DPA) für alle Unternehmen, die Verpackungen in Dänemark in Verkehr bringen.',
+        'Meldung der erwarteten Verpackungsmengen und -arten sowie Finanzierung der Abfallbewirtschaftung.',
+        'Erweiterte Herstellerverantwortung für Verpackungen gilt in Dänemark bereits seit 1.10.2025, ergänzt durch die PPWR-Vorgaben ab 12.08.2026.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Repak',
+        registration_url = 'https://www.repak.ie',
+        requirements_json = ?,
+        eco_fee = 'Lizenzentgelt an Repak, material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'IE'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Systembeteiligung bei Repak, der einzigen staatlich anerkannten Produzentenverantwortungsorganisation für Verpackungen in Irland.',
+        'Für ausländische Unternehmen ohne Sitz in Irland ist seit 12.08.2026 ein Bevollmächtigter zwingend – die Schwelle dafür liegt bei Fernabsatzhändlern faktisch bei null.',
+        'PRL (Producer Register Limited) ist NICHT für Verpackungen zuständig, sondern für Elektrogeräte/Batterien/Reifen – für Verpackungen ist Repak die richtige Stelle.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Sociedade Ponto Verde (SPV) / SILiAmb (Übergang – eigenständiges nationales Produzentenregister erst für Ende 2027/Anfang 2028 geplant)',
+        registration_url = 'https://www.pontoverde.pt/clientes-embaladores/adira-ao-sistema-ponto-verde/',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an die Sociedade Ponto Verde (SPV), material- und mengenabhängig.',
+        data_status = 'needs_verification'
+      WHERE code = 'PT'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026: Meldung und Registrierung laufen über die bestehende Sociedade Ponto Verde (SPV) und die SILiAmb-Plattform der portugiesischen Umweltagentur (APA).',
+        'Ein eigenständiges nationales PPWR-Produzentenregister ist erst für Ende 2027/Anfang 2028 vorgesehen.',
+        'Meldung der in Verkehr gebrachten Verpackungsmengen erforderlich.'
+      ])
+    );
 
 
     db.prepare(`
