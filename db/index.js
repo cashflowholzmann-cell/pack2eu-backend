@@ -686,9 +686,114 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Register / EPR-System'
+        register_body = 'Kein einheitliches gesetzliches Pflichtsystem – freiwillige Branchenlösungen (z. B. PET-Recycling Schweiz, Swiss Recycle/VetroSwiss für Glas)',
+        requirements_json = ?,
+        eco_fee = 'Keine gesetzliche Öko-Gebühr; ggf. freiwillige Beiträge an Branchenlösungen.',
+        data_status = 'verified'
       WHERE code = 'CH'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Die EU-Verpackungsverordnung (PPWR) gilt nicht direkt in der Schweiz – Stand 08/2026 gibt es keine gesetzliche Pflicht zur erweiterten Herstellerverantwortung für Verpackungen.',
+        'Stattdessen bestehen freiwillige Rücknahme- und Recyclingsysteme je Branche/Material (z. B. PET-Recycling Schweiz, Glas über VetroSwiss/Swiss Recycle).',
+        'Schweizer Unternehmen, die in die EU liefern oder direkt an EU-Kunden verkaufen, müssen für diese Lieferungen dennoch die EU-PPWR-Pflichten (inkl. Bevollmächtigter im jeweiligen EU-Zielland) erfüllen – das betrifft das EU-Zielland, nicht die Schweiz selbst.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kein Bundesgesetz – bislang 7 Bundesstaaten mit eigenen EPR-Gesetzen (CA, CO, ME, MD, MN, OR, WA); Circular Action Alliance (CAA) ist die designierte PRO in CA, CO, MD, OR, WA',
+        registration_url = 'https://circularactionalliance.org',
+        requirements_json = ?,
+        eco_fee = 'Gebühren variieren je Bundesstaat und PRO (z. B. CAA), ab 2027 zunehmend ökomoduliert.',
+        data_status = 'verified'
+      WHERE code = 'US'
+    `).run(
+      JSON.stringify([
+        'Verpackungs-EPR ist in den USA Sache der Bundesstaaten, nicht bundesweit einheitlich geregelt – Pflichten hängen davon ab, in welche(n) Bundesstaat(en) geliefert wird.',
+        'Oregon: Programm seit 1.7.2025 aktiv, Registrierung bei der PRO sowie jährliche Meldung von Mengen und Materialarten erforderlich.',
+        'Kalifornien: Registrierung bei CAA oder CalRecycle bis 1.6.2026 Pflicht; Gebührenpflicht ab 2027 vorgesehen.',
+        'Weitere Bundesstaaten (Colorado, Maine, Maryland, Minnesota, Washington) folgen mit eigenen Zeitplänen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'PackUK (Scheme Administrator) – Registrierung über den Report-Packaging-Data-Dienst der zuständigen Umweltbehörde (Environment Agency / SEPA / NRW / NIEA)',
+        requirements_json = ?,
+        eco_fee = 'pEPR-Gebühr an PackUK; Basisgebühr in der Einführungsphase 2025/26, ab 2026/27 nach Recyclingfähigkeit ökomoduliert gestaffelt.',
+        data_status = 'needs_verification'
+      WHERE code = 'GB'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht für Unternehmen mit Jahresumsatz über 1 Mio. £ und mehr als 25 Tonnen Verpackung pro Jahr im UK-Markt.',
+        '„Produzent" im Sinne von pEPR ist, wer verpackte Ware erstmals im UK-Markt bereitstellt – das schließt Importeure, Markeninhaber, Fernabsatzhändler und Marktplatzbetreiber ein.',
+        'Jährliche Registrierung/Meldung bis 1. April über den Report-Packaging-Data-Dienst bei der zuständigen Umweltbehörde (Environment Agency England, SEPA Schottland, NRW Wales oder NIEA Nordirland).',
+        'Basisgebühren gelten ab 2025/26; ab 2026/27 ökomodulierte Gebühren (z. B. 1,2-facher Satz für schwer recycelbare Verpackungen).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Keine Bundesregelung – provinzweise eigene EPR-Programme (u. a. Ontario, British Columbia); Circular Materials ist ein wichtiger überregionaler PRO-Anbieter',
+        registration_url = 'https://circularmaterials.ca',
+        requirements_json = ?,
+        eco_fee = 'Gebühren variieren je Provinz und PRO.',
+        data_status = 'needs_verification'
+      WHERE code = 'CA'
+    `).run(
+      JSON.stringify([
+        'Verpackungs-EPR ist in Kanada Provinzsache – Pflichten hängen davon ab, in welche Provinz(en) geliefert wird.',
+        'British Columbia: eines der am längsten laufenden Programme (Recycle BC), administriert über Circular Materials; gilt auch für Erstimporteure und E-Commerce-Verkäufer.',
+        'Ontario: seit 1.1.2026 vollständig produzentenfinanziert, mit erstmals landesweit standardisierter Materialliste.',
+        'Jährliche Meldefrist in den meisten Provinzen: 31. Mai.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Australian Packaging Covenant Organisation (APCO) – Stand 08/2026 überwiegend freiwillig, verbindliches Gesetz („No Time to Waste") noch nicht in Kraft',
+        registration_url = 'https://www.apco.org.au',
+        requirements_json = ?,
+        eco_fee = 'Aktuell freiwillige APCO-Mitgliedsbeiträge; ökomodulierte Pflichtgebühren ab Finanzjahr 2026/27 in Planung.',
+        data_status = 'verified'
+      WHERE code = 'AU'
+    `).run(
+      JSON.stringify([
+        'APCO-Mitgliedschaft ist Stand 08/2026 weiterhin überwiegend freiwillig; ein Gesetzentwurf für ein verbindliches, nationales EPR-System befand sich im Mai 2026 noch im Ausschuss des australischen Senats.',
+        'Verbindliche Pflichten und ökomodulierte Gebühren werden laut Übergangsplan erst für das Finanzjahr 2027 erwartet, mit Fokus auf Unternehmen ab 5 Mio. AUD Jahresumsatz.',
+        'Bis zur verbindlichen Regelung empfiehlt sich freiwillige APCO-Mitgliedschaft zur Vorbereitung.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Grønt Punkt Norge (größte zugelassene PRO)',
+        registration_url = 'https://www.grontpunkt.no',
+        requirements_json = ?,
+        eco_fee = 'Mitgliedsbeitrag an die gewählte PRO (z. B. Grønt Punkt Norge), material- und mengenabhängig.',
+        representative_provider_name = 'Lizenzero',
+        representative_provider_url = 'https://lizenzero.com/en/authorised-representative',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
+      WHERE code = 'NO'
+    `).run(
+      JSON.stringify([
+        'Die EU-Verpackungsverordnung (PPWR) gilt in Norwegen erst nach Übernahme in das EWR-Abkommen – die norwegische Umweltbehörde hat bestätigt, dass der Termin 12.08.2026 dafür nicht eingehalten wird.',
+        'Bis dahin gilt das bestehende norwegische System: Pflicht zur Mitgliedschaft in einer zugelassenen Produzentenverantwortungsorganisation (PRO), z. B. Grønt Punkt Norge.',
+        'Seit 1.7.2025 gibt es keine Bagatellgrenze mehr (vorher 1.000 kg je Material/Jahr) – jede Menge Verpackung auf dem norwegischen Markt löst die Pflicht aus.',
+        'Nur Unternehmen mit norwegischer Organisationsnummer können sich direkt registrieren; ausländische Unternehmen benötigen einen Bevollmächtigten in Norwegen.'
+      ])
+    );
 
 
     db.prepare(`
