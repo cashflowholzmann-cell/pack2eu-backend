@@ -691,6 +691,98 @@ function init() {
     `).run();
 
 
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (noch im Aufbau – EU-weiter Durchführungsrechtsakt für das Registrierungsformat war Stand 08/2026 noch in öffentlicher Konsultation)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'GR'
+    `).run(
+      JSON.stringify([
+        'Jährliche Meldung der Verpackungsmengen an das zuständige nationale Register bis zum 1. Juni des Folgejahres vorgesehen.',
+        'Der EU-weite Durchführungsrechtsakt, der das einheitliche Format für Produzentenregister und Meldungen festlegt, befand sich Stand 08/2026 noch in öffentlicher Konsultation (6.8.–10.9.2026).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Bestehendes tschechisches EPR-System (PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht mit konkreter Stelle bestätigt)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'CZ'
+    `).run(
+      JSON.stringify([
+        'PPWR-Pflichten gelten zusätzlich zu den bestehenden tschechischen EPR-Registrierungspflichten – keine Ablösung, sondern Kumulierung.',
+        'Ausländische Online-Händler und Plattformen gelten künftig in vielen Fällen selbst als Verpackungs-Inverkehrbringer.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Bestehendes slowakisches EPR-System (u. a. NATUR-PACK); PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht abschließend bestätigt',
+        registration_url = 'https://www.naturpack.sk',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'SK'
+    `).run(
+      JSON.stringify([
+        'Registrierung bei den zuständigen nationalen Behörden für jedes Unternehmen, das Verpackungen in der Slowakei erstmals in Verkehr bringt.',
+        'Technische Dokumentation je Verpackungseinheit erforderlich (Materialzusammensetzung, Konformitätsbewertung, verantwortliche Person).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Durchführungsrechtsakt der EU-Kommission laut Zeitplan bis 12.02.2026 vorgesehen; konkrete ungarische Stelle Stand 08/2026 nicht abschließend bestätigt)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'HU'
+    `).run(
+      JSON.stringify([
+        'Gyártói nyilvántartásba vétel (Produzentenregistrierung) ist seit 12.08.2026 Pflicht für Unternehmen, die Verpackungen in Ungarn in Verkehr bringen.',
+        'Konformitätsbewertung und Dokumentation der Verpackung erforderlich.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Stand 08/2026 laut Fachpresse noch nicht vollständig aufgebaut)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'RO'
+    `).run(
+      JSON.stringify([
+        'Ohne Registrierung im nationalen Produzentenregister dürfen Verpackungen ab 12.08.2026 nicht mehr in Verkehr gebracht werden; Vertreiber und Online-Plattformen müssen den Produzentenstatus prüfen.',
+        'Rumänien hatte Stand 08/2026 laut Fachpresse die nationale Registerinfrastruktur noch nicht vollständig aufgebaut.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Suomen Pakkauskierrätys RINKI Oy (Rinki)',
+        registration_url = 'https://rinkiin.fi',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'FI'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung der Verpackungsmengen erfolgt in Finnland meist über Rinki (Suomen Pakkauskierrätys RINKI Oy).',
+        'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.'
+      ])
+    );
+
+
     // ========================================================
     // 6. JURISDIKTIONEN
     // ========================================================
