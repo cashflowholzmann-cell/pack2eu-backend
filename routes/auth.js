@@ -9,6 +9,12 @@ const {
   requireAuth
 } = require('../middleware/auth');
 
+const {
+  getPlanLimits,
+  getRepEntitlementCount,
+  REP_ENTITLEMENT_COUNTRIES
+} = require('../config/plans');
+
 const router =
   express.Router();
 
@@ -387,7 +393,9 @@ router.get(
             email,
             plan,
             niche,
-            onboarding_completed_at
+            onboarding_completed_at,
+            billing_interval,
+            rep_entitlement_choices_json
           FROM customers
           WHERE id = ?
         `).get(
@@ -404,12 +412,34 @@ router.get(
       }
 
 
+      const repEntitlementCount =
+        getRepEntitlementCount(
+          customer.plan,
+          customer.billing_interval
+        );
+
+      const repEntitlementChoices =
+        customer.rep_entitlement_choices_json ?
+          JSON.parse(customer.rep_entitlement_choices_json) :
+          [];
+
+      const { rep_entitlement_choices_json, ...customerRest } = customer;
+
       return res.json({
 
-        ...customer,
+        ...customerRest,
 
         is_eu:
-          customer.is_eu === 1
+          customer.is_eu === 1,
+
+        plan_limits:
+          getPlanLimits(customer.plan),
+
+        rep_entitlement: {
+          count: repEntitlementCount,
+          countries: REP_ENTITLEMENT_COUNTRIES,
+          choices: repEntitlementChoices
+        }
 
       });
 
@@ -505,6 +535,107 @@ router.post(
       return res.status(500).json({
         error:
           'Onboarding konnte nicht gespeichert werden.'
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// BEVOLLMÄCHTIGTEN-BONUS: LÄNDERWAHL SPEICHERN
+//
+// Speichert, für welche(s) der beiden Bonus-Länder (DE/ES) der Kunde
+// den im Plan enthaltenen kostenlosen Bevollmächtigten in Anspruch
+// nehmen möchte. Löst selbst noch keine Beauftragung/Zahlung aus - das
+// ist Stand jetzt ein manueller Vorgang unseres Teams anhand dieser
+// gespeicherten Auswahl (siehe Kommentar in schema.sql).
+//
+// POST /api/auth/rep-entitlement
+// Body: { countries: ["DE"] | ["DE","ES"] | [] }
+// ============================================================
+
+const repEntitlementSchema = z.object({
+  countries: z.array(z.enum(REP_ENTITLEMENT_COUNTRIES)).max(REP_ENTITLEMENT_COUNTRIES.length)
+});
+
+router.post(
+  '/rep-entitlement',
+  requireAuth,
+  (req, res) => {
+
+    try {
+
+      const parsed =
+        repEntitlementSchema.safeParse(
+          req.body || {}
+        );
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error:
+            'Ungültige Länderauswahl.'
+        });
+      }
+
+      const customer =
+        db.prepare(`
+          SELECT plan, billing_interval
+          FROM customers
+          WHERE id = ?
+        `).get(
+          req.auth.userId
+        );
+
+      if (!customer) {
+        return res.status(404).json({
+          error:
+            'Kunde nicht gefunden.'
+        });
+      }
+
+      const entitlementCount =
+        getRepEntitlementCount(
+          customer.plan,
+          customer.billing_interval
+        );
+
+      // Eindeutige Länder, keine Duplikate.
+      const countries =
+        Array.from(
+          new Set(parsed.data.countries)
+        );
+
+      if (countries.length > entitlementCount) {
+        return res.status(403).json({
+          error:
+            `Ihr Plan/Ihre Zahlweise erlaubt aktuell ${entitlementCount} kostenlose(n) Bevollmächtigte(n).`
+        });
+      }
+
+      db.prepare(`
+        UPDATE customers
+        SET rep_entitlement_choices_json = ?
+        WHERE id = ?
+      `).run(
+        JSON.stringify(countries),
+        req.auth.userId
+      );
+
+      return res.json({
+        success: true,
+        countries
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ Bevollmächtigten-Bonus-Fehler:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Auswahl konnte nicht gespeichert werden.'
       });
     }
   }

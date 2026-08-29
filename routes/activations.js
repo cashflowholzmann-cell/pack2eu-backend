@@ -13,6 +13,8 @@ const {
   isVerifiedDecision
 } = require('../compliance-engine');
 
+const { getPlanLimits } = require('../config/plans');
+
 
 const router =
   express.Router();
@@ -606,12 +608,11 @@ router.post(
 
 
       const maxCountries =
-        customer.plan === 'S'
-          ? 2
-          : 27;
+        getPlanLimits(customer.plan).maxCountries;
 
 
       if (
+        maxCountries !== null &&
         activationCount >=
         maxCountries
       ) {

@@ -43,7 +43,20 @@ CREATE TABLE IF NOT EXISTS customers (
 
   -- Zeitpunkt, zu dem der Kunde das Erst-Onboarding abgeschlossen oder
   -- übersprungen hat. NULL = Onboarding beim nächsten Login noch anzeigen.
-  onboarding_completed_at TEXT
+  onboarding_completed_at TEXT,
+
+  -- 'monthly' | 'annual' - aus den Stripe-Checkout-Metadaten übernommen.
+  -- Steuert zusammen mit "plan" den Bevollmächtigten-Bonus, siehe
+  -- config/plans.js (getRepEntitlementCount).
+  billing_interval TEXT,
+
+  -- Vom Kunden gewählte Länder für den kostenlosen Bevollmächtigten-Bonus
+  -- (Teilmenge von REP_ENTITLEMENT_COUNTRIES = ['DE','ES']), z. B. '["DE"]'.
+  -- Die eigentliche Beauftragung/Bezahlung bei REP-Germany bzw. Heura ist
+  -- Stand jetzt ein manueller Vorgang unseres Teams, kein automatisierter
+  -- Zahlungsfluss - die tatsächlichen Anbieterkosten sind noch nicht
+  -- verifiziert.
+  rep_entitlement_choices_json TEXT
 );
 
 
