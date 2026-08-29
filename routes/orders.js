@@ -52,6 +52,57 @@ router.post('/manual', (req, res) => {
 });
 
 // ============================================================
+// MANUELLE BESTELLUNG KORRIGIEREN
+//
+// Nur für selbst angelegte Bestellungen (orders-Tabelle) - über Shopify
+// synchronisierte Bestellungen (shopify_orders) werden hier absichtlich
+// nicht angefasst, die kommen extern und müssten in Shopify selbst
+// korrigiert werden.
+// ============================================================
+router.put('/manual/:id', (req, res) => {
+    try {
+        const userId = req.customer.sub;
+        const { id } = req.params;
+        const { order_id, destination_country, total_weight_grams, packaging_data, created_at } = req.body;
+
+        const existing = db.prepare('SELECT id FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'Bestellung nicht gefunden.' });
+        }
+
+        db.prepare(`
+            UPDATE orders
+            SET shopify_order_id = ?,
+                destination_country = ?,
+                total_weight_grams = ?,
+                packaging_data = ?,
+                created_at = ?
+            WHERE id = ? AND user_id = ?
+        `).run(
+            order_id || 'MANUAL-' + Date.now(),
+            destination_country,
+            total_weight_grams || 0,
+            JSON.stringify(packaging_data || []),
+            created_at || new Date().toISOString(),
+            id,
+            userId
+        );
+
+        res.json({
+            success: true,
+            message: 'Bestellung erfolgreich aktualisiert'
+        });
+
+    } catch (error) {
+        console.error('❌ Bestellung bearbeiten Fehler:', error);
+        res.status(500).json({
+            error: 'Bestellung konnte nicht aktualisiert werden',
+            details: error.message
+        });
+    }
+});
+
+// ============================================================
 // BESTELLUNGEN ABFRAGEN
 //
 // Vereint manuell angelegte Bestellungen (orders) und über Shopify
