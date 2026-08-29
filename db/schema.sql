@@ -35,7 +35,15 @@ CREATE TABLE IF NOT EXISTS customers (
     DEFAULT (datetime('now')),
 
   updated_at TEXT NOT NULL
-    DEFAULT (datetime('now'))
+    DEFAULT (datetime('now')),
+
+  -- Vom Kunden gewählte Branche - steuert nur die vorgeschlagenen
+  -- Produkt-Presets beim Onboarding, keine feste Kategorisierung.
+  niche TEXT,
+
+  -- Zeitpunkt, zu dem der Kunde das Erst-Onboarding abgeschlossen oder
+  -- übersprungen hat. NULL = Onboarding beim nächsten Login noch anzeigen.
+  onboarding_completed_at TEXT
 );
 
 
