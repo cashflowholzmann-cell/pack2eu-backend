@@ -368,6 +368,15 @@ function init() {
       'INTEGER NOT NULL DEFAULT 1'
     );
 
+    // Wie oft an das Register/System gemeldet werden muss:
+    // 'monthly' | 'quarterly' | 'annually' | 'needs_verification'. Bewusst
+    // konservativ befüllt - siehe Kommentar in schema.sql.
+    addColumnIfMissing(
+      'countries',
+      'reporting_frequency',
+      "TEXT NOT NULL DEFAULT 'needs_verification'"
+    );
+
 
     // ========================================================
     // 4. ALLE LÄNDER SICHERSTELLEN
@@ -469,13 +478,15 @@ function init() {
         representative_provider_name = 'REP-Germany',
         representative_provider_url = 'https://rep-germany.de/bestellen/',
         representative_data_status = 'verified',
+        reporting_frequency = 'annually',
         data_status = 'verified'
       WHERE code = 'DE'
     `).run(
       JSON.stringify([
         'Registrierungspflicht im Verpackungsregister LUCID für jedes Unternehmen, das verpackte Ware erstmals in Deutschland in Verkehr bringt – unabhängig von Menge oder Unternehmensgröße.',
         'Systembeteiligung (Lizenzierung) bei einem dualen System für alle mit Ware befüllten Verkaufsverpackungen.',
-        'Bevollmächtigter in Deutschland zwingend erforderlich für Unternehmen ohne Sitz in Deutschland, seit 12.08.2026 (VerpackDG/PPWR).'
+        'Bevollmächtigter in Deutschland zwingend erforderlich für Unternehmen ohne Sitz in Deutschland, seit 12.08.2026 (VerpackDG/PPWR).',
+        'Jährliche Datenmeldung (Mengenmeldung) bei LUCID für das Vorjahr, Frist jeweils 15. Mai.'
       ]),
       JSON.stringify([
         'Herstellerkennzeichnung (Name, Postanschrift) auf der Verpackung.',
@@ -1944,6 +1955,12 @@ function init() {
     addColumnIfMissing(
       'product_packaging',
       'destination',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'product_packaging',
+      'icon',
       'TEXT'
     );
 

@@ -203,7 +203,11 @@ function countryPayload(
     registration_generally_required:
       Number(
         country.registration_generally_required
-      ) !== 0
+      ) !== 0,
+
+    reporting_frequency:
+      country.reporting_frequency ||
+      'needs_verification'
 
   };
 }
@@ -436,6 +440,10 @@ router.get(
             country.registration_generally_required
           ) !== 0,
 
+        reporting_frequency:
+          country.reporting_frequency ||
+          'needs_verification',
+
         plan:
           customer.plan,
 
@@ -506,7 +514,8 @@ router.get(
             representative_provider_name,
             representative_provider_url,
             representative_data_status,
-            registration_generally_required
+            registration_generally_required,
+            reporting_frequency
           FROM countries
           ORDER BY name
         `).all();
@@ -582,6 +591,10 @@ router.get(
 
               representative_company:
                 activation?.representative_company ||
+                null,
+
+              representative_email:
+                activation?.representative_email ||
                 null,
 
               representative_status:
