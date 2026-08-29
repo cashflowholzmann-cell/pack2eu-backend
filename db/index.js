@@ -385,6 +385,14 @@ function init() {
       'TEXT'
     );
 
+    // Regel für den nächsten Melde-Stichtag, als JSON-Objekt - siehe
+    // Kommentar in schema.sql.
+    addColumnIfMissing(
+      'countries',
+      'next_filing_rule_json',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 4. ALLE LÄNDER SICHERSTELLEN
@@ -1275,6 +1283,47 @@ function init() {
 
     console.log(
       `✅ Öko-Gebühr-Sätze gesetzt: ${Object.keys(ecoFeeRates).length} Länder`
+    );
+
+
+    // ========================================================
+    // 5b. NÄCHSTER MELDE-STICHTAG JE LAND
+    //
+    // NUR gesetzt, wenn ein konkreter Tag/Monat recherchiert bestätigt ist -
+    // siehe Kommentar zu next_filing_rule_json in schema.sql. Länder mit
+    // bekannter reporting_frequency, aber ohne verlässlich recherchierten
+    // exakten Stichtag (z. B. die meisten "annually"-Länder), bleiben
+    // bewusst ohne Regel statt eines geratenen Datums.
+    // ========================================================
+
+    const nextFilingRules = {
+      DE: { type: 'annual', month: 5, day: 15 },
+      ES: { type: 'annual', month: 3, day: 31 },
+      CA: { type: 'annual', month: 5, day: 31 },
+      LU: { type: 'annual', month: 2, day: 28 },
+      FR: { type: 'annual', month: 2, day: 28 },
+      NL: { type: 'annual', month: 4, day: 1 },
+      BE: { type: 'annual', month: 2, day: 28 },
+      PT: { type: 'annual', month: 3, day: 31 },
+      FI: { type: 'annual', month: 1, day: 31 },
+      EE: { type: 'annual', month: 9, day: 1 },
+      CZ: { type: 'periodic', period: 'quarter', offsetDays: 30 },
+      HU: { type: 'periodic', period: 'quarter', offsetDays: 20 },
+      SK: { type: 'periodic', period: 'quarter', offsetDays: 10 },
+      RO: { type: 'periodic', period: 'month', offsetDays: 25 },
+      BG: { type: 'periodic', period: 'month', offsetDays: 15 },
+      HR: { type: 'periodic', period: 'month', offsetDays: 20 }
+    };
+
+    const updateNextFilingRule =
+      db.prepare(`UPDATE countries SET next_filing_rule_json = ? WHERE code = ?`);
+
+    for (const [code, rule] of Object.entries(nextFilingRules)) {
+      updateNextFilingRule.run(JSON.stringify(rule), code);
+    }
+
+    console.log(
+      `✅ Melde-Stichtag-Regeln gesetzt: ${Object.keys(nextFilingRules).length} Länder`
     );
 
 

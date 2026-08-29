@@ -212,6 +212,11 @@ function countryPayload(
     eco_fee_rates:
       country.eco_fee_rates_json ?
         JSON.parse(country.eco_fee_rates_json) :
+        null,
+
+    next_filing_rule:
+      country.next_filing_rule_json ?
+        JSON.parse(country.next_filing_rule_json) :
         null
 
   };
@@ -454,6 +459,11 @@ router.get(
             JSON.parse(country.eco_fee_rates_json) :
             null,
 
+        next_filing_rule:
+          country.next_filing_rule_json ?
+            JSON.parse(country.next_filing_rule_json) :
+            null,
+
         plan:
           customer.plan,
 
@@ -526,7 +536,8 @@ router.get(
             representative_data_status,
             registration_generally_required,
             reporting_frequency,
-            eco_fee_rates_json
+            eco_fee_rates_json,
+            next_filing_rule_json
           FROM countries
           ORDER BY name
         `).all();

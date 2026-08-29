@@ -107,7 +107,16 @@ CREATE TABLE IF NOT EXISTS countries (
   -- bestätigtem Satz sind enthalten - ein fehlender Schlüssel bedeutet
   -- "noch nicht recherchiert", NICHT "kostenlos". Dient nur der groben
   -- Kostenschätzung im Dashboard, keine verbindliche Preisauskunft.
-  eco_fee_rates_json TEXT
+  eco_fee_rates_json TEXT,
+
+  -- Regel zur Berechnung des nächsten Melde-Stichtags, NUR gesetzt wenn ein
+  -- konkreter Tag/Monat recherchiert bestätigt ist (nicht aus der bloßen
+  -- reporting_frequency geraten - ein falsches Datum bei einer echten
+  -- gesetzlichen Frist wäre gefährlicher als gar keine Anzeige):
+  --   {"type":"annual","month":5,"day":15} - fester Tag im Jahr
+  --   {"type":"periodic","period":"month"|"quarter","offsetDays":25} -
+  --     N Tage nach Ende des Melde-Zeitraums (Monats-/Quartalsende)
+  next_filing_rule_json TEXT
 );
 
 
