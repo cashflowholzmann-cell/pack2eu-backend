@@ -91,7 +91,16 @@ CREATE TABLE IF NOT EXISTS countries (
   -- verlangt (z. B. Schweiz, China, Thailand, Stand 08/2026) – NICHT
   -- gleichzusetzen mit "noch nicht recherchiert" (dafür gibt es data_status).
   registration_generally_required INTEGER NOT NULL
-    DEFAULT 1
+    DEFAULT 1,
+
+  -- Wie oft die Verpackungsmengen an das Register/System gemeldet werden
+  -- müssen: 'monthly' | 'quarterly' | 'annually' | 'needs_verification'.
+  -- Bewusst konservativ: nur auf einen konkreten Wert gesetzt, wenn die
+  -- Meldefrequenz für Produzenten (nicht nur die EU-weite Behörden-
+  -- Berichtspflicht) recherchiert bestätigt ist - ein falscher Wert könnte
+  -- zu einer verpassten echten Frist führen.
+  reporting_frequency TEXT NOT NULL
+    DEFAULT 'needs_verification'
 );
 
 
@@ -239,6 +248,8 @@ CREATE TABLE IF NOT EXISTS product_packaging (
     ON DELETE CASCADE,
 
   sku_name TEXT NOT NULL,
+
+  icon TEXT,
 
   shopify_product_id TEXT,
 
