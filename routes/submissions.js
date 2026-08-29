@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const { db } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireCustomer } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -42,6 +42,40 @@ router.get('/me', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM submissions WHERE customer_id = ? ORDER BY created_at DESC')
     .all(req.customer.sub);
   res.json(rows.map(r => ({ ...r, materials_json: JSON.parse(r.materials_json) })));
+});
+
+// ============================================================
+// MELDUNG BEARBEITEN (Tippfehler korrigieren)
+//
+// Nur die eigene Meldung des Händlers. Eine bereits vom Beauftragten
+// exportierte/bearbeitete Meldung geht bei einer inhaltlichen Korrektur
+// zurück auf "received" - der Beauftragte muss die geänderten Daten dann
+// erneut prüfen, statt dass ein stiller Datenstand bestehen bleibt.
+// ============================================================
+router.put('/:id', requireAuth, requireCustomer, (req, res) => {
+  const existing = db.prepare('SELECT * FROM submissions WHERE id = ? AND customer_id = ?')
+    .get(req.params.id, req.customer.sub);
+  if (!existing) return res.status(404).json({ error: 'Meldung nicht gefunden.' });
+
+  const parsed = submissionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Ungültige Eingabe.' });
+
+  const { destination, length_cm, width_cm, height_cm, materials } = parsed.data;
+  const totalWeight = materials.reduce((sum, m) => sum + m.weight_kg * m.qty, 0);
+
+  db.prepare(`
+    UPDATE submissions
+    SET destination = ?, length_cm = ?, width_cm = ?, height_cm = ?,
+        materials_json = ?, total_weight_kg = ?, status = 'received'
+    WHERE id = ? AND customer_id = ?
+  `).run(
+    destination, length_cm, width_cm, height_cm,
+    JSON.stringify(materials), totalWeight,
+    req.params.id, req.customer.sub
+  );
+
+  const updated = db.prepare('SELECT * FROM submissions WHERE id = ?').get(req.params.id);
+  res.json({ ...updated, materials_json: JSON.parse(updated.materials_json) });
 });
 
 router.get('/by-country/:countryCode', requireAuth, (req, res) => {
