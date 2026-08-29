@@ -377,6 +377,14 @@ function init() {
       "TEXT NOT NULL DEFAULT 'needs_verification'"
     );
 
+    // Grobe recherchierte Lizenzentgelt-Sätze je Material in EUR/kg, als
+    // JSON-Objekt - siehe Kommentar in schema.sql.
+    addColumnIfMissing(
+      'countries',
+      'eco_fee_rates_json',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 4. ALLE LÄNDER SICHERSTELLEN

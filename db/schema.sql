@@ -100,7 +100,14 @@ CREATE TABLE IF NOT EXISTS countries (
   -- Berichtspflicht) recherchiert bestätigt ist - ein falscher Wert könnte
   -- zu einer verpassten echten Frist führen.
   reporting_frequency TEXT NOT NULL
-    DEFAULT 'needs_verification'
+    DEFAULT 'needs_verification',
+
+  -- Grobe, recherchierte Lizenzentgelt-Sätze je Material in EUR/kg, z. B.
+  -- {"papier": 0.15, "kunststoff": 0.38}. NUR Materialien mit recherchiert
+  -- bestätigtem Satz sind enthalten - ein fehlender Schlüssel bedeutet
+  -- "noch nicht recherchiert", NICHT "kostenlos". Dient nur der groben
+  -- Kostenschätzung im Dashboard, keine verbindliche Preisauskunft.
+  eco_fee_rates_json TEXT
 );
 
 
