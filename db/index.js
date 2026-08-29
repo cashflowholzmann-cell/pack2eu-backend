@@ -1220,6 +1220,65 @@ function init() {
 
 
     // ========================================================
+    // 5a. GROBE ÖKO-GEBÜHR-SÄTZE JE MATERIAL (EUR/kg)
+    //
+    // Recherchierte, aber bewusst grobe Näherungswerte aus den jeweils
+    // öffentlich einsehbaren Tarifen/Preislisten der nationalen
+    // Verpackungsregister/PROs (Stand 08/2026, siehe eco_fee_rates_json-
+    // Kommentar in schema.sql). NUR Länder/Materialien mit einer
+    // einigermaßen eindeutigen, aktuellen Quelle sind hier gesetzt - bei
+    // stark bandbreiten- oder mengenstaffel-abhängigen Sätzen (z. B. sehr
+    // große Recyclingfähigkeits-Spannen), strukturell andersartigen
+    // Systemen (z. B. Australiens freiwillige Mitgliedsbeiträge, Indiens
+    // handelbare EPR-Zertifikate, Polens Straf-Produktabgabe statt echter
+    // Lizenzgebühr) oder wenn schlicht keine verlässliche aktuelle Quelle
+    // gefunden wurde, bleibt das Land bewusst ohne Satz (NULL) - das
+    // Dashboard zeigt dann "Satz noch nicht recherchiert" statt einer
+    // irreführenden Zahl. Bei mehreren Teilmaterialien mit stark
+    // abweichenden Sätzen (z. B. Stahl vs. Aluminium) wurde jeweils der
+    // gebräuchlichere/konservativere Wert für den allgemeinen "metall"-
+    // Eintrag gewählt.
+    // ========================================================
+
+    const ecoFeeRates = {
+      DE: { papier: 0.26, karton: 0.26 },
+      FR: { papier: 0.2143, karton: 0.2143, glas: 0.0164, metall: 0.0535 },
+      IT: { papier: 0.045, karton: 0.045, glas: 0.035, metall: 0.005, holz: 0.009 },
+      ES: { papier: 0.115, karton: 0.115, kunststoff: 0.285, glas: 0.035 },
+      AT: { papier: 0.190, karton: 0.190, kunststoff: 0.990, glas: 0.102, metall: 0.450, holz: 0.020, sonstige: 1.080 },
+      NL: { kunststoff: 0.1972, glas: 0.0303, papier: 0.0154, karton: 0.0154, metall: 0.0663 },
+      SE: { papier: 0.61, kunststoff: 1.23, glas: 0.26, metall: 1.10 },
+      IE: { papier: 0.046, karton: 0.046, kunststoff: 0.17, glas: 0.023, metall: 0.009 },
+      PT: { papier: 0.260, karton: 0.260, kunststoff: 0.447, glas: 0.006 },
+      HU: { kunststoff: 0.60, papier: 0.474, karton: 0.474, metall: 0.211, glas: 0.293 },
+      RO: { papier: 0.108, karton: 0.108, kunststoff: 0.108, metall: 0.108, holz: 0.108 },
+      CY: { glas: 0.0276, papier: 0.0448, karton: 0.0448, metall: 0.0906, kunststoff: 0.1006 },
+      EE: { glas: 0.120, papier: 0.115, karton: 0.115, kunststoff: 0.460, metall: 0.260 },
+      LT: { glas: 0.160, papier: 0.180, karton: 0.180, kunststoff: 0.446, metall: 0.250, holz: 0.070 },
+      LU: { glas: 0.0177, papier: 0.0402, karton: 0.0402, metall: 0.0271 },
+      SK: { glas: 0.109, papier: 0.109, karton: 0.109, kunststoff: 0.299, metall: 0.110, holz: 0.010 },
+      HR: { metall: 0.0544 },
+      LV: { metall: 0.099 },
+      GB: { karton: 0.530, kunststoff: 0.486, holz: 0.322, metall: 0.298, glas: 0.221 },
+      NO: { kunststoff: 0.510 },
+      US: { papier: 0.122, karton: 0.122, kunststoff: 0.487 },
+      CA: { kunststoff: 0.594, karton: 0.429, metall: 0.429 },
+      JP: { kunststoff: 0.397, papier: 0.139, karton: 0.139, glas: 0.069 }
+    };
+
+    const updateEcoFeeRates =
+      db.prepare(`UPDATE countries SET eco_fee_rates_json = ? WHERE code = ?`);
+
+    for (const [code, rates] of Object.entries(ecoFeeRates)) {
+      updateEcoFeeRates.run(JSON.stringify(rates), code);
+    }
+
+    console.log(
+      `✅ Öko-Gebühr-Sätze gesetzt: ${Object.keys(ecoFeeRates).length} Länder`
+    );
+
+
+    // ========================================================
     // 6. JURISDIKTIONEN
     // ========================================================
 
