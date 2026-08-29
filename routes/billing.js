@@ -9,10 +9,31 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // ============================================================
 // CHECKOUT SESSION FÜR ABO (PLAN-UPGRADE)
 // ============================================================
+// Monatliche und jährliche Preise sind getrennte Stripe-Price-IDs (Stripe
+// kennt kein "gleicher Preis, anderes Intervall" pro Objekt). Die
+// _ANNUAL-Varianten müssen im Stripe-Dashboard angelegt und hier als
+// eigene Umgebungsvariablen hinterlegt werden - ist das nicht der Fall,
+// lehnen wir die Jahres-Buchung mit einer klaren Fehlermeldung ab, statt
+// versehentlich zum Monatspreis abzurechnen.
+const STRIPE_PRICE_IDS = {
+  monthly: { S: 'STRIPE_PRICE_S', M: 'STRIPE_PRICE_M', L: 'STRIPE_PRICE_L' },
+  annual: { S: 'STRIPE_PRICE_S_ANNUAL', M: 'STRIPE_PRICE_M_ANNUAL', L: 'STRIPE_PRICE_L_ANNUAL' }
+};
+
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   const { plan } = req.body;
-  const priceId = plan === 'S' ? process.env.STRIPE_PRICE_S : 
-                  plan === 'L' ? process.env.STRIPE_PRICE_L : process.env.STRIPE_PRICE_M;
+  const interval = req.body.interval === 'annual' ? 'annual' : 'monthly';
+
+  const envVarName = (STRIPE_PRICE_IDS[interval] || STRIPE_PRICE_IDS.monthly)[plan] || STRIPE_PRICE_IDS.monthly.M;
+  const priceId = process.env[envVarName];
+
+  if (!priceId) {
+    return res.status(400).json({
+      error: interval === 'annual'
+        ? 'Die Jahreszahlung für diesen Plan ist noch nicht konfiguriert.'
+        : 'Für diesen Plan ist kein Preis konfiguriert.'
+    });
+  }
 
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
   if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
@@ -37,6 +58,7 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     metadata: {
       user_id: customer.id,
       plan: plan,
+      interval: interval,
       type: 'plan_upgrade'
     }
   });
@@ -121,9 +143,9 @@ router.post('/webhooks/stripe', async (req, res) => {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const { user_id, country, type, plan } = session.metadata || {};
+    const { user_id, country, type, plan, interval } = session.metadata || {};
 
-    console.log(`✅ Zahlung erfolgreich: User ${user_id}, Land ${country}, Typ ${type}, Plan ${plan}`);
+    console.log(`✅ Zahlung erfolgreich: User ${user_id}, Land ${country}, Typ ${type}, Plan ${plan}, Intervall ${interval}`);
 
     try {
       // ⭐ Fall 1: Premium-Upgrade für ein Land
@@ -144,7 +166,8 @@ router.post('/webhooks/stripe', async (req, res) => {
 
       // ⭐ Fall 2: Plan-Upgrade
       if (type === 'plan_upgrade' && plan && user_id) {
-        db.prepare('UPDATE customers SET plan = ? WHERE id = ?').run(plan, parseInt(user_id));
+        db.prepare('UPDATE customers SET plan = ?, billing_interval = ? WHERE id = ?')
+          .run(plan, interval === 'annual' ? 'annual' : 'monthly', parseInt(user_id));
         console.log(`✅ Plan auf ${plan} geupgradet (User ${user_id})`);
       }
 

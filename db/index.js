@@ -312,6 +312,21 @@ function init() {
       'TEXT'
     );
 
+    // 'monthly' | 'annual' - siehe Kommentar in schema.sql.
+    addColumnIfMissing(
+      'customers',
+      'billing_interval',
+      'TEXT'
+    );
+
+    // Gewählte Länder für den Bevollmächtigten-Bonus - siehe Kommentar in
+    // schema.sql.
+    addColumnIfMissing(
+      'customers',
+      'rep_entitlement_choices_json',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 3. COUNTRIES

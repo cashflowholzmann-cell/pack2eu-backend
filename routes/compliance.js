@@ -148,8 +148,17 @@ function buildDecision(
 // COUNTRY PAYLOAD
 // ============================================================
 
+// isActivated: nur für vom Kunden bereits aktivierte Länder geben wir den
+// Registrierungslink und die Bevollmächtigten-Kontaktdaten heraus - das
+// ist recherchierte Arbeit und eines unserer zentralen USPs, kein
+// öffentlich einsehbares Nachschlagewerk. Für nicht aktivierte Länder
+// bleiben diese drei Felder leer; alle übrigen (Anforderungen, Frist,
+// Öko-Gebühr-Schätzung usw.) bleiben unabhängig davon sichtbar, damit die
+// Compliance-Karte weiterhin als Entdeckungs-/Verkaufswerkzeug für alle
+// Länder funktioniert.
 function countryPayload(
-  country
+  country,
+  isActivated
 ) {
 
   return {
@@ -167,8 +176,9 @@ function countryPayload(
       country.register_body,
 
     registration_url:
-      country.registration_url ||
-      '',
+      isActivated ?
+        (country.registration_url || '') :
+        '',
 
     data_status:
       country.data_status ||
@@ -189,12 +199,14 @@ function countryPayload(
       '',
 
     representative_provider_name:
-      country.representative_provider_name ||
-      '',
+      isActivated ?
+        (country.representative_provider_name || '') :
+        '',
 
     representative_provider_url:
-      country.representative_provider_url ||
-      '',
+      isActivated ?
+        (country.representative_provider_url || '') :
+        '',
 
     representative_data_status:
       country.representative_data_status ||
@@ -308,7 +320,8 @@ router.get(
 
         country:
           countryPayload(
-            country
+            country,
+            !!activation
           ),
 
         compliance,
@@ -437,9 +450,12 @@ router.get(
         register_body:
           country.register_body,
 
+        // Nur für bereits aktivierte Länder - siehe Kommentar bei
+        // countryPayload() weiter oben in dieser Datei.
         registration_url:
-          country.registration_url ||
-          '',
+          activation ?
+            (country.registration_url || '') :
+            '',
 
         data_status:
           country.data_status ||
@@ -584,7 +600,8 @@ router.get(
             return {
 
               ...countryPayload(
-                country
+                country,
+                !!activation
               ),
 
               status:
