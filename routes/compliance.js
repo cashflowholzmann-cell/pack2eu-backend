@@ -186,7 +186,28 @@ function countryPayload(
 
     notary_cost:
       country.notary_cost ||
-      ''
+      '',
+
+    representative_provider_name:
+      country.representative_provider_name ||
+      '',
+
+    representative_provider_url:
+      country.representative_provider_url ||
+      '',
+
+    representative_data_status:
+      country.representative_data_status ||
+      'needs_verification',
+
+    registration_generally_required:
+      Number(
+        country.registration_generally_required
+      ) !== 0,
+
+    reporting_frequency:
+      country.reporting_frequency ||
+      'needs_verification'
 
   };
 }
@@ -414,6 +435,15 @@ router.get(
           country.data_status ||
           'needs_verification',
 
+        registration_generally_required:
+          Number(
+            country.registration_generally_required
+          ) !== 0,
+
+        reporting_frequency:
+          country.reporting_frequency ||
+          'needs_verification',
+
         plan:
           customer.plan,
 
@@ -480,7 +510,12 @@ router.get(
             registration_url,
             representative_required,
             notary_required,
-            notary_cost
+            notary_cost,
+            representative_provider_name,
+            representative_provider_url,
+            representative_data_status,
+            registration_generally_required,
+            reporting_frequency
           FROM countries
           ORDER BY name
         `).all();
@@ -544,6 +579,26 @@ router.get(
 
               provider_epr_number:
                 activation?.provider_epr_number ||
+                null,
+
+              existing_number:
+                activation?.existing_number ||
+                null,
+
+              representative_name:
+                activation?.representative_name ||
+                null,
+
+              representative_company:
+                activation?.representative_company ||
+                null,
+
+              representative_email:
+                activation?.representative_email ||
+                null,
+
+              representative_status:
+                activation?.representative_status ||
                 null,
 
               compliance

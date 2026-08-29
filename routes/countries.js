@@ -7,10 +7,10 @@ const router = express.Router();
 router.get('/', (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT 
-        code, 
-        name, 
-        register_body, 
+      SELECT
+        code,
+        name,
+        register_body,
         labeling_reqs,
         requirements_json,
         labeling_json,
@@ -20,8 +20,14 @@ router.get('/', (req, res) => {
         notary_required,
         notary_cost,
         registration_url,
+        representative_provider_name,
+        representative_provider_url,
+        representative_data_status,
+        data_status,
+        registration_generally_required,
+        reporting_frequency,
         flag
-      FROM countries 
+      FROM countries
       ORDER BY name
     `).all();
 
@@ -38,6 +44,12 @@ router.get('/', (req, res) => {
       notary_required: r.notary_required === 1,
       notary_cost: r.notary_cost || '',
       registration_url: r.registration_url || '',
+      representative_provider_name: r.representative_provider_name || '',
+      representative_provider_url: r.representative_provider_url || '',
+      representative_data_status: r.representative_data_status || 'needs_verification',
+      data_status: r.data_status || 'needs_verification',
+      registration_generally_required: Number(r.registration_generally_required) !== 0,
+      reporting_frequency: r.reporting_frequency || 'needs_verification',
       flag: r.flag || '🇪🇺'
     }));
     res.json(countries);

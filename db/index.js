@@ -340,6 +340,43 @@ function init() {
       "TEXT NOT NULL DEFAULT 'needs_verification'"
     );
 
+    addColumnIfMissing(
+      'countries',
+      'representative_provider_name',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'countries',
+      'representative_provider_url',
+      'TEXT'
+    );
+
+    addColumnIfMissing(
+      'countries',
+      'representative_data_status',
+      "TEXT NOT NULL DEFAULT 'needs_verification'"
+    );
+
+    // Nur auf 0 gesetzt, wenn recherchiert bestätigt ist, dass das Land
+    // aktuell überhaupt keine Verpackungs-Registrierung/Bevollmächtigung
+    // verlangt (z. B. Schweiz, China, Thailand) – nicht gleichzusetzen mit
+    // "noch nicht recherchiert" (dafür gibt es data_status).
+    addColumnIfMissing(
+      'countries',
+      'registration_generally_required',
+      'INTEGER NOT NULL DEFAULT 1'
+    );
+
+    // Wie oft an das Register/System gemeldet werden muss:
+    // 'monthly' | 'quarterly' | 'annually' | 'needs_verification'. Bewusst
+    // konservativ befüllt - siehe Kommentar in schema.sql.
+    addColumnIfMissing(
+      'countries',
+      'reporting_frequency',
+      "TEXT NOT NULL DEFAULT 'needs_verification'"
+    );
+
 
     // ========================================================
     // 4. ALLE LÄNDER SICHERSTELLEN
@@ -434,52 +471,696 @@ function init() {
       UPDATE countries
       SET
         register_body = 'LUCID / ZSVR',
-        registration_url =
-          'https://lucid.verpackungsregister.org'
+        registration_url = 'https://lucid.verpackungsregister.org',
+        requirements_json = ?,
+        labeling_json = ?,
+        eco_fee = 'Lizenzentgelt je nach Material/Gewicht beim gewählten dualen System (Systembeteiligung); die Registrierung bei LUCID selbst ist kostenlos.',
+        representative_provider_name = 'REP-Germany',
+        representative_provider_url = 'https://rep-germany.de/bestellen/',
+        representative_data_status = 'verified',
+        reporting_frequency = 'annually',
+        data_status = 'verified'
       WHERE code = 'DE'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht im Verpackungsregister LUCID für jedes Unternehmen, das verpackte Ware erstmals in Deutschland in Verkehr bringt – unabhängig von Menge oder Unternehmensgröße.',
+        'Systembeteiligung (Lizenzierung) bei einem dualen System für alle mit Ware befüllten Verkaufsverpackungen.',
+        'Bevollmächtigter in Deutschland zwingend erforderlich für Unternehmen ohne Sitz in Deutschland, seit 12.08.2026 (VerpackDG/PPWR).',
+        'Jährliche Datenmeldung (Mengenmeldung) bei LUCID für das Vorjahr, Frist jeweils 15. Mai.'
+      ]),
+      JSON.stringify([
+        'Herstellerkennzeichnung (Name, Postanschrift) auf der Verpackung.',
+        'Kennzeichnungspflichten zur Recyclingfähigkeit gemäß PPWR (stufenweise Einführung).'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
         register_body = 'ADEME / SYDEREP',
-        registration_url =
-          'https://syderep.ademe.fr/'
+        registration_url = 'https://syderep.ademe.fr/',
+        requirements_json = ?,
+        labeling_json = ?,
+        eco_fee = 'Éco-contribution an das gewählte Eco-organisme, gestaffelt nach Material, Gewicht und Recyclingfähigkeit.',
+        representative_provider_name = 'EPR Representative (France)',
+        representative_provider_url = 'https://eprrepresentative.com/fr/mandataire-rep-france',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
       WHERE code = 'FR'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Mandataire (Bevollmächtigter) in Frankreich zwingend seit 10.07.2026 für Unternehmen ohne Sitz in Frankreich.',
+        'Mitgliedschaft bei einem Eco-organisme und jährliche Meldung der Verpackungsmengen über SYDEREP/ADEME.',
+        'Eindeutige REP-Kennung (identifiant unique) erforderlich.'
+      ]),
+      JSON.stringify([
+        'Triman-Logo und Sortieranweisung (Info-tri) auf Verkaufsverpackungen vorgeschrieben.'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'EDM-Portal / ARA'
+        register_body = 'EDM-Portal / ARA',
+        registration_url = 'https://edm.gv.at/edm_portal/cms.do?get=%2Fportal%2Finformationen%2Fanwendungenthemen%2Fverpackung.main',
+        requirements_json = ?,
+        eco_fee = 'Lizenzentgelt beim gewählten Sammel-/Verwertungssystem (z. B. ARA), abhängig von Material und Menge.',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
       WHERE code = 'AT'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Einmalige Registrierung im elektronischen Verpackungsregister (EDM), z. B. über das Unternehmensserviceportal (USP).',
+        'Systembeteiligung/Lizenzierung über ein genehmigtes Sammel- und Verwertungssystem wie ARA.',
+        'Bevollmächtigter in Österreich bereits vor PPWR für ausländische Erstinverkehrbringer verpflichtend.'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Register / EPR-System'
+        register_body = 'CONAI (Übergang – nationales PPWR-Produzentenregister RENAP für Verpackungen noch nicht vollständig aktiv)',
+        registration_url = 'https://www.conai.org',
+        requirements_json = ?,
+        eco_fee = 'CONAI-Umweltbeitrag (Contributo Ambientale CONAI, CAC), materialabhängig gestaffelt.',
+        data_status = 'needs_verification'
+      WHERE code = 'IT'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026: Die EPR-Pflichten für Verpackungen laufen weiterhin über CONAI; ein eigenständiges PPWR-Produzentenregister (RENAP) ist für Verpackungen noch nicht vollständig in Betrieb.',
+        'Paralleler Weiterbetrieb von CONAI und PPWR-System voraussichtlich bis 11.08.2028 vorgesehen.',
+        'Nationale Durchführungsbestimmungen zu Registrierung und Bevollmächtigten werden im Laufe 2026 erwartet – noch nicht final.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Registro de Productores de Envases (RPE) / MITECO',
+        registration_url = 'https://www.miteco.gob.es/es/calidad-y-evaluacion-ambiental/temas/prevencion-y-gestion-residuos/prevencion-y-gestion-residuos/registro-productores-producto-seccion-envases.html',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an das gewählte SCRAP (z. B. Ecoembes), material- und mengenabhängig.',
+        representative_provider_name = 'Heura',
+        representative_provider_url = 'https://heura.net/representante-autorizado-en-espana-ppwr/',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
+      WHERE code = 'ES'
+    `).run(
+      JSON.stringify([
+        'Zweistufige Registrierung: Eintragung im RPE (MITECO) und Beitritt zu einem SCRAP (Sistema Colectivo, z. B. Ecoembes).',
+        'Jährliche Meldung der Verpackungsmengen bis 31. März.',
+        'Bevollmächtigter in Spanien bereits seit 1.1.2023 für Unternehmen ohne Sitz in Spanien verpflichtend.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Verpact (Übergang – eigenständiges nationales Produzentenregister erst für 2027/2028 vorgesehen)',
+        registration_url = 'https://www.verpact.nl',
+        requirements_json = ?,
+        eco_fee = 'Afvalbeheersbijdrage an Verpact, material- und mengenabhängig.',
+        data_status = 'needs_verification'
+      WHERE code = 'NL'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht bei Verpact derzeit ab 50.000 kg Verpackung/Jahr; diese Schwelle könnte künftig gesenkt werden.',
+        'Ein eigenständiges nationales Produzentenregister ist erst für 2027/2028 vorgesehen.',
+        'Stand 08/2026 war noch offen, wie die Bevollmächtigten-Pflicht für EU-Händler in den Niederlanden konkret ausgestaltet wird.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'EPRiBEL / Fost Plus',
+        registration_url = 'https://www.fostplus.be',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an Fost Plus (Haushaltsverpackungen) bzw. Valipac (Transport-/B2B-Verpackungen), material- und mengenabhängig.',
+        data_status = 'needs_verification'
       WHERE code = 'BE'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Registrierung im nationalen Produzentenregister über EPRiBEL Pflicht für alle Unternehmen, die Verpackungen auf dem belgischen Markt in Verkehr bringen.',
+        'Mitglieder von Fost Plus (Haushaltsverpackungen) bzw. Valipac (Transport-/B2B-Verpackungen) lassen die Registrierung meist kollektiv über ihre PRO abwickeln.',
+        'Ausländische Unternehmen ohne Sitz in Belgien benötigen seit 12.08.2026 einen bei EPRiBEL registrierten Bevollmächtigten (Vertegenwoordiger voor EPR) in Belgien.'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Register / EPR-System'
+        register_body = 'BDO (Baza Danych o Odpadach)',
+        registration_url = 'https://bdo.mos.gov.pl',
+        requirements_json = ?,
+        eco_fee = 'Recyclingbeitrag über das gewählte Rückgewinnungssystem, material- und mengenabhängig.',
+        data_status = 'verified'
       WHERE code = 'PL'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht in der BDO-Datenbank (Baza Danych o Odpadach) für jedes Unternehmen, das Verpackungen auf dem polnischen Markt in Verkehr bringt – auch ausländische Fernabsatzhändler.',
+        'Jährliche Verpackungsmeldung sowie Einstufung der Recyclingfähigkeit (Klassen A–E) erforderlich.',
+        'Bevollmächtigter mit Sitz in Polen (oder einem anderen EU-Land) für Unternehmen ohne Sitz in Polen erforderlich.'
+      ])
+    );
 
 
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Register / EPR-System'
+        register_body = 'Naturvårdsverket + Producentansvarsorganisation (NPA / TMR)',
+        registration_url = 'https://www.naturvardsverket.se/vagledning-och-stod/producentansvar/eu-forordningen-om-forpackningar-ppwr/',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an die gewählte Producentansvarsorganisation (NPA oder TMR), material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'SE'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung bei der schwedischen Umweltbehörde Naturvårdsverket erforderlich.',
+        'Anschluss an eine anerkannte Produzentenverantwortungsorganisation, z. B. Näringslivets Producentansvar (NPA) oder Tailor-Made Responsibility (TMR).',
+        'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Dansk Producentansvar (DPA)',
+        registration_url = 'https://producentansvar.dk',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an Dansk Producentansvar (DPA), material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'DK'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht im nationalen Produzentenregister bei Dansk Producentansvar (DPA) für alle Unternehmen, die Verpackungen in Dänemark in Verkehr bringen.',
+        'Meldung der erwarteten Verpackungsmengen und -arten sowie Finanzierung der Abfallbewirtschaftung.',
+        'Erweiterte Herstellerverantwortung für Verpackungen gilt in Dänemark bereits seit 1.10.2025, ergänzt durch die PPWR-Vorgaben ab 12.08.2026.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Repak',
+        registration_url = 'https://www.repak.ie',
+        requirements_json = ?,
+        eco_fee = 'Lizenzentgelt an Repak, material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'IE'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Systembeteiligung bei Repak, der einzigen staatlich anerkannten Produzentenverantwortungsorganisation für Verpackungen in Irland.',
+        'Für ausländische Unternehmen ohne Sitz in Irland ist seit 12.08.2026 ein Bevollmächtigter zwingend – die Schwelle dafür liegt bei Fernabsatzhändlern faktisch bei null.',
+        'PRL (Producer Register Limited) ist NICHT für Verpackungen zuständig, sondern für Elektrogeräte/Batterien/Reifen – für Verpackungen ist Repak die richtige Stelle.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Sociedade Ponto Verde (SPV) / SILiAmb (Übergang – eigenständiges nationales Produzentenregister erst für Ende 2027/Anfang 2028 geplant)',
+        registration_url = 'https://www.pontoverde.pt/clientes-embaladores/adira-ao-sistema-ponto-verde/',
+        requirements_json = ?,
+        eco_fee = 'Beitrag an die Sociedade Ponto Verde (SPV), material- und mengenabhängig.',
+        data_status = 'needs_verification'
+      WHERE code = 'PT'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026: Meldung und Registrierung laufen über die bestehende Sociedade Ponto Verde (SPV) und die SILiAmb-Plattform der portugiesischen Umweltagentur (APA).',
+        'Ein eigenständiges nationales PPWR-Produzentenregister ist erst für Ende 2027/Anfang 2028 vorgesehen.',
+        'Meldung der in Verkehr gebrachten Verpackungsmengen erforderlich.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kein einheitliches gesetzliches Pflichtsystem – freiwillige Branchenlösungen (z. B. PET-Recycling Schweiz, Swiss Recycle/VetroSwiss für Glas)',
+        requirements_json = ?,
+        eco_fee = 'Keine gesetzliche Öko-Gebühr; ggf. freiwillige Beiträge an Branchenlösungen.',
+        registration_generally_required = 0,
+        data_status = 'verified'
       WHERE code = 'CH'
-    `).run();
+    `).run(
+      JSON.stringify([
+        'Die EU-Verpackungsverordnung (PPWR) gilt nicht direkt in der Schweiz – Stand 08/2026 gibt es keine gesetzliche Pflicht zur erweiterten Herstellerverantwortung für Verpackungen.',
+        'Stattdessen bestehen freiwillige Rücknahme- und Recyclingsysteme je Branche/Material (z. B. PET-Recycling Schweiz, Glas über VetroSwiss/Swiss Recycle).',
+        'Schweizer Unternehmen, die in die EU liefern oder direkt an EU-Kunden verkaufen, müssen für diese Lieferungen dennoch die EU-PPWR-Pflichten (inkl. Bevollmächtigter im jeweiligen EU-Zielland) erfüllen – das betrifft das EU-Zielland, nicht die Schweiz selbst.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kein Bundesgesetz – bislang 7 Bundesstaaten mit eigenen EPR-Gesetzen (CA, CO, ME, MD, MN, OR, WA); Circular Action Alliance (CAA) ist die designierte PRO in CA, CO, MD, OR, WA',
+        registration_url = 'https://circularactionalliance.org',
+        requirements_json = ?,
+        eco_fee = 'Gebühren variieren je Bundesstaat und PRO (z. B. CAA), ab 2027 zunehmend ökomoduliert.',
+        data_status = 'verified'
+      WHERE code = 'US'
+    `).run(
+      JSON.stringify([
+        'Verpackungs-EPR ist in den USA Sache der Bundesstaaten, nicht bundesweit einheitlich geregelt – Pflichten hängen davon ab, in welche(n) Bundesstaat(en) geliefert wird.',
+        'Oregon: Programm seit 1.7.2025 aktiv, Registrierung bei der PRO sowie jährliche Meldung von Mengen und Materialarten erforderlich.',
+        'Kalifornien: Registrierung bei CAA oder CalRecycle bis 1.6.2026 Pflicht; Gebührenpflicht ab 2027 vorgesehen.',
+        'Weitere Bundesstaaten (Colorado, Maine, Maryland, Minnesota, Washington) folgen mit eigenen Zeitplänen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'PackUK (Scheme Administrator) – Registrierung über den Report-Packaging-Data-Dienst der zuständigen Umweltbehörde (Environment Agency / SEPA / NRW / NIEA)',
+        requirements_json = ?,
+        eco_fee = 'pEPR-Gebühr an PackUK; Basisgebühr in der Einführungsphase 2025/26, ab 2026/27 nach Recyclingfähigkeit ökomoduliert gestaffelt.',
+        data_status = 'needs_verification'
+      WHERE code = 'GB'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht für Unternehmen mit Jahresumsatz über 1 Mio. £ und mehr als 25 Tonnen Verpackung pro Jahr im UK-Markt.',
+        '„Produzent" im Sinne von pEPR ist, wer verpackte Ware erstmals im UK-Markt bereitstellt – das schließt Importeure, Markeninhaber, Fernabsatzhändler und Marktplatzbetreiber ein.',
+        'Jährliche Registrierung/Meldung bis 1. April über den Report-Packaging-Data-Dienst bei der zuständigen Umweltbehörde (Environment Agency England, SEPA Schottland, NRW Wales oder NIEA Nordirland).',
+        'Basisgebühren gelten ab 2025/26; ab 2026/27 ökomodulierte Gebühren (z. B. 1,2-facher Satz für schwer recycelbare Verpackungen).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Keine Bundesregelung – provinzweise eigene EPR-Programme (u. a. Ontario, British Columbia); Circular Materials ist ein wichtiger überregionaler PRO-Anbieter',
+        registration_url = 'https://circularmaterials.ca',
+        requirements_json = ?,
+        eco_fee = 'Gebühren variieren je Provinz und PRO.',
+        data_status = 'needs_verification'
+      WHERE code = 'CA'
+    `).run(
+      JSON.stringify([
+        'Verpackungs-EPR ist in Kanada Provinzsache – Pflichten hängen davon ab, in welche Provinz(en) geliefert wird.',
+        'British Columbia: eines der am längsten laufenden Programme (Recycle BC), administriert über Circular Materials; gilt auch für Erstimporteure und E-Commerce-Verkäufer.',
+        'Ontario: seit 1.1.2026 vollständig produzentenfinanziert, mit erstmals landesweit standardisierter Materialliste.',
+        'Jährliche Meldefrist in den meisten Provinzen: 31. Mai.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Australian Packaging Covenant Organisation (APCO) – Stand 08/2026 überwiegend freiwillig, verbindliches Gesetz („No Time to Waste") noch nicht in Kraft',
+        registration_url = 'https://www.apco.org.au',
+        requirements_json = ?,
+        eco_fee = 'Aktuell freiwillige APCO-Mitgliedsbeiträge; ökomodulierte Pflichtgebühren ab Finanzjahr 2026/27 in Planung.',
+        data_status = 'verified'
+      WHERE code = 'AU'
+    `).run(
+      JSON.stringify([
+        'APCO-Mitgliedschaft ist Stand 08/2026 weiterhin überwiegend freiwillig; ein Gesetzentwurf für ein verbindliches, nationales EPR-System befand sich im Mai 2026 noch im Ausschuss des australischen Senats.',
+        'Verbindliche Pflichten und ökomodulierte Gebühren werden laut Übergangsplan erst für das Finanzjahr 2027 erwartet, mit Fokus auf Unternehmen ab 5 Mio. AUD Jahresumsatz.',
+        'Bis zur verbindlichen Regelung empfiehlt sich freiwillige APCO-Mitgliedschaft zur Vorbereitung.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Grønt Punkt Norge (größte zugelassene PRO)',
+        registration_url = 'https://www.grontpunkt.no',
+        requirements_json = ?,
+        eco_fee = 'Mitgliedsbeitrag an die gewählte PRO (z. B. Grønt Punkt Norge), material- und mengenabhängig.',
+        representative_provider_name = 'Lizenzero',
+        representative_provider_url = 'https://lizenzero.com/en/authorised-representative',
+        representative_data_status = 'needs_verification',
+        data_status = 'verified'
+      WHERE code = 'NO'
+    `).run(
+      JSON.stringify([
+        'Die EU-Verpackungsverordnung (PPWR) gilt in Norwegen erst nach Übernahme in das EWR-Abkommen – die norwegische Umweltbehörde hat bestätigt, dass der Termin 12.08.2026 dafür nicht eingehalten wird.',
+        'Bis dahin gilt das bestehende norwegische System: Pflicht zur Mitgliedschaft in einer zugelassenen Produzentenverantwortungsorganisation (PRO), z. B. Grønt Punkt Norge.',
+        'Seit 1.7.2025 gibt es keine Bagatellgrenze mehr (vorher 1.000 kg je Material/Jahr) – jede Menge Verpackung auf dem norwegischen Markt löst die Pflicht aus.',
+        'Nur Unternehmen mit norwegischer Organisationsnummer können sich direkt registrieren; ausländische Unternehmen benötigen einen Bevollmächtigten in Norwegen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Japan Containers and Packaging Recycling Association (JCPRA) – Registrierung/Gebührenzahlung nach dem japanischen Verpackungsrecyclinggesetz (容器包装リサイクル法)',
+        registration_url = 'https://www.jcpra.or.jp',
+        requirements_json = ?,
+        labeling_json = ?,
+        eco_fee = 'Recycling-Beitragsgebühr an die JCPRA, gestaffelt nach Material und Menge.',
+        data_status = 'needs_verification'
+      WHERE code = 'JP'
+    `).run(
+      JSON.stringify([
+        'Hersteller, Vertreiber und Importeure von "spezifizierten Verpackungen" (Glas, PET-Flaschen, Papier, Kunststoff) müssen ihrer Recyclingpflicht nachkommen – in der Praxis meist durch Auslagerung an die JCPRA gegen Recycling- und Kommunalbeitragsgebühr.',
+        'Zum 24.01.2026 traten neue, verschärfte Zertifizierungskriterien in Kraft (u. a. für PET-Flaschen sowie Kosmetik-/Reinigungsmittelverpackungen), die den Materialeinsatz senken und den Rezyklatanteil erhöhen sollen.',
+        'Kleinunternehmen unterhalb bestimmter Umsatz-/Mitarbeitergrenzen sind teils von der individuellen Meldepflicht befreit, müssen sich aber ggf. dennoch registrieren – genaue Schwellenwerte für ausländische Fernabsatzhändler waren Stand 08/2026 nicht abschließend bestätigt.'
+      ]),
+      JSON.stringify([
+        'Gesetzliche Kennzeichnungspflicht (Identifikationsmarken) nach dem Ressourcennutzungsgesetz: PETマーク (PET-Flaschen), プラマーク (sonstige Kunststoffverpackungen), 紙マーク (Papierverpackungen), sowie Kennzeichen für Alu- und Stahldosen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kein einheitliches nationales Pflichtregister für Verpackungen – bislang nur sektorspezifische EPR-Pilotregelung für papierbasierte Getränke-Verbundverpackungen (Solid Waste Law 2020)',
+        requirements_json = ?,
+        eco_fee = 'Keine allgemeine gesetzliche Öko-Gebühr für Verpackungen; ggf. sektorspezifische Beiträge im Pilotprogramm für Getränke-Verbundverpackungen.',
+        registration_generally_required = 0,
+        data_status = 'needs_verification'
+      WHERE code = 'CN'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026 existiert keine umfassende, verpflichtende Verpackungs-EPR-Registrierung für (ausländische) Online-Händler in China.',
+        'Die einzige konkrete EPR-Pflicht betrifft papierbasierte Getränke-Verbundverpackungen im Rahmen eines seit 2024/2025 laufenden Pilotprogramms nach dem Solid Waste Law von 2020.',
+        'Für bestimmte Warengruppen (z. B. Kosmetik, Lebensmittel, Spielzeug) gelten nationale GB-Normen gegen "übermäßige Verpackung" (过度包装) – das sind Produktstandards, keine Registrierungspflicht.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Central Pollution Control Board (CPCB) – zentrales EPR-Portal für Plastikverpackungen',
+        registration_url = 'https://eprplastic.cpcb.gov.in/',
+        requirements_json = ?,
+        eco_fee = 'EPR-Gebühr/Zertifikatspflicht abhängig von Verpackungskategorie und Recyclingzielerreichung.',
+        data_status = 'verified'
+      WHERE code = 'IN'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht auf dem zentralen CPCB-EPR-Portal für "PIBOs" (Producers, Importers, Brand Owners) von Kunststoffverpackungen – Voraussetzung für Inverkehrbringen und jährliche Meldung.',
+        'Jährliche Recyclingquoten nach Kategorie: starre (I) und kompostierbare (IV) Verpackungen 60 % (2025/26) steigend auf 70 % (2026/27); flexible (II) und mehrschichtige (III) Verpackungen 40 % steigend auf 50 %.',
+        'Die PWM-Änderungsverordnung vom 31.03.2026 hat Zertifikate, Audits und den Umgang mit Zielverfehlungen neu geregelt.',
+        'Nichteinhaltung kann zu Umweltausgleichszahlungen (bis 1 Lakh INR pro Tag) sowie zur Blockade der Zollabfertigung für Importeure führen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Noch kein verpflichtendes nationales System – Entwurf des "Sustainable Packaging Act" in Konsultation, verbindliche EPR laut Fahrplan erst ab ca. 2027 erwartet',
+        requirements_json = ?,
+        registration_generally_required = 0,
+        data_status = 'needs_verification'
+      WHERE code = 'TH'
+    `).run(
+      JSON.stringify([
+        'Stand 08/2026 gibt es in Thailand keine gesetzliche Pflicht zur erweiterten Herstellerverantwortung für Verpackungen.',
+        'Das Pollution Control Department hat im März 2024 einen Entwurf des "Sustainable Packaging Act" zur öffentlichen Konsultation gestellt; laut Non-Plastic-Waste-Management-Fahrplan (Phase II, 2023–2027) wird die Verabschiedung für ca. 2026, die verbindliche Umsetzung ab 2027 erwartet.',
+        'TIPMSE (Thailand Institute of Packaging and Recycling Management) betreibt seit Januar 2024 ein freiwilliges EPR-Pilotprojekt mit 10 Kommunen in der Provinz Chonburi.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Úrvinnslusjóður (isländischer Recyclingfonds) – Erhebung der Recyclinggebühr (úrvinnslugjald) über die Steuerbehörde (Skatturinn) beim Import',
+        registration_url = 'https://www.urvinnslusjodur.is/framleidendaabyrgd',
+        requirements_json = ?,
+        eco_fee = 'Úrvinnslugjald (Recyclinggebühr), material- und mengenabhängig, erhoben über den Zoll/Importeur.',
+        data_status = 'needs_verification'
+      WHERE code = 'IS'
+    `).run(
+      JSON.stringify([
+        'Island ist EWR-Mitglied (nicht EU) – die Herstellerverantwortung für Verpackungen basiert auf dem bestehenden Gesetz Nr. 162/2002 über die Recyclinggebühr, nicht auf einem eigenständigen PPWR-Produzentenregister.',
+        'Die Recyclinggebühr wird beim Zoll vom isländischen Importeur erhoben; ein ausländischer Verkäufer ohne eigene Niederlassung in Island erfüllt seine Pflicht in der Praxis über diesen Importeur.',
+        'Wer selbst gebührenpflichtig wird, muss sich spätestens 15 Tage vor Aufnahme der Tätigkeit bei der Steuerbehörde (Skatturinn) registrieren.',
+        'Ob und wie die EU-PPWR-Fristen (12.08.2026) für Island übernommen werden, war Stand 08/2026 noch nicht abschließend bestätigt.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Amt für Umwelt (Office of Environment), Liechtensteinische Landesverwaltung – kein eigenständiges Verpackungsregister bekannt; enge Zoll- und Wirtschaftsunion mit der Schweiz',
+        registration_url = 'https://www.llv.li/en/national-administration/office-of-environment',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'LI'
+    `).run(
+      JSON.stringify([
+        'Liechtenstein ist EWR-Mitglied, gleichzeitig aber über den Zollvertrag von 1923 wirtschaftlich eng mit der Schweiz verbunden, die selbst kein gesetzliches Pflichtsystem für Verpackungen kennt.',
+        'Stand 08/2026 konnte keine eigenständige, bestätigte Verpackungs-Registrierungspflicht oder -stelle für Liechtenstein identifiziert werden; einige Compliance-Quellen zählen Liechtenstein pauschal zu den EWR-Staaten, für die die PPWR ab 12.08.2026 gilt – das ist jedoch unbestätigt und steht im Widerspruch zur engen Anlehnung an das Schweizer System.',
+        'Bis zur Klärung wird empfohlen, die Entwicklung über das Amt für Umwelt zu beobachten, bevor von einer Registrierungspflicht ausgegangen wird.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (noch im Aufbau – EU-weiter Durchführungsrechtsakt für das Registrierungsformat war Stand 08/2026 noch in öffentlicher Konsultation)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'GR'
+    `).run(
+      JSON.stringify([
+        'Jährliche Meldung der Verpackungsmengen an das zuständige nationale Register bis zum 1. Juni des Folgejahres vorgesehen.',
+        'Der EU-weite Durchführungsrechtsakt, der das einheitliche Format für Produzentenregister und Meldungen festlegt, befand sich Stand 08/2026 noch in öffentlicher Konsultation (6.8.–10.9.2026).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Bestehendes tschechisches EPR-System (PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht mit konkreter Stelle bestätigt)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'CZ'
+    `).run(
+      JSON.stringify([
+        'PPWR-Pflichten gelten zusätzlich zu den bestehenden tschechischen EPR-Registrierungspflichten – keine Ablösung, sondern Kumulierung.',
+        'Ausländische Online-Händler und Plattformen gelten künftig in vielen Fällen selbst als Verpackungs-Inverkehrbringer.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Bestehendes slowakisches EPR-System (u. a. NATUR-PACK); PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht abschließend bestätigt',
+        registration_url = 'https://www.naturpack.sk',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'SK'
+    `).run(
+      JSON.stringify([
+        'Registrierung bei den zuständigen nationalen Behörden für jedes Unternehmen, das Verpackungen in der Slowakei erstmals in Verkehr bringt.',
+        'Technische Dokumentation je Verpackungseinheit erforderlich (Materialzusammensetzung, Konformitätsbewertung, verantwortliche Person).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Durchführungsrechtsakt der EU-Kommission laut Zeitplan bis 12.02.2026 vorgesehen; konkrete ungarische Stelle Stand 08/2026 nicht abschließend bestätigt)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'HU'
+    `).run(
+      JSON.stringify([
+        'Gyártói nyilvántartásba vétel (Produzentenregistrierung) ist seit 12.08.2026 Pflicht für Unternehmen, die Verpackungen in Ungarn in Verkehr bringen.',
+        'Konformitätsbewertung und Dokumentation der Verpackung erforderlich.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Stand 08/2026 laut Fachpresse noch nicht vollständig aufgebaut)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'RO'
+    `).run(
+      JSON.stringify([
+        'Ohne Registrierung im nationalen Produzentenregister dürfen Verpackungen ab 12.08.2026 nicht mehr in Verkehr gebracht werden; Vertreiber und Online-Plattformen müssen den Produzentenstatus prüfen.',
+        'Rumänien hatte Stand 08/2026 laut Fachpresse die nationale Registerinfrastruktur noch nicht vollständig aufgebaut.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Suomen Pakkauskierrätys RINKI Oy (Rinki)',
+        registration_url = 'https://rinkiin.fi',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'FI'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung der Verpackungsmengen erfolgt in Finnland meist über Rinki (Suomen Pakkauskierrätys RINKI Oy).',
+        'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Registar proizvođača s proširenom odgovornosti (RPPO)',
+        requirements_json = ?,
+        data_status = 'verified'
+      WHERE code = 'HR'
+    `).run(
+      JSON.stringify([
+        'Seit 2025 existiert das kroatische Register für erweiterte Herstellerverantwortung (RPPO), in dem sich Verpackungs-Inverkehrbringer registrieren müssen.',
+        'Registrierungs- und EPR-Pflichten gelten für jeden Mitgliedstaat gesondert, in dem Verpackung erstmals in Verkehr gebracht wird.',
+        'Für Kleinstunternehmen mit geringen Verpackungsmengen sind in bestimmten Fällen Erleichterungen vorgesehen.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Stand 08/2026 noch nicht errichtet – EU-Vorgabe sieht Einrichtung binnen 18 Monaten nach dem ersten Durchführungsrechtsakt der Kommission vor)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'SI'
+    `).run(
+      JSON.stringify([
+        'Das slowenische Umweltministerium hat einen Verordnungsentwurf zur Umsetzung des PRO-Systems für Verpackungen vorbereitet; das nationale Register war Stand 08/2026 noch nicht in Betrieb.',
+        'PPWR unterscheidet klar zwischen „Hersteller" (Konformität der Verpackung) und „Produzent" (EPR-Pflichten wie Registrierung und Finanzierung der Entsorgung).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Aplinkos apsaugos agentūra (Umweltschutzagentur)',
+        registration_url = 'https://aaa.lrv.lt',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'LT'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht bei der litauischen Umweltschutzagentur (Aplinkos apsaugos agentūra) für jedes Unternehmen, das Verpackungen erstmals in Litauen in Verkehr bringt.',
+        'Ausländische Unternehmen ohne Sitz in Litauen benötigen einen Bevollmächtigten für die erweiterte Herstellerverantwortung (EPR).'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Valsts vides dienests (Staatlicher Umweltdienst)',
+        registration_url = 'https://www.vvd.gov.lv',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'LV'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung erfolgt über den Staatlichen Umweltdienst (Valsts vides dienests, VVD).',
+        'Bestehende lettische Steuer- und EPR-Pflichten (u. a. Verpackungssteuer) werden durch die PPWR nicht automatisch ersetzt, sondern bestehen zusätzlich fort.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Kliimaministeerium (Klimaministerium) – eigenständiges estnisches Produzentenregister voraussichtlich erst um 2028 fertig',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'EE'
+    `).run(
+      JSON.stringify([
+        'Unternehmen müssen sich in jedem Mitgliedstaat registrieren, in dem sie Verpackungen erstmals in Verkehr bringen; ohne gültige Registrierung darf in Estland keine verpackte Ware in Verkehr gebracht werden.',
+        'Das eigenständige estnische Produzentenregister wird laut Kliimaministeerium voraussichtlich erst um 2028 fertiggestellt sein.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Ministerium für Umwelt und Wasser – Systembeteiligung z. B. über Ecopak oder andere lizenzierte Organisationen',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'BG'
+    `).run(
+      JSON.stringify([
+        'Registrierung und Meldung bei den vom bulgarischen Umweltministerium lizenzierten Rückgewinnungsorganisationen (z. B. Ecopak) erforderlich.',
+        'Konformitätsbewertung, technische Dokumentation und EU-Konformitätserklärung ab 12.08.2026 vorgeschrieben.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Valorlux',
+        registration_url = 'https://www.valorlux.lu',
+        requirements_json = ?,
+        eco_fee = 'Mitgliedsbeitrag an Valorlux (einzige zugelassene Systembetreiberin), material- und mengenabhängig.',
+        data_status = 'verified'
+      WHERE code = 'LU'
+    `).run(
+      JSON.stringify([
+        'Valorlux ist die einzige zugelassene Systembetreiberin (PRO) für Verpackungen in Luxemburg – Mitgliedschaft ist verpflichtend, eine individuelle Erfüllung ist nicht vorgesehen.',
+        'Ausländische Unternehmen ohne Sitz in Luxemburg benötigen seit 12.08.2026 einen dort ansässigen Bevollmächtigten.',
+        'Meldung der Verpackungsmengen über das Valorlux-Portal Valbase; für Industrieverpackungen läuft das Meldefenster jährlich von Anfang Januar bis Ende Februar.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Nationales Produzentenregister (Stand 08/2026 keine konkrete Stelle bestätigt)',
+        requirements_json = ?,
+        data_status = 'needs_verification'
+      WHERE code = 'MT'
+    `).run(
+      JSON.stringify([
+        'Registrierungspflicht in jedem Mitgliedstaat, in dem Verpackungen erstmals in Verkehr gebracht werden – auch in Malta.',
+        'Eine spezifische maltesische Zuständigkeitsstelle für die PPWR-Registrierung konnte Stand 08/2026 nicht abschließend bestätigt werden.'
+      ])
+    );
+
+
+    db.prepare(`
+      UPDATE countries
+      SET
+        register_body = 'Green Dot Cyprus / Department of Environment',
+        requirements_json = ?,
+        data_status = 'verified'
+      WHERE code = 'CY'
+    `).run(
+      JSON.stringify([
+        'Green Dot Cyprus ist seit 2002 das etablierte System für die erweiterte Herstellerverantwortung bei Verpackungen in Zypern; Registrierung zusätzlich beim Department of Environment.',
+        'Ausländische Unternehmen ohne Sitz in Zypern benötigen einen Bevollmächtigten in Zypern.'
+      ])
+    );
 
 
     // ========================================================
@@ -1277,6 +1958,12 @@ function init() {
       'TEXT'
     );
 
+    addColumnIfMissing(
+      'product_packaging',
+      'icon',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 12. OAUTH STATES
@@ -1649,6 +2336,7 @@ function init() {
       'activations',
       'product_packaging',
       'orders',
+      'customer_package_sizes',
       'shopify_orders',
       'submissions',
       'representatives',

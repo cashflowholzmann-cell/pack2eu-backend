@@ -74,9 +74,32 @@ CREATE TABLE IF NOT EXISTS countries (
 
   registration_url TEXT,
 
+  representative_provider_name TEXT,
+
+  representative_provider_url TEXT,
+
+  representative_data_status TEXT NOT NULL
+    DEFAULT 'needs_verification',
+
   flag TEXT DEFAULT '🌍',
 
   data_status TEXT NOT NULL
+    DEFAULT 'needs_verification',
+
+  -- Nur auf 0 gesetzt, wenn recherchiert bestätigt ist, dass das Land
+  -- für Verpackungen aktuell überhaupt keine Registrierung/Bevollmächtigung
+  -- verlangt (z. B. Schweiz, China, Thailand, Stand 08/2026) – NICHT
+  -- gleichzusetzen mit "noch nicht recherchiert" (dafür gibt es data_status).
+  registration_generally_required INTEGER NOT NULL
+    DEFAULT 1,
+
+  -- Wie oft die Verpackungsmengen an das Register/System gemeldet werden
+  -- müssen: 'monthly' | 'quarterly' | 'annually' | 'needs_verification'.
+  -- Bewusst konservativ: nur auf einen konkreten Wert gesetzt, wenn die
+  -- Meldefrequenz für Produzenten (nicht nur die EU-weite Behörden-
+  -- Berichtspflicht) recherchiert bestätigt ist - ein falscher Wert könnte
+  -- zu einer verpassten echten Frist führen.
+  reporting_frequency TEXT NOT NULL
     DEFAULT 'needs_verification'
 );
 
@@ -226,6 +249,8 @@ CREATE TABLE IF NOT EXISTS product_packaging (
 
   sku_name TEXT NOT NULL,
 
+  icon TEXT,
+
   shopify_product_id TEXT,
 
   shopify_variant_id TEXT,
@@ -244,6 +269,31 @@ CREATE TABLE IF NOT EXISTS product_packaging (
     DEFAULT (datetime('now')),
 
   updated_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
+-- PAKETGRÖSSEN (KUNDENINDIVIDUELL)
+--
+-- Größen-Presets für den Produkt-Konfigurator (z.B. "S – 240 g").
+-- Die drei Standardgrößen S/M/L werden im Frontend immer angezeigt;
+-- diese Tabelle enthält nur vom Kunden selbst hinzugefügte Größen.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS customer_package_sizes (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  label TEXT NOT NULL,
+
+  weight_grams INTEGER NOT NULL,
+
+  created_at TEXT NOT NULL
     DEFAULT (datetime('now'))
 );
 
@@ -489,3 +539,7 @@ ON shopify_orders(customer_id);
 CREATE INDEX IF NOT EXISTS
 idx_orders_user_year
 ON orders(user_id, created_at);
+
+CREATE INDEX IF NOT EXISTS
+idx_customer_package_sizes_customer
+ON customer_package_sizes(customer_id);
