@@ -294,6 +294,24 @@ function init() {
       "TEXT NOT NULL DEFAULT (datetime('now'))"
     );
 
+    // Vom Kunden gewählte Branche (z. B. 'fashion', 'beauty') - steuert nur
+    // die vorgeschlagenen Produkt-Presets beim Onboarding, keine feste
+    // Kategorisierung. NULL = Nische (noch) nicht gewählt.
+    addColumnIfMissing(
+      'customers',
+      'niche',
+      'TEXT'
+    );
+
+    // Zeitpunkt, zu dem der Kunde das Erst-Onboarding (Nische + Presets)
+    // abgeschlossen oder übersprungen hat. NULL = Onboarding beim nächsten
+    // Dashboard-Login noch anzeigen.
+    addColumnIfMissing(
+      'customers',
+      'onboarding_completed_at',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 3. COUNTRIES

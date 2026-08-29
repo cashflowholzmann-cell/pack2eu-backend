@@ -385,7 +385,9 @@ router.get(
             origin_country,
             is_eu,
             email,
-            plan
+            plan,
+            niche,
+            onboarding_completed_at
           FROM customers
           WHERE id = ?
         `).get(
@@ -421,6 +423,88 @@ router.get(
       return res.status(500).json({
         error:
           'Interner Serverfehler.'
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// ONBOARDING ABSCHLIESSEN
+//
+// Speichert die vom Kunden gewählte Branche (oder "übersprungen", falls
+// niche = null) und markiert das Erst-Onboarding als erledigt, damit das
+// Dashboard es beim nächsten Login nicht erneut anzeigt.
+//
+// POST /api/auth/onboarding
+// ============================================================
+
+const ONBOARDING_NICHES = [
+  'fashion',
+  'beauty',
+  'home_deco',
+  'electronics',
+  'baby_toys',
+  'sport_outdoor',
+  'food_beverage',
+  'books_stationery',
+  'jewelry_accessories',
+  'pet_supplies'
+];
+
+const onboardingSchema = z.object({
+  niche: z.enum(ONBOARDING_NICHES).nullable().optional()
+});
+
+router.post(
+  '/onboarding',
+  requireAuth,
+  (req, res) => {
+
+    try {
+
+      const parsed =
+        onboardingSchema.safeParse(
+          req.body || {}
+        );
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error:
+            'Ungültige Branche.'
+        });
+      }
+
+      const niche =
+        parsed.data.niche ||
+        null;
+
+      db.prepare(`
+        UPDATE customers
+        SET
+          niche = ?,
+          onboarding_completed_at = datetime('now')
+        WHERE id = ?
+      `).run(
+        niche,
+        req.auth.userId
+      );
+
+      return res.json({
+        success: true,
+        niche
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ Onboarding-Fehler:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Onboarding konnte nicht gespeichert werden.'
       });
     }
   }
