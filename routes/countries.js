@@ -26,6 +26,7 @@ router.get('/', (req, res) => {
         data_status,
         registration_generally_required,
         reporting_frequency,
+        eco_fee_rates_json,
         flag
       FROM countries
       ORDER BY name
@@ -50,6 +51,7 @@ router.get('/', (req, res) => {
       data_status: r.data_status || 'needs_verification',
       registration_generally_required: Number(r.registration_generally_required) !== 0,
       reporting_frequency: r.reporting_frequency || 'needs_verification',
+      eco_fee_rates: r.eco_fee_rates_json ? JSON.parse(r.eco_fee_rates_json) : null,
       flag: r.flag || '🇪🇺'
     }));
     res.json(countries);

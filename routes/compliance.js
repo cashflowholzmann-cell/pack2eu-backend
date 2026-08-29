@@ -207,7 +207,12 @@ function countryPayload(
 
     reporting_frequency:
       country.reporting_frequency ||
-      'needs_verification'
+      'needs_verification',
+
+    eco_fee_rates:
+      country.eco_fee_rates_json ?
+        JSON.parse(country.eco_fee_rates_json) :
+        null
 
   };
 }
@@ -444,6 +449,11 @@ router.get(
           country.reporting_frequency ||
           'needs_verification',
 
+        eco_fee_rates:
+          country.eco_fee_rates_json ?
+            JSON.parse(country.eco_fee_rates_json) :
+            null,
+
         plan:
           customer.plan,
 
@@ -515,7 +525,8 @@ router.get(
             representative_provider_url,
             representative_data_status,
             registration_generally_required,
-            reporting_frequency
+            reporting_frequency,
+            eco_fee_rates_json
           FROM countries
           ORDER BY name
         `).all();
