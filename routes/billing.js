@@ -216,11 +216,16 @@ router.post('/webhooks/stripe', async (req, res) => {
         }
       }
 
-      // ⭐ Fall 2: Plan-Upgrade
+      // ⭐ Fall 2: Plan-Upgrade (oder Erstbuchung direkt bei der Registrierung)
+      // - schaltet die eigentliche Produktnutzung erst nach echter Zahlung
+      // frei (siehe requireActiveSubscription in middleware/auth.js).
       if (type === 'plan_upgrade' && plan && user_id) {
-        db.prepare('UPDATE customers SET plan = ?, billing_interval = ? WHERE id = ?')
-          .run(plan, interval === 'annual' ? 'annual' : 'monthly', parseInt(user_id));
-        console.log(`✅ Plan auf ${plan} geupgradet (User ${user_id})`);
+        db.prepare(`
+          UPDATE customers
+          SET plan = ?, billing_interval = ?, subscription_status = 'active', stripe_subscription_id = ?
+          WHERE id = ?
+        `).run(plan, interval === 'annual' ? 'annual' : 'monthly', session.subscription || null, parseInt(user_id));
+        console.log(`✅ Plan auf ${plan} geupgradet und aktiviert (User ${user_id})`);
       }
 
       // ⭐ Fall 3: Amazon-Zusatzmodul gebucht
@@ -238,20 +243,26 @@ router.post('/webhooks/stripe', async (req, res) => {
     }
   }
 
-  // Amazon-Zusatzmodul-Abo gekündigt oder Zahlung endgültig fehlgeschlagen
-  // -> Zugang wieder sperren, damit nicht ohne laufendes Abo weiter
-  // abgerechnet würde, was uns Amazon-Kosten ohne Gegenfinanzierung
-  // verursachen würde.
+  // Abo gekündigt oder Zahlung endgültig fehlgeschlagen -> Zugang wieder
+  // sperren. Trifft entweder das Haupt-Abo (Plan, siehe
+  // requireActiveSubscription) oder das Amazon-Zusatzmodul - je nachdem,
+  // welche subscription_id in der Kunden-Zeile hinterlegt ist.
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
     try {
+      db.prepare(`
+        UPDATE customers
+        SET subscription_status = 'inactive'
+        WHERE stripe_subscription_id = ?
+      `).run(subscription.id);
+
       db.prepare(`
         UPDATE customers
         SET amazon_addon_active = 0
         WHERE amazon_addon_subscription_id = ?
       `).run(subscription.id);
     } catch (err) {
-      console.error('❌ Fehler beim Deaktivieren des Amazon-Zusatzmoduls:', err);
+      console.error('❌ Fehler beim Deaktivieren des Abos:', err);
     }
   }
 
