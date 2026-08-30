@@ -50,7 +50,8 @@ router.get('/auth', requireAuth, requireEbayConfigured, (req, res) => {
   authUrl.searchParams.set('scope', EBAY_SCOPES);
   authUrl.searchParams.set('state', state);
 
-  res.redirect(authUrl.toString());
+  // JSON statt redirect, siehe Kommentar in routes/etsy.js.
+  res.json({ url: authUrl.toString() });
 });
 
 // ============================================================

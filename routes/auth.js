@@ -395,7 +395,12 @@ router.get(
             niche,
             onboarding_completed_at,
             billing_interval,
-            rep_entitlement_choices_json
+            rep_entitlement_choices_json,
+            (shopify_shop_domain IS NOT NULL) AS shopify_connected,
+            (etsy_shop_id IS NOT NULL) AS etsy_connected,
+            (kaufland_client_key IS NOT NULL) AS kaufland_connected,
+            (amazon_selling_partner_id IS NOT NULL) AS amazon_connected,
+            (ebay_access_token IS NOT NULL) AS ebay_connected
           FROM customers
           WHERE id = ?
         `).get(
