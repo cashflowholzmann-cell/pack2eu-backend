@@ -313,6 +313,12 @@ function init() {
     addColumnIfMissing('product_packaging', 'amazon_sku', 'TEXT');
     addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
 
+    // Herkunfts-Kanal einer manuell angelegten Bestellung (own_shop,
+    // shopify, etsy, kaufland, amazon, ebay) - rein zur Zuordnung/
+    // Auswertung, keine Sync-Funktion. NULL/fehlend = own_shop (siehe
+    // routes/orders.js).
+    addColumnIfMissing('orders', 'source_platform', 'TEXT');
+
     addColumnIfMissing(
       'customers',
       'created_at',

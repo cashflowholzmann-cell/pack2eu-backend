@@ -7,33 +7,42 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+// Herkunfts-Kanal einer manuellen Bestellung - rein zur Zuordnung/
+// Auswertung ("woher kamen meine Bestellungen"), keine Sync-Funktion.
+const VALID_SOURCE_PLATFORMS = ['own_shop', 'shopify', 'etsy', 'kaufland', 'amazon', 'ebay'];
+function normalizeSourcePlatform(value) {
+    return VALID_SOURCE_PLATFORMS.includes(value) ? value : 'own_shop';
+}
+
 // ============================================================
 // MANUELLE BESTELLUNG
 // ============================================================
 router.post('/manual', (req, res) => {
     try {
         const userId = req.customer.sub;
-        const { order_id, destination_country, total_weight_grams, packaging_data, created_at } = req.body;
+        const { order_id, destination_country, total_weight_grams, packaging_data, created_at, source_platform } = req.body;
 
         // Bestellung speichern
         const stmt = db.prepare(`
             INSERT INTO orders (
-                user_id, 
-                shopify_order_id, 
-                destination_country, 
-                total_weight_grams, 
+                user_id,
+                shopify_order_id,
+                destination_country,
+                total_weight_grams,
                 packaging_data,
-                created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                created_at,
+                source_platform
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
-        
+
         const result = stmt.run(
             userId,
             order_id || 'MANUAL-' + Date.now(),
             destination_country,
             total_weight_grams || 0,
             JSON.stringify(packaging_data || []),
-            created_at || new Date().toISOString()
+            created_at || new Date().toISOString(),
+            normalizeSourcePlatform(source_platform)
         );
         
         res.json({
@@ -63,7 +72,7 @@ router.put('/manual/:id', (req, res) => {
     try {
         const userId = req.customer.sub;
         const { id } = req.params;
-        const { order_id, destination_country, total_weight_grams, packaging_data, created_at } = req.body;
+        const { order_id, destination_country, total_weight_grams, packaging_data, created_at, source_platform } = req.body;
 
         const existing = db.prepare('SELECT id FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
         if (!existing) {
@@ -76,7 +85,8 @@ router.put('/manual/:id', (req, res) => {
                 destination_country = ?,
                 total_weight_grams = ?,
                 packaging_data = ?,
-                created_at = ?
+                created_at = ?,
+                source_platform = ?
             WHERE id = ? AND user_id = ?
         `).run(
             order_id || 'MANUAL-' + Date.now(),
@@ -84,6 +94,7 @@ router.put('/manual/:id', (req, res) => {
             total_weight_grams || 0,
             JSON.stringify(packaging_data || []),
             created_at || new Date().toISOString(),
+            normalizeSourcePlatform(source_platform),
             id,
             userId
         );
@@ -117,21 +128,26 @@ router.get('/', (req, res) => {
 
         // "id" ist pro Tabelle nur eigenständig eindeutig (beide sind
         // unabhängige AUTOINCREMENT-Spalten) - "source" macht das Paar
-        // (source, id) über beide Tabellen hinweg eindeutig identifizierbar.
+        // (source, id) über beide Tabellen hinweg eindeutig identifizierbar
+        // (u.a. für die Bearbeiten-Berechtigung in editOrder()).
+        // "origin" ist der tatsächliche Herkunfts-Kanal fürs Anzeigen eines
+        // Icons je Bestellung - bei Shopify/Marktplatz-Bestellungen identisch
+        // mit "source", bei manuellen Bestellungen frei waehlbar (siehe
+        // source_platform).
         const orders = db.prepare(`
-            SELECT 'manual' AS source, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            SELECT 'manual' AS source, COALESCE(source_platform, 'own_shop') AS origin, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
             FROM orders
             WHERE user_id = ?
 
             UNION ALL
 
-            SELECT 'shopify' AS source, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            SELECT 'shopify' AS source, 'shopify' AS origin, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
             FROM shopify_orders
             WHERE customer_id = ?
 
             UNION ALL
 
-            SELECT platform AS source, id, external_order_id AS shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            SELECT platform AS source, platform AS origin, id, external_order_id AS shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
             FROM marketplace_orders
             WHERE customer_id = ?
 
