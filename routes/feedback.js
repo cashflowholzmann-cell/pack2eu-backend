@@ -10,8 +10,7 @@
 const express = require('express');
 const { z } = require('zod');
 const axios = require('axios');
-const Anthropic = require('@anthropic-ai/sdk');
-const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
+const { callDeepSeekJSON } = require('../lib/deepseek');
 const { db } = require('../db');
 const { requireAuth, requireCustomer } = require('../middleware/auth');
 
@@ -36,6 +35,14 @@ Du sortierst eingereichte Verbesserungsvorschläge für die SaaS Pack2EU
   Bug/eine echte Hürde im Produkt.
 
 Gib eine kurze, konkrete Begründung (1-2 Sätze, Deutsch).
+
+Antworte AUSSCHLIESSLICH mit einem einzigen validen JSON-Objekt (kein
+Markdown, kein Fließtext davor oder danach) in genau diesem Format:
+
+{
+  "category": "spam" | "useful" | "very_useful",
+  "reasoning": string
+}
 `.trim();
 
 router.post('/', async (req, res) => {
@@ -55,24 +62,18 @@ router.post('/', async (req, res) => {
     const insertResult = db.prepare('INSERT INTO feedback (customer_id, message) VALUES (?, ?)').run(customerId, message);
     const feedbackId = insertResult.lastInsertRowid;
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.DEEPSEEK_API_KEY) {
       // Ohne Schlüssel wird trotzdem gespeichert, nur ohne Einordnung/Benachrichtigung.
       return res.status(201).json({ ok: true, id: feedbackId, category: null });
     }
 
-    const client = new Anthropic();
-    const response = await client.messages.parse({
-      model: 'claude-opus-5',
-      max_tokens: 512,
-      output_config: {
-        format: zodOutputFormat(ClassificationSchema),
-        effort: 'low'
-      },
+    const parsed = await callDeepSeekJSON({
       system: CLASSIFICATION_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: message }]
+      messages: [{ role: 'user', content: message }],
+      schema: ClassificationSchema,
+      maxTokens: 512
     });
 
-    const parsed = response.parsed_output;
     if (!parsed) {
       return res.status(201).json({ ok: true, id: feedbackId, category: null });
     }
