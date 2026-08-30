@@ -50,7 +50,8 @@ router.get('/auth', requireAuth, requireAmazonConfigured, (req, res) => {
     authUrl.searchParams.set('redirect_uri', process.env.AMAZON_REDIRECT_URI);
   }
 
-  res.redirect(authUrl.toString());
+  // JSON statt redirect, siehe Kommentar in routes/etsy.js.
+  res.json({ url: authUrl.toString() });
 });
 
 // ============================================================

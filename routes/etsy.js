@@ -60,7 +60,11 @@ router.get('/auth', requireAuth, (req, res) => {
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
 
-  res.redirect(authUrl.toString());
+  // JSON statt redirect: der Aufruf braucht den Bearer-Token (Auth-Header),
+  // den eine einfache Browser-Navigation nicht mitschicken kann. Das
+  // Frontend ruft diese Route per fetch() auf und navigiert danach selbst
+  // zur zurückgegebenen URL - so landet der Token nie in der Adresszeile.
+  res.json({ url: authUrl.toString() });
 });
 
 // ============================================================

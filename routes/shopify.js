@@ -6,46 +6,70 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+const OAUTH_STATE_TTL_MINUTES = 10;
+
 // ============================================================
 // 1. Shopify OAuth – Händler autorisiert die App
 // ============================================================
-router.get('/auth', (req, res) => {
+// requireAuth + oauth_states (statt der vorherigen fest verdrahteten
+// Test-E-Mail im Callback) - identisches Muster wie Etsy/Amazon/eBay.
+router.get('/auth', requireAuth, (req, res) => {
   const { shop } = req.query;
   if (!shop) return res.status(400).json({ error: 'Shop-Parameter fehlt.' });
-  
+  if (!process.env.SHOPIFY_CLIENT_ID || !process.env.SHOPIFY_REDIRECT_URI) {
+    return res.status(503).json({ error: 'Shopify-Integration ist noch nicht konfiguriert (SHOPIFY_CLIENT_ID/SHOPIFY_REDIRECT_URI fehlen).' });
+  }
+
   const state = crypto.randomBytes(16).toString('hex');
-  // In Production: State in Session oder DB speichern
-  
+  const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MINUTES * 60 * 1000).toISOString();
+
+  db.prepare(`
+    INSERT INTO oauth_states (customer_id, provider, state, shop_domain, expires_at)
+    VALUES (?, 'shopify', ?, ?, ?)
+  `).run(req.auth.userId, state, shop, expiresAt);
+
   const authUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_CLIENT_ID}&scope=read_products,read_orders&redirect_uri=${process.env.SHOPIFY_REDIRECT_URI}&state=${state}`;
-  res.redirect(authUrl);
+
+  // JSON statt redirect: der Aufruf braucht den Bearer-Token, den eine
+  // einfache Browser-Navigation nicht mitschicken kann. Das Frontend
+  // ruft diese Route per fetch() auf und navigiert danach selbst zur
+  // zurückgegebenen URL.
+  res.json({ url: authUrl });
 });
 
 // ============================================================
 // 2. Shopify OAuth Callback
 // ============================================================
 router.get('/callback', async (req, res) => {
-  const { shop, code } = req.query;
-  if (!shop || !code) return res.status(400).json({ error: 'Fehlende Parameter.' });
-  
+  const { shop, code, state } = req.query;
+  if (!shop || !code || !state) return res.status(400).send('Fehlende Parameter.');
+
   try {
+    const stateRow = db.prepare(`
+      SELECT * FROM oauth_states WHERE state = ? AND provider = 'shopify'
+    `).get(state);
+
+    if (!stateRow || new Date(stateRow.expires_at) < new Date()) {
+      return res.status(400).send('❌ Verbindung abgelaufen oder ungültig - bitte erneut versuchen.');
+    }
+
     const response = await axios.post(`https://${shop}/admin/oauth/access_token`, {
       client_id: process.env.SHOPIFY_CLIENT_ID,
       client_secret: process.env.SHOPIFY_CLIENT_SECRET,
       code: code,
     });
-    
+
     const { access_token } = response.data;
-    
-    // Hier muss der Kunde eingeloggt sein – vereinfacht: Token mit E-Mail verknüpfen
-    // In Production: State aus Session holen
-    const email = 'max@littleacorn.de'; // Aus Session
+
     db.prepare(`
-      UPDATE customers 
+      UPDATE customers
       SET shopify_shop_domain = ?, shopify_access_token = ?, updated_at = datetime('now')
-      WHERE email = ?
-    `).run(shop, access_token, email);
-    
-    res.send('✅ Shopify erfolgreich verbunden!');
+      WHERE id = ?
+    `).run(shop, access_token, stateRow.customer_id);
+
+    db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
+
+    res.send('✅ Shopify erfolgreich verbunden! Du kannst dieses Fenster jetzt schließen.');
   } catch (err) {
     console.error('Shopify Auth Fehler:', err.message);
     res.status(500).send('❌ Fehler bei der Shopify-Verbindung.');
