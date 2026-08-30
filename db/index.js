@@ -305,6 +305,12 @@ function init() {
     addColumnIfMissing('customers', 'amazon_addon_active', 'INTEGER DEFAULT 0');
     addColumnIfMissing('customers', 'amazon_addon_subscription_id', 'TEXT');
 
+    // Passwort-Reset (siehe routes/auth.js: /forgot-password, /reset-password).
+    // Token wird gehasht gespeichert (wie ein Passwort) - der Klartext-Token
+    // geht nur per E-Mail raus und steht nie in der Datenbank.
+    addColumnIfMissing('customers', 'password_reset_token_hash', 'TEXT');
+    addColumnIfMissing('customers', 'password_reset_expires_at', 'TEXT');
+
     // eBay (OAuth 2.0, siehe routes/ebay.js) - Code bereits fertig,
     // wartet auf eBays Produktions-Freigabe.
     addColumnIfMissing('customers', 'ebay_access_token', 'TEXT');

@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { z } = require('zod');
 
 const { db } = require('../db');
+const { sendPasswordResetEmail } = require('../lib/email');
 
 const {
   signToken,
@@ -685,6 +687,98 @@ router.post(
     }
   }
 );
+
+
+// ============================================================
+// PASSWORT VERGESSEN
+//
+// Liefert bewusst IMMER dieselbe Erfolgsmeldung, unabhängig davon, ob
+// die E-Mail-Adresse existiert - sonst ließe sich darüber ausprobieren,
+// welche E-Mail-Adressen bei uns registriert sind. Der Token selbst
+// wird nur gehasht gespeichert (wie ein Passwort); der Klartext-Token
+// verlässt den Server nur per E-Mail-Link.
+//
+// POST /api/auth/forgot-password
+// Body: { email }
+// ============================================================
+
+router.post('/forgot-password', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const genericResponse = {
+    success: true,
+    message: 'Falls diese E-Mail-Adresse bei uns registriert ist, haben wir einen Link zum Zurücksetzen des Passworts verschickt.'
+  };
+
+  if (!email) return res.json(genericResponse);
+
+  try {
+    const customer = db.prepare('SELECT id, email FROM customers WHERE email = ?').get(email);
+    if (!customer) return res.json(genericResponse);
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    db.prepare(`
+      UPDATE customers
+      SET password_reset_token_hash = ?, password_reset_expires_at = ?
+      WHERE id = ?
+    `).run(tokenHash, expiresAt, customer.id);
+
+    const resetUrl = `${process.env.APP_URL || ''}/index.html?resetToken=${rawToken}`;
+    await sendPasswordResetEmail(customer.email, resetUrl);
+
+    return res.json(genericResponse);
+  } catch (error) {
+    console.error('❌ Forgot-Password-Fehler:', error);
+    // Auch im Fehlerfall keine unterschiedliche Antwort - siehe oben.
+    return res.json(genericResponse);
+  }
+});
+
+
+// ============================================================
+// PASSWORT ZURÜCKSETZEN
+//
+// POST /api/auth/reset-password
+// Body: { token, password }
+// ============================================================
+
+router.post('/reset-password', (req, res) => {
+  const token = String(req.body?.token || '').trim();
+  const password = String(req.body?.password || '');
+
+  if (!token || password.length < 8) {
+    return res.status(400).json({ error: 'Ungültiger Link oder Passwort zu kurz (mind. 8 Zeichen).' });
+  }
+
+  try {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const customer = db.prepare(`
+      SELECT id, password_reset_expires_at
+      FROM customers
+      WHERE password_reset_token_hash = ?
+    `).get(tokenHash);
+
+    if (!customer || !customer.password_reset_expires_at || new Date(customer.password_reset_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.' });
+    }
+
+    const passwordHash = bcrypt.hashSync(password, 12);
+
+    db.prepare(`
+      UPDATE customers
+      SET password_hash = ?, password_reset_token_hash = NULL, password_reset_expires_at = NULL
+      WHERE id = ?
+    `).run(passwordHash, customer.id);
+
+    return res.json({ success: true, message: 'Passwort erfolgreich geändert. Du kannst dich jetzt einloggen.' });
+  } catch (error) {
+    console.error('❌ Reset-Password-Fehler:', error);
+    return res.status(500).json({ error: 'Passwort konnte nicht zurückgesetzt werden.' });
+  }
+});
 
 
 module.exports = router;

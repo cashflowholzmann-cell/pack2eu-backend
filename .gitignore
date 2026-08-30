@@ -5,5 +5,8 @@
 *.db
 *.db-shm
 *.db-wal
-node_modules/
 .env
+
+# Hinweis: node_modules/ ist bewusst NICHT ignoriert - dieses Repo
+# trackt die Abhängigkeiten direkt mit (bestehende Konvention), damit
+# ein Deploy nicht von einem "npm install"-Schritt abhängt.
