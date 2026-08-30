@@ -10,6 +10,9 @@
 // falls mehrere Personen mit unterschiedlichen Rechten dazukommen.
 const express = require('express');
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { db } = require('../db');
 const { signToken, requireAuth, requireAdmin } = require('../middleware/auth');
@@ -215,6 +218,33 @@ router.get('/customers', (req, res) => {
     LIMIT 200
   `).all();
   res.json(customers);
+});
+
+// ============================================================
+// DATENBANK-BACKUP HERUNTERLADEN
+//
+// Nutzt SQLites Online-Backup-API (nicht einfach die Datei kopieren -
+// bei aktivem WAL-Modus könnte eine rohe Dateikopie unvollständig/
+// inkonsistent sein). Der Download landet auf dem Rechner der Person,
+// die ihn auslöst - das ist aktuell der einzige echte Off-Server-
+// Backup-Weg, solange kein Cloud-Speicher (S3 o. ä.) angebunden ist.
+// ============================================================
+router.get('/backup/download', async (req, res) => {
+  const tempPath = path.join(os.tmpdir(), `pack2eu-backup-${Date.now()}.db`);
+
+  try {
+    await db.backup(tempPath);
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.download(tempPath, `pack2eu-backup-${stamp}.db`, (err) => {
+      fs.unlink(tempPath, () => {});
+      if (err) console.error('❌ Backup-Download-Fehler:', err.message);
+    });
+  } catch (error) {
+    console.error('❌ Backup-Fehler:', error);
+    fs.unlink(tempPath, () => {});
+    res.status(500).json({ error: 'Backup konnte nicht erstellt werden.' });
+  }
 });
 
 module.exports = router;

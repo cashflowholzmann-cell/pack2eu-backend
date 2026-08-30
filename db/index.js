@@ -2775,5 +2775,6 @@ function init() {
 
 module.exports = {
   db,
-  init
+  init,
+  DB_PATH
 };
