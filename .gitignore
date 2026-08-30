@@ -1,1 +1,9 @@
 .claude/
+
+# Datenbankdateien gehören nie ins Repo (Gefahr echter Kundendaten in der
+# Git-Historie) - Pfad kommt zur Laufzeit aus DB_PATH bzw. db/pack2eu.db.
+*.db
+*.db-shm
+*.db-wal
+node_modules/
+.env
