@@ -1,11 +1,12 @@
 // routes/orders.js
 const express = require('express');
 const { db } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
 // Herkunfts-Kanal einer manuellen Bestellung - rein zur Zuordnung/
 // Auswertung ("woher kamen meine Bestellungen"), keine Sync-Funktion.

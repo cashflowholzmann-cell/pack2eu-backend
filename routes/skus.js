@@ -1,9 +1,10 @@
 const express = require('express');
 const { db } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
 // ============================================================
 // ALLE SKUS DES KUNDEN

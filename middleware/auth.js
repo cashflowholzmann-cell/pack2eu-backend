@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { db } = require('../db');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -172,6 +173,35 @@ function requireRepresentative(req, res, next) {
 
 
 // ============================================================
+// AKTIVES ABO ERFORDERLICH
+// ============================================================
+// Schützt die eigentliche Produktnutzung (Aktivierungen, Bestellungen,
+// Compliance-Prüfungen, Berichte, ...): ein registrierter, aber noch
+// nicht bezahlter Kunde (subscription_status != 'active') darf sich
+// zwar einloggen, bekommt hier aber eine klare Zahlungs-Aufforderung
+// statt echten Zugriff. Gilt nur für die Rolle "customer" -
+// Beauftragte haben kein eigenes Abo und werden durchgelassen.
+function requireActiveSubscription(req, res, next) {
+
+  if (!req.auth || req.auth.role !== 'customer') {
+    return next();
+  }
+
+  const customer = db.prepare(
+    'SELECT subscription_status FROM customers WHERE id = ?'
+  ).get(req.auth.userId);
+
+  if (!customer || customer.subscription_status !== 'active') {
+    return res.status(402).json({
+      error: 'Bitte zuerst die Zahlung abschließen, um Pack2EU zu nutzen.'
+    });
+  }
+
+  next();
+}
+
+
+// ============================================================
 // EXPORT
 // ============================================================
 
@@ -179,5 +209,6 @@ module.exports = {
   signToken,
   requireAuth,
   requireCustomer,
-  requireRepresentative
+  requireRepresentative,
+  requireActiveSubscription
 };

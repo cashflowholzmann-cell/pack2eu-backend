@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 const { db } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
 
 // ============================================================

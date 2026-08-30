@@ -392,6 +392,7 @@ router.get(
             is_eu,
             email,
             plan,
+            subscription_status,
             niche,
             onboarding_completed_at,
             billing_interval,
