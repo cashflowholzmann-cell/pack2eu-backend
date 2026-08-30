@@ -31,10 +31,21 @@ function requireAmazonConfigured(req, res, next) {
   next();
 }
 
+// Amazon ist (anders als Shopify/Etsy/Kaufland/eBay) für uns nicht
+// kostenlos - deshalb erst nutzbar, wenn das kostenpflichtige Zusatzmodul
+// gebucht ist (siehe routes/billing.js: /create-amazon-addon-session).
+function requireAmazonAddon(req, res, next) {
+  const customer = db.prepare('SELECT amazon_addon_active FROM customers WHERE id = ?').get(req.auth.userId);
+  if (!customer?.amazon_addon_active) {
+    return res.status(402).json({ error: 'Amazon ist ein kostenpflichtiges Zusatzmodul - bitte zuerst buchen.' });
+  }
+  next();
+}
+
 // ============================================================
 // 1. Amazon-Verbindung starten (Seller Central Consent-Flow)
 // ============================================================
-router.get('/auth', requireAuth, requireAmazonConfigured, (req, res) => {
+router.get('/auth', requireAuth, requireAmazonAddon, requireAmazonConfigured, (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MINUTES * 60 * 1000).toISOString();
 
@@ -107,7 +118,7 @@ async function getAccessToken(refreshToken) {
 // ============================================================
 // 3. Amazon-Bestellungen synchronisieren
 // ============================================================
-router.post('/sync', requireAuth, requireAmazonConfigured, async (req, res) => {
+router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, async (req, res) => {
   try {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
     if (!customer?.amazon_refresh_token) {

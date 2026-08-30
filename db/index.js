@@ -298,6 +298,13 @@ function init() {
     addColumnIfMissing('customers', 'amazon_selling_partner_id', 'TEXT');
     addColumnIfMissing('customers', 'amazon_refresh_token', 'TEXT');
 
+    // Amazon ist im Gegensatz zu Shopify/Etsy/Kaufland/eBay für uns nicht
+    // kostenlos (SP-API-Nutzungsgebühren) - daher ein separat buchbares,
+    // kostenpflichtiges Zusatzmodul (Stripe-Abo, siehe routes/billing.js)
+    // statt im Starter-Plan inklusive.
+    addColumnIfMissing('customers', 'amazon_addon_active', 'INTEGER DEFAULT 0');
+    addColumnIfMissing('customers', 'amazon_addon_subscription_id', 'TEXT');
+
     // eBay (OAuth 2.0, siehe routes/ebay.js) - Code bereits fertig,
     // wartet auf eBays Produktions-Freigabe.
     addColumnIfMissing('customers', 'ebay_access_token', 'TEXT');
