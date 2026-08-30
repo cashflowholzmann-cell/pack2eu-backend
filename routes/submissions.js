@@ -5,8 +5,12 @@ const { requireAuth, requireCustomer } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Gleiches Material-Enum wie bei Produkten/Bestellungen (routes/skus.js,
+// routes/orders.js) - eine Meldung wird jetzt direkt aus den tatsächlichen
+// Bestellungen vorbefüllt, dafür müssen beide Seiten dieselben Kategorien
+// verwenden.
 const materialSchema = z.object({
-  material: z.enum(['karton', 'papier', 'folie', 'glas', 'metall', 'styropor', 'holz']),
+  material: z.enum(['karton', 'kunststoff', 'papier', 'glas', 'metall', 'holz', 'sonstige']),
   weight_kg: z.number().positive(),
   qty: z.number().int().positive(),
 });
