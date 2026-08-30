@@ -54,6 +54,10 @@ const kauflandRoutes = require('./routes/kaufland');
 const amazonRoutes = require('./routes/amazon');
 const ebayRoutes = require('./routes/ebay');
 
+// Internes Vertriebs-/Marketing-Tool (Traffic, Leads, Aufgaben).
+const adminRoutes = require('./routes/admin');
+const trackRoutes = require('./routes/track');
+
 // ============================================================
 // APP
 // ============================================================
@@ -216,6 +220,14 @@ app.use('/api/etsy', etsyRoutes);
 app.use('/api/kaufland', kauflandRoutes);
 app.use('/api/amazon', amazonRoutes);
 app.use('/api/ebay', ebayRoutes);
+
+// Internes Vertriebs-/Marketing-Tool - der Login-Limiter sitzt gezielt
+// nur auf /login (siehe routes/admin.js), nicht auf dem ganzen Router,
+// sonst würde das normale Nutzen des Tools (viele GETs beim Laden,
+// jede Lead-/Aufgaben-Aktion) selbst schnell an ein 20-Anfragen-Limit
+// stoßen.
+app.use('/api/admin', adminRoutes);
+app.use('/api/track', trackRoutes);
 
 // ============================================================
 // 404
