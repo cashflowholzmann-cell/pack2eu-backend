@@ -4,7 +4,8 @@ const { db } = require('../db');
 
 const {
   requireAuth,
-  requireCustomer
+  requireCustomer,
+  requireActiveSubscription
 } = require('../middleware/auth');
 
 const {
@@ -22,7 +23,8 @@ const router =
 
 router.use(
   requireAuth,
-  requireCustomer
+  requireCustomer,
+  requireActiveSubscription
 );
 
 

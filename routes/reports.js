@@ -2,11 +2,12 @@
 const express = require('express');
 const { db } = require('../db');
 const PDFDocument = require('pdfkit');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
 // ============================================================
 // HILFSFUNKTIONEN
