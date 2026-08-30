@@ -426,6 +426,68 @@ CREATE TABLE IF NOT EXISTS submissions (
 
 
 -- ================================================================
+-- SUPPORT-CHAT VERLAUF
+--
+-- Persistiert je Kunde die letzten Chat-Nachrichten mit dem KI-Support-
+-- Bot - nur fuer den eigenen Verlauf beim naechsten Login, kein Team-
+-- Zugriff/Auswertung vorgesehen.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS support_messages (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  role TEXT NOT NULL
+    CHECK (role IN ('user', 'assistant')),
+
+  content TEXT NOT NULL,
+
+  escalated INTEGER NOT NULL
+    DEFAULT 0,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
+-- VERBESSERUNGSVORSCHLAEGE (FEEDBACK)
+--
+-- Frei eingereichtes Feedback ueber den "Verbesserungsvorschlag"-Button.
+-- Wird direkt bei der Einreichung per KI in spam / useful / very_useful
+-- eingeordnet (category + reasoning) - bei useful/very_useful geht
+-- zusaetzlich eine Benachrichtigung an FEEDBACK_WEBHOOK_URL raus (siehe
+-- routes/feedback.js).
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS feedback (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  message TEXT NOT NULL,
+
+  category TEXT
+    CHECK (category IN ('spam', 'useful', 'very_useful') OR category IS NULL),
+
+  ai_reasoning TEXT,
+
+  notified INTEGER NOT NULL
+    DEFAULT 0,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
 -- BEVOLLMÄCHTIGTE
 -- ================================================================
 
@@ -580,3 +642,11 @@ ON orders(user_id, created_at);
 CREATE INDEX IF NOT EXISTS
 idx_customer_package_sizes_customer
 ON customer_package_sizes(customer_id);
+
+CREATE INDEX IF NOT EXISTS
+idx_support_messages_customer
+ON support_messages(customer_id);
+
+CREATE INDEX IF NOT EXISTS
+idx_feedback_customer
+ON feedback(customer_id);

@@ -42,6 +42,10 @@ const complianceRoutes = require('./routes/compliance');
 // ⭐⭐ NEU: Report-Route
 const reportRoutes = require('./routes/reports');
 
+// KI-Support-Chat + Verbesserungsvorschläge
+const supportRoutes = require('./routes/support');
+const feedbackRoutes = require('./routes/feedback');
+
 // ============================================================
 // APP
 // ============================================================
@@ -194,6 +198,10 @@ app.use(
 
 // ⭐⭐ NEU: Report-Route
 app.use('/api/reports', reportRoutes);
+
+// KI-Support-Chat + Verbesserungsvorschläge
+app.use('/api/support', supportRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // ============================================================
 // 404
