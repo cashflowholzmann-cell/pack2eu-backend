@@ -282,6 +282,37 @@ function init() {
       'TEXT'
     );
 
+    // Etsy (OAuth 2.0 + PKCE, siehe routes/etsy.js).
+    addColumnIfMissing('customers', 'etsy_shop_id', 'TEXT');
+    addColumnIfMissing('customers', 'etsy_access_token', 'TEXT');
+    addColumnIfMissing('customers', 'etsy_refresh_token', 'TEXT');
+    addColumnIfMissing('customers', 'etsy_token_expires_at', 'TEXT');
+
+    // Kaufland (kein OAuth - Kunde hinterlegt eigene API-Zugangsdaten
+    // aus seinem Kaufland-Verkäuferkonto, siehe routes/kaufland.js).
+    addColumnIfMissing('customers', 'kaufland_client_key', 'TEXT');
+    addColumnIfMissing('customers', 'kaufland_secret_key', 'TEXT');
+
+    // Amazon SP-API (Login with Amazon, siehe routes/amazon.js) - Code
+    // bereits fertig, wartet auf Amazons Entwickler-/Rollen-Freigabe.
+    addColumnIfMissing('customers', 'amazon_selling_partner_id', 'TEXT');
+    addColumnIfMissing('customers', 'amazon_refresh_token', 'TEXT');
+
+    // eBay (OAuth 2.0, siehe routes/ebay.js) - Code bereits fertig,
+    // wartet auf eBays Produktions-Freigabe.
+    addColumnIfMissing('customers', 'ebay_access_token', 'TEXT');
+    addColumnIfMissing('customers', 'ebay_refresh_token', 'TEXT');
+    addColumnIfMissing('customers', 'ebay_token_expires_at', 'TEXT');
+
+    // Produkt-Zuordnung für die neuen Marktplätze (gleiches Prinzip wie
+    // shopify_product_id/shopify_variant_id): ordnet eine externe
+    // Marktplatz-Artikel-ID einem lokal angelegten Produkt zu, damit
+    // beim Bestellungs-Sync das richtige Verpackungsgewicht gefunden wird.
+    addColumnIfMissing('product_packaging', 'etsy_listing_id', 'TEXT');
+    addColumnIfMissing('product_packaging', 'kaufland_product_id', 'TEXT');
+    addColumnIfMissing('product_packaging', 'amazon_sku', 'TEXT');
+    addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
+
     addColumnIfMissing(
       'customers',
       'created_at',
@@ -2189,6 +2220,10 @@ function init() {
       );
     `);
 
+    // Etsy PKCE braucht neben "state" auch den code_verifier bis zum
+    // Callback - hier zwischengespeichert (kurzlebig, siehe expires_at).
+    addColumnIfMissing('oauth_states', 'code_verifier', 'TEXT');
+
 
     // ========================================================
     // 13. PROVIDER TRANSACTIONS
@@ -2535,6 +2570,7 @@ function init() {
       'orders',
       'customer_package_sizes',
       'shopify_orders',
+      'marketplace_orders',
       'submissions',
       'representatives',
       'country_jurisdictions',

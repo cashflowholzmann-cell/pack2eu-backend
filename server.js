@@ -46,6 +46,14 @@ const reportRoutes = require('./routes/reports');
 const supportRoutes = require('./routes/support');
 const feedbackRoutes = require('./routes/feedback');
 
+// Weitere Marktplätze neben Shopify: Etsy und Kaufland direkt nutzbar,
+// Amazon und eBay fertig codiert, aktiv sobald die jeweilige externe
+// Freigabe da ist und die zugehörigen Env-Vars gesetzt sind.
+const etsyRoutes = require('./routes/etsy');
+const kauflandRoutes = require('./routes/kaufland');
+const amazonRoutes = require('./routes/amazon');
+const ebayRoutes = require('./routes/ebay');
+
 // ============================================================
 // APP
 // ============================================================
@@ -202,6 +210,12 @@ app.use('/api/reports', reportRoutes);
 // KI-Support-Chat + Verbesserungsvorschläge
 app.use('/api/support', supportRoutes);
 app.use('/api/feedback', feedbackRoutes);
+
+// Weitere Marktplätze
+app.use('/api/etsy', etsyRoutes);
+app.use('/api/kaufland', kauflandRoutes);
+app.use('/api/amazon', amazonRoutes);
+app.use('/api/ebay', ebayRoutes);
 
 // ============================================================
 // 404

@@ -28,7 +28,14 @@ function fetchOrdersForYear(userId, year) {
         FROM shopify_orders
         WHERE customer_id = ?
         AND strftime('%Y', created_at) = ?
-    `).all(userId, String(year), userId, String(year));
+
+        UNION ALL
+
+        SELECT destination_country, packaging_data, created_at
+        FROM marketplace_orders
+        WHERE customer_id = ?
+        AND strftime('%Y', created_at) = ?
+    `).all(userId, String(year), userId, String(year), userId, String(year));
 }
 
 function buildReportData(orders) {
@@ -114,11 +121,17 @@ router.get('/monthly', (req, res) => {
                 SELECT created_at, destination_country, total_weight_grams
                 FROM shopify_orders
                 WHERE customer_id = ?
+
+                UNION ALL
+
+                SELECT created_at, destination_country, total_weight_grams
+                FROM marketplace_orders
+                WHERE customer_id = ?
             )
             GROUP BY strftime('%Y-%m', created_at), destination_country
             ORDER BY period DESC
             LIMIT 12
-        `).all(userId, userId);
+        `).all(userId, userId, userId);
 
         const formatted = reports.map(r => ({
             period: r.period,

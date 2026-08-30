@@ -129,8 +129,14 @@ router.get('/', (req, res) => {
             FROM shopify_orders
             WHERE customer_id = ?
 
+            UNION ALL
+
+            SELECT platform AS source, id, external_order_id AS shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            FROM marketplace_orders
+            WHERE customer_id = ?
+
             ORDER BY created_at DESC
-        `).all(userId, userId);
+        `).all(userId, userId, userId);
 
         res.json(orders);
 

@@ -393,6 +393,45 @@ CREATE TABLE IF NOT EXISTS shopify_orders (
 
 
 -- ================================================================
+-- MARKETPLACE ORDERS (Etsy, Kaufland, Amazon, eBay)
+--
+-- Gemeinsame Tabelle für alle Marktplätze außer Shopify (das hat mit
+-- shopify_orders bereits eine eigene, etablierte Tabelle mit eigenen
+-- Verbrauchern - hier absichtlich nicht angefasst, um dort nichts zu
+-- riskieren). "platform" unterscheidet die Quelle, external_order_id
+-- ist die ID des Marktplatzes selbst (je Plattform eindeutig).
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS marketplace_orders (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  platform TEXT NOT NULL
+    CHECK (platform IN ('etsy', 'kaufland', 'amazon', 'ebay')),
+
+  external_order_id TEXT NOT NULL,
+
+  order_data_json TEXT,
+
+  destination_country TEXT,
+
+  total_weight_grams INTEGER NOT NULL
+    DEFAULT 0,
+
+  packaging_data TEXT,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  UNIQUE(platform, external_order_id)
+);
+
+
+-- ================================================================
 -- SUBMISSIONS
 -- ================================================================
 
@@ -650,3 +689,7 @@ ON support_messages(customer_id);
 CREATE INDEX IF NOT EXISTS
 idx_feedback_customer
 ON feedback(customer_id);
+
+CREATE INDEX IF NOT EXISTS
+idx_marketplace_orders_customer
+ON marketplace_orders(customer_id);
