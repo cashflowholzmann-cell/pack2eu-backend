@@ -20,6 +20,13 @@ const STRIPE_PRICE_IDS = {
   annual: { S: 'STRIPE_PRICE_S_ANNUAL', M: 'STRIPE_PRICE_M_ANNUAL', L: 'STRIPE_PRICE_L_ANNUAL' }
 };
 
+// Amazon-Zusatzmodul (kostenpflichtig, da uns Amazons SP-API im Gegensatz
+// zu Shopify/Etsy/Kaufland/eBay echte Nutzungsgebühren verursacht) - der
+// tatsächliche Preis (mit Aufschlag auf unsere Amazon-Kosten) wird als
+// Stripe-Preis im Dashboard angelegt, sobald die Kosten bekannt sind, und
+// hier nur als Env-Var referenziert - kein Betrag im Code.
+const STRIPE_PRICE_AMAZON_ADDON = 'STRIPE_PRICE_AMAZON_ADDON';
+
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   const { plan } = req.body;
   const interval = req.body.interval === 'annual' ? 'annual' : 'monthly';
@@ -127,6 +134,51 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
+// AMAZON-ZUSATZMODUL BUCHEN (kostenpflichtiges Abo-Add-on)
+// ============================================================
+router.post('/create-amazon-addon-session', requireAuth, async (req, res) => {
+  const priceId = process.env[STRIPE_PRICE_AMAZON_ADDON];
+
+  if (!priceId) {
+    return res.status(400).json({
+      error: 'Das Amazon-Zusatzmodul ist noch nicht buchbar - der Preis wird gerade hinterlegt.'
+    });
+  }
+
+  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
+  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+  if (customer.amazon_addon_active) {
+    return res.status(400).json({ error: 'Das Amazon-Zusatzmodul ist bereits gebucht.' });
+  }
+
+  let stripeCustomerId = customer.stripe_customer_id;
+  if (!stripeCustomerId) {
+    const sc = await stripe.customers.create({
+      email: customer.email,
+      name: customer.company_name,
+      metadata: { customer_number: customer.customer_number }
+    });
+    stripeCustomerId = sc.id;
+    db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    customer: stripeCustomerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.APP_URL}/Dashboard.html?amazon_addon=success`,
+    cancel_url: `${process.env.APP_URL}/Dashboard.html?amazon_addon=cancel`,
+    metadata: {
+      user_id: customer.id,
+      type: 'amazon_addon_purchase'
+    }
+  });
+
+  res.json({ url: session.url });
+});
+
+// ============================================================
 // ⭐ STRIPE WEBHOOK (MIT LAPPA-PLATZHALTER)
 // ============================================================
 router.post('/webhooks/stripe', async (req, res) => {
@@ -171,8 +223,35 @@ router.post('/webhooks/stripe', async (req, res) => {
         console.log(`✅ Plan auf ${plan} geupgradet (User ${user_id})`);
       }
 
+      // ⭐ Fall 3: Amazon-Zusatzmodul gebucht
+      if (type === 'amazon_addon_purchase' && user_id) {
+        db.prepare(`
+          UPDATE customers
+          SET amazon_addon_active = 1, amazon_addon_subscription_id = ?
+          WHERE id = ?
+        `).run(session.subscription || null, parseInt(user_id));
+        console.log(`✅ Amazon-Zusatzmodul aktiviert (User ${user_id})`);
+      }
+
     } catch (err) {
       console.error('❌ Fehler beim DB-Update:', err);
+    }
+  }
+
+  // Amazon-Zusatzmodul-Abo gekündigt oder Zahlung endgültig fehlgeschlagen
+  // -> Zugang wieder sperren, damit nicht ohne laufendes Abo weiter
+  // abgerechnet würde, was uns Amazon-Kosten ohne Gegenfinanzierung
+  // verursachen würde.
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    try {
+      db.prepare(`
+        UPDATE customers
+        SET amazon_addon_active = 0
+        WHERE amazon_addon_subscription_id = ?
+      `).run(subscription.id);
+    } catch (err) {
+      console.error('❌ Fehler beim Deaktivieren des Amazon-Zusatzmoduls:', err);
     }
   }
 
