@@ -20,6 +20,26 @@ const router =
 
 
 // ============================================================
+// TEST-ZUGANG (ohne echte Stripe-Zahlung)
+//
+// Konten mit einer in TEST_ACCESS_EMAILS (Env-Var, kommagetrennt)
+// hinterlegten E-Mail-Adresse werden automatisch als bezahlt markiert -
+// gedacht für den eigenen Test-Account, um den echten, bezahlten
+// Produkt-Flow durchzuklicken, ohne Stripe/echtes Geld. Betrifft
+// niemanden sonst: ohne diese Env-Var passiert gar nichts, und die
+// E-Mail-Adresse selbst ist nirgends öffentlich sichtbar.
+// ============================================================
+
+function isTestAccessEmail(email) {
+  const whitelist = (process.env.TEST_ACCESS_EMAILS || '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  return whitelist.includes(String(email || '').trim().toLowerCase());
+}
+
+
+// ============================================================
 // KUNDENNUMMER
 // ============================================================
 
@@ -218,6 +238,15 @@ router.post(
         );
 
 
+      if (isTestAccessEmail(email)) {
+        db.prepare(`
+          UPDATE customers
+          SET subscription_status = 'active'
+          WHERE id = ?
+        `).run(result.lastInsertRowid);
+      }
+
+
       const customer =
         db.prepare(`
           SELECT
@@ -314,6 +343,15 @@ router.post(
           error:
             'E-Mail oder Passwort falsch.'
         });
+      }
+
+
+      // Selbstheilend: falls die E-Mail erst NACH der Registrierung zu
+      // TEST_ACCESS_EMAILS hinzugefügt wurde, wird das Konto beim
+      // nächsten Login automatisch freigeschaltet.
+      if (customer.subscription_status !== 'active' && isTestAccessEmail(customer.email)) {
+        db.prepare(`UPDATE customers SET subscription_status = 'active' WHERE id = ?`).run(customer.id);
+        customer.subscription_status = 'active';
       }
 
 
