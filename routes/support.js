@@ -10,7 +10,8 @@
 // Support-Adresse.
 const express = require('express');
 const { z } = require('zod');
-const { callDeepSeekJSON } = require('../lib/deepseek');
+const Anthropic = require('@anthropic-ai/sdk');
+const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 const { db } = require('../db');
 const { requireAuth, requireCustomer } = require('../middleware/auth');
 const { getPlanLimits } = require('../config/plans');
@@ -22,7 +23,7 @@ const ChatResponseSchema = z.object({
   reply: z.string(),
   escalate: z.boolean(),
   escalate_target: z.enum(['representative', 'support', 'none']),
-  escalate_reason: z.string().nullable().optional(),
+  escalate_reason: z.string().optional(),
 });
 
 // ============================================================
@@ -111,18 +112,6 @@ Eskalations-Regeln:
   selbst.
 `.trim();
 
-const RESPONSE_FORMAT_INSTRUCTIONS = `
-Antworte AUSSCHLIESSLICH mit einem einzigen validen JSON-Objekt (kein
-Markdown, kein Fließtext davor oder danach) in genau diesem Format:
-
-{
-  "reply": string,
-  "escalate": boolean,
-  "escalate_target": "representative" | "support" | "none",
-  "escalate_reason": string oder null
-}
-`.trim();
-
 function buildCustomerContext(customerId) {
   const customer = db.prepare(`
     SELECT company_name, origin_country, is_eu, plan, billing_interval
@@ -180,9 +169,9 @@ router.post('/chat', async (req, res) => {
     return res.status(400).json({ error: 'Nachricht ist zu lang (max. 2000 Zeichen).' });
   }
 
-  if (!process.env.DEEPSEEK_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(503).json({
-      error: 'Der Support-Chat ist noch nicht aktiv - dazu muss DEEPSEEK_API_KEY in der Backend-Konfiguration gesetzt sein.'
+      error: 'Der Support-Chat ist noch nicht aktiv - dazu muss ANTHROPIC_API_KEY in der Backend-Konfiguration gesetzt sein.'
     });
   }
 
@@ -207,17 +196,23 @@ router.post('/chat', async (req, res) => {
       DASHBOARD_KNOWLEDGE,
       LEGAL_KNOWLEDGE,
       ESCALATION_RULES,
-      'AKTUELLE DATEN DIESES KUNDEN (live aus dem Dashboard, nicht statisch):\n' + context.text,
-      RESPONSE_FORMAT_INSTRUCTIONS
+      'AKTUELLE DATEN DIESES KUNDEN (live aus dem Dashboard, nicht statisch):\n' + context.text
     ].join('\n\n---\n\n');
 
-    const parsed = await callDeepSeekJSON({
+    const client = new Anthropic();
+
+    const response = await client.messages.parse({
+      model: 'claude-opus-5',
+      max_tokens: 1024,
+      output_config: {
+        format: zodOutputFormat(ChatResponseSchema),
+        effort: 'medium'
+      },
       system: systemPrompt,
-      messages: [...history, { role: 'user', content: message }],
-      schema: ChatResponseSchema,
-      maxTokens: 1024
+      messages: [...history, { role: 'user', content: message }]
     });
 
+    const parsed = response.parsed_output;
     if (!parsed) {
       return res.status(502).json({ error: 'Antwort konnte nicht verarbeitet werden.' });
     }
