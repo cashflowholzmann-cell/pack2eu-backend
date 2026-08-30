@@ -2681,6 +2681,61 @@ function init() {
       '✅ Alle kritischen Spalten vorhanden'
     );
 
+    // ========================================================
+    // VERTRIEB/MARKETING: TRAFFIC, LEADS, AUFGABEN
+    //
+    // Eigenständiger Bereich fürs interne Admin-Tool (routes/admin.js) -
+    // page_views für anonymes Traffic-Tracking (kein Cookie-Consent
+    // nötig, da keine personenbezogene Zuordnung stattfindet), leads
+    // für Interessenten unabhängig vom Registrierungs-Flow (z. B.
+    // Telefonanrufe), tasks für einfache Vertriebs-Aufgaben.
+    // ========================================================
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        path TEXT NOT NULL,
+        referrer TEXT,
+        utm_source TEXT,
+        utm_medium TEXT,
+        utm_campaign TEXT,
+        session_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at);`);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        contact TEXT,
+        source TEXT NOT NULL DEFAULT 'other',
+        status TEXT NOT NULL DEFAULT 'new',
+        notes TEXT,
+        customer_id INTEGER REFERENCES customers(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS admin_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        due_date TEXT,
+        status TEXT NOT NULL DEFAULT 'open',
+        related_lead_id INTEGER REFERENCES leads(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
+    // Herkunft eines Kunden (woher kam der Lead, der zum Kunden wurde) -
+    // wird bei der Registrierung aus UTM-Parametern/Referrer befüllt,
+    // bleibt sonst NULL ("organisch"/unbekannt).
+    addColumnIfMissing('customers', 'acquisition_source', 'TEXT');
+
     console.log(
       '=============================================='
     );

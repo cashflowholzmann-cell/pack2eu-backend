@@ -95,7 +95,15 @@ const registerSchema =
     isEU:
       z.boolean()
         .optional()
-        .default(true)
+        .default(true),
+
+    // Woher kam der Besuch (UTM-Parameter/Referrer-Klassifizierung),
+    // fürs interne Vertriebs-Tool (siehe routes/admin.js). Rein
+    // informativ, keine Pflichtangabe.
+    acquisitionSource:
+      z.string()
+        .max(100)
+        .optional()
 
   });
 
@@ -144,7 +152,8 @@ router.post(
       email,
       password,
       plan,
-      isEU
+      isEU,
+      acquisitionSource
     } =
       parsed.data;
 
@@ -205,9 +214,10 @@ router.post(
             email,
             password_hash,
             plan,
-            is_eu
+            is_eu,
+            acquisition_source
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
 
@@ -235,7 +245,10 @@ router.post(
 
           isEU
             ? 1
-            : 0
+            : 0,
+
+          acquisitionSource ||
+            null
 
         );
 

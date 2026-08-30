@@ -173,6 +173,27 @@ function requireRepresentative(req, res, next) {
 
 
 // ============================================================
+// NUR ADMIN (internes Vertriebs-/Marketing-Tool, siehe routes/admin.js)
+// ============================================================
+
+function requireAdmin(req, res, next) {
+
+  if (
+    !req.auth ||
+    req.auth.role !== 'admin'
+  ) {
+
+    return res.status(403).json({
+      error:
+        'Nur für Admins.'
+    });
+  }
+
+  next();
+}
+
+
+// ============================================================
 // AKTIVES ABO ERFORDERLICH
 // ============================================================
 // Schützt die eigentliche Produktnutzung (Aktivierungen, Bestellungen,
@@ -210,5 +231,6 @@ module.exports = {
   requireAuth,
   requireCustomer,
   requireRepresentative,
-  requireActiveSubscription
+  requireActiveSubscription,
+  requireAdmin
 };
