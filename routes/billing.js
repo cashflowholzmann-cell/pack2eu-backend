@@ -276,7 +276,7 @@ router.post('/webhooks/stripe', async (req, res) => {
       if (type === 'plan_upgrade' && plan && user_id) {
         db.prepare(`
           UPDATE customers
-          SET plan = ?, billing_interval = ?, subscription_status = 'active', stripe_subscription_id = ?
+          SET plan = ?, billing_interval = ?, subscription_status = 'active', stripe_subscription_id = ?, cancelled_at = NULL
           WHERE id = ?
         `).run(plan, interval === 'annual' ? 'annual' : 'monthly', session.subscription || null, parseInt(user_id));
         console.log(`✅ Plan auf ${plan} geupgradet und aktiviert (User ${user_id})`);
@@ -306,7 +306,7 @@ router.post('/webhooks/stripe', async (req, res) => {
     try {
       db.prepare(`
         UPDATE customers
-        SET subscription_status = 'inactive'
+        SET subscription_status = 'inactive', cancelled_at = datetime('now')
         WHERE stripe_subscription_id = ?
       `).run(subscription.id);
 

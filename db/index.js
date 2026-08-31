@@ -2736,6 +2736,14 @@ function init() {
     // bleibt sonst NULL ("organisch"/unbekannt).
     addColumnIfMissing('customers', 'acquisition_source', 'TEXT');
 
+    // Zeitpunkt der Abo-Kündigung (siehe routes/billing.js,
+    // customer.subscription.deleted-Webhook) - ohne diesen Zeitstempel
+    // lässt sich ein gekündigter Kunde nicht von einem unterscheiden, der
+    // nie zahlender Kunde war, und eine Churn-Rate wäre nicht berechenbar.
+    // Wichtig fürs interne Tool (Umsatz-/Kennzahlenauswertung) und für
+    // eine spätere Due-Diligence bei einem Verkauf von Pack2EU.
+    addColumnIfMissing('customers', 'cancelled_at', 'TEXT');
+
     // Zwischengespeichertes Ergebnis der KI-Themenanalyse (siehe
     // routes/admin.js, POST /topics/analyze) - läuft nicht bei jedem
     // Seitenaufruf automatisch, sondern nur auf Knopfdruck im internen
