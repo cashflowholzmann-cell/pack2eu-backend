@@ -14,6 +14,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const Stripe = require('stripe');
 const Anthropic = require('@anthropic-ai/sdk');
 const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 // zodOutputFormat() liest Schemas über die zod/v4-Introspection - siehe
@@ -223,6 +224,177 @@ router.get('/customers', (req, res) => {
     LIMIT 200
   `).all();
   res.json(customers);
+});
+
+// ============================================================
+// UMSATZ (MRR/ARR nach Plan, Land, Zahlweise) + einfache Prognose
+//
+// Preise kommen live aus Stripe (nicht hier hartcodiert) - so bleibt
+// die Auswertung automatisch korrekt, auch wenn sich Preise im
+// Stripe-Dashboard ändern. Kurzes In-Memory-Caching, damit nicht bei
+// jedem Laden des Tools mehrere Stripe-API-Aufrufe anfallen.
+// ============================================================
+const STRIPE_REVENUE_PRICE_ENV = {
+  S: { monthly: 'STRIPE_PRICE_S', annual: 'STRIPE_PRICE_S_ANNUAL' },
+  M: { monthly: 'STRIPE_PRICE_M', annual: 'STRIPE_PRICE_M_ANNUAL' },
+  L: { monthly: 'STRIPE_PRICE_L', annual: 'STRIPE_PRICE_L_ANNUAL' }
+};
+
+let priceCache = null;
+let priceCacheAt = 0;
+const PRICE_CACHE_MS = 10 * 60 * 1000;
+
+async function getStripePrices() {
+  if (priceCache && Date.now() - priceCacheAt < PRICE_CACHE_MS) return priceCache;
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const result = { plans: {}, amazonAddon: null };
+
+  for (const [plan, intervals] of Object.entries(STRIPE_REVENUE_PRICE_ENV)) {
+    result.plans[plan] = {};
+    for (const [interval, envName] of Object.entries(intervals)) {
+      const priceId = process.env[envName];
+      if (!priceId) continue;
+      try {
+        const price = await stripe.prices.retrieve(priceId);
+        result.plans[plan][interval] = (price.unit_amount || 0) / 100;
+      } catch (err) {
+        console.error(`❌ Stripe-Preis ${envName} konnte nicht geladen werden:`, err.message);
+      }
+    }
+  }
+
+  const addonPriceId = process.env.STRIPE_PRICE_AMAZON_ADDON;
+  if (addonPriceId) {
+    try {
+      const price = await stripe.prices.retrieve(addonPriceId);
+      result.amazonAddon = (price.unit_amount || 0) / 100;
+    } catch (err) {
+      console.error('❌ Stripe-Preis STRIPE_PRICE_AMAZON_ADDON konnte nicht geladen werden:', err.message);
+    }
+  }
+
+  priceCache = result;
+  priceCacheAt = Date.now();
+  return result;
+}
+
+// Grobe Wochen-Bucket-Zuordnung für die Signup-Kurve - muss nicht
+// perfekt ISO-8601-konform sein, nur konsistent sortierbar.
+function weekKeyFromSqliteDate(sqliteDate) {
+  const d = new Date(sqliteDate.replace(' ', 'T') + 'Z');
+  const onejan = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - onejan) / 86400000) + onejan.getUTCDay() + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+// Einfache lineare Fortschreibung des bisherigen Signup-Tempos - bewusst
+// kein ausgefeiltes Modell (keine Kohorten-/Churn-Analyse), weil dafür
+// die Datenbasis am Anfang schlicht fehlt. Kennzeichnet sich selbst als
+// "wenig belastbar", solange nur wenige echte Kunden vorliegen.
+function buildRevenueForecast(customers, activeCount, mrr) {
+  if (customers.length === 0) {
+    return { weeklySignups: [], projected: [], lowConfidence: true, note: 'Noch keine Kundendaten für eine Prognose vorhanden.' };
+  }
+
+  const weekCounts = {};
+  customers.forEach(c => {
+    const key = weekKeyFromSqliteDate(c.created_at);
+    weekCounts[key] = (weekCounts[key] || 0) + 1;
+  });
+  const weeks = Object.keys(weekCounts).sort();
+  const weeklySignups = weeks.map(w => ({ week: w, signups: weekCounts[w] }));
+
+  const totalWeeks = weeks.length;
+  const avgPerWeek = customers.length / Math.max(1, totalWeeks);
+  const activeShare = customers.length > 0 ? activeCount / customers.length : 0;
+  const avgRevenuePerActiveCustomer = activeCount > 0 ? mrr / activeCount : 0;
+
+  const projected = [4, 12, 26, 52].map(weeksAhead => {
+    const projectedCustomers = Math.round(customers.length + avgPerWeek * weeksAhead);
+    const projectedActive = Math.round(projectedCustomers * activeShare);
+    return {
+      weeksAhead,
+      projectedCustomers,
+      projectedActiveCustomers: projectedActive,
+      projectedMrr: Math.round(projectedActive * avgRevenuePerActiveCustomer)
+    };
+  });
+
+  const lowConfidence = customers.length < 10 || totalWeeks < 3;
+
+  return {
+    weeklySignups,
+    avgSignupsPerWeek: Math.round(avgPerWeek * 10) / 10,
+    projected,
+    lowConfidence,
+    note: lowConfidence
+      ? `Basis: nur ${customers.length} Kunde(n) über ${totalWeeks} Woche(n) - diese Prognose ist eine grobe lineare Fortschreibung und wird erst mit mehr echten Daten belastbar.`
+      : `Lineare Fortschreibung auf Basis von ${customers.length} Kunden über ${totalWeeks} Wochen (Ø ${Math.round(avgPerWeek * 10) / 10} Neukunden/Woche).`
+  };
+}
+
+router.get('/revenue', async (req, res) => {
+  try {
+    const customers = db.prepare(`
+      SELECT plan, billing_interval, subscription_status, origin_country,
+             amazon_addon_active, created_at
+      FROM customers
+    `).all();
+
+    const prices = await getStripePrices();
+    if (!prices) {
+      return res.status(503).json({ error: 'Umsatzauswertung ist noch nicht eingerichtet (STRIPE_SECRET_KEY fehlt).' });
+    }
+
+    const active = customers.filter(c => c.subscription_status === 'active');
+
+    const byPlanMap = {};
+    const byCountryMap = {};
+    let mrr = 0;
+    let unpriced = 0;
+
+    active.forEach(c => {
+      const interval = c.billing_interval === 'annual' ? 'annual' : 'monthly';
+      const amount = prices.plans[c.plan]?.[interval];
+      const monthlyEquivalent = amount != null ? (interval === 'annual' ? amount / 12 : amount) : 0;
+      if (amount == null) unpriced++;
+
+      const planKey = `${c.plan}_${interval}`;
+      if (!byPlanMap[planKey]) byPlanMap[planKey] = { plan: c.plan, interval, count: 0, mrr: 0 };
+      byPlanMap[planKey].count++;
+      byPlanMap[planKey].mrr += monthlyEquivalent;
+
+      const country = c.origin_country || 'unbekannt';
+      byCountryMap[country] = (byCountryMap[country] || 0) + monthlyEquivalent;
+
+      mrr += monthlyEquivalent;
+    });
+
+    const amazonCount = active.filter(c => c.amazon_addon_active).length;
+    const amazonMrr = amazonCount * (prices.amazonAddon || 0);
+    mrr += amazonMrr;
+
+    const forecast = buildRevenueForecast(customers, active.length, mrr);
+
+    res.json({
+      mrr: Math.round(mrr * 100) / 100,
+      arr: Math.round(mrr * 12 * 100) / 100,
+      activeCustomers: active.length,
+      totalCustomers: customers.length,
+      byPlan: Object.values(byPlanMap).map(p => ({ ...p, mrr: Math.round(p.mrr * 100) / 100 })).sort((a, b) => b.mrr - a.mrr),
+      byCountry: Object.entries(byCountryMap)
+        .map(([country, val]) => ({ country, mrr: Math.round(val * 100) / 100 }))
+        .sort((a, b) => b.mrr - a.mrr),
+      amazonAddon: { count: amazonCount, mrr: Math.round(amazonMrr * 100) / 100 },
+      unpricedActiveCustomers: unpriced,
+      forecast
+    });
+  } catch (error) {
+    console.error('❌ Umsatz-Fehler:', error);
+    res.status(503).json({ error: 'Umsatzauswertung gerade nicht verfügbar.' });
+  }
 });
 
 // ============================================================
