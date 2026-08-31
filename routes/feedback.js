@@ -8,7 +8,11 @@
 // hier bewusst keine eigene SMTP-Integration, da dafür echte
 // Mail-Zugangsdaten nötig wären.
 const express = require('express');
-const { z } = require('zod');
+// zodOutputFormat() liest die Schemas über die zod/v4-Introspection
+// (z.toJSONSchema intern) - mit dem klassischen "zod"-Import gebaute
+// Schemas haben eine andere interne Struktur und lassen zodOutputFormat()
+// mit "Cannot read properties of undefined (reading 'def')" abstürzen.
+const { z } = require('zod/v4');
 const axios = require('axios');
 const Anthropic = require('@anthropic-ai/sdk');
 const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
