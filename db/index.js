@@ -2736,6 +2736,19 @@ function init() {
     // bleibt sonst NULL ("organisch"/unbekannt).
     addColumnIfMissing('customers', 'acquisition_source', 'TEXT');
 
+    // Zwischengespeichertes Ergebnis der KI-Themenanalyse (siehe
+    // routes/admin.js, POST /topics/analyze) - läuft nicht bei jedem
+    // Seitenaufruf automatisch, sondern nur auf Knopfdruck im internen
+    // Tool, damit nicht bei jedem Öffnen unnötig API-Kosten anfallen.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS topic_analysis (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        results_json TEXT NOT NULL,
+        source_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
     console.log(
       '=============================================='
     );
