@@ -64,19 +64,27 @@ router.post('/', async (req, res) => {
       return res.status(201).json({ ok: true, id: feedbackId, category: null });
     }
 
-    const client = new Anthropic();
-    const response = await client.messages.parse({
-      model: 'claude-opus-5',
-      max_tokens: 512,
-      output_config: {
-        format: zodOutputFormat(ClassificationSchema),
-        effort: 'low'
-      },
-      system: CLASSIFICATION_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: message }]
-    });
+    // Die KI-Einordnung ist ein Nice-to-have, kein Kernbestandteil des
+    // Buttons - ein ungültiger/fehlender Schlüssel oder ein API-Ausfall
+    // darf das Speichern des Feedbacks nie verhindern.
+    let parsed = null;
+    try {
+      const client = new Anthropic();
+      const response = await client.messages.parse({
+        model: 'claude-opus-5',
+        max_tokens: 512,
+        output_config: {
+          format: zodOutputFormat(ClassificationSchema),
+          effort: 'low'
+        },
+        system: CLASSIFICATION_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: message }]
+      });
+      parsed = response.parsed_output ?? null;
+    } catch (aiError) {
+      console.error('❌ Feedback-KI-Einordnung Fehler:', aiError.message);
+    }
 
-    const parsed = response.parsed_output;
     if (!parsed) {
       return res.status(201).json({ ok: true, id: feedbackId, category: null });
     }

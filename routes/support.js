@@ -246,8 +246,10 @@ router.post('/chat', async (req, res) => {
       support_email: parsed.escalate_target === 'support' ? (process.env.SUPPORT_EMAIL || null) : null
     });
   } catch (error) {
+    // Interne Fehlerdetails (z.B. eine ungültige ANTHROPIC_API_KEY) landen
+    // nur im Server-Log, nie in der Antwort an den Kunden.
     console.error('❌ Support-Chat Fehler:', error);
-    res.status(500).json({ error: 'Fehler im Support-Chat: ' + error.message });
+    res.status(503).json({ error: 'Der Support-Chat ist gerade nicht erreichbar. Bitte versuch es in ein paar Minuten erneut.' });
   }
 });
 
