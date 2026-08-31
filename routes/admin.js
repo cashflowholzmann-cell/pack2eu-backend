@@ -99,6 +99,23 @@ router.get('/overview', (req, res) => {
       FROM customers GROUP BY COALESCE(acquisition_source, 'organisch')
     `).all();
 
+    // Plan-/Länderverteilung und Churn - wichtig für eine spätere
+    // Due-Diligence bei einem Verkauf von Pack2EU, damit ab Tag 1 alles
+    // getrackt ist statt erst im Nachhinein rekonstruiert werden zu müssen.
+    const customersByPlan = db.prepare(`
+      SELECT plan, COUNT(*) as count
+      FROM customers WHERE subscription_status = 'active'
+      GROUP BY plan
+    `).all();
+
+    const churnTotals = db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM customers WHERE cancelled_at IS NOT NULL) as churnedTotal,
+        (SELECT COUNT(*) FROM customers WHERE cancelled_at >= ?) as churned30d,
+        (SELECT COUNT(DISTINCT origin_country) FROM customers WHERE subscription_status = 'active') as activeCountries,
+        (SELECT COUNT(*) FROM customers WHERE amazon_addon_active = 1) as amazonAddonActive
+    `).get(since30d);
+
     const totals = db.prepare(`
       SELECT
         (SELECT COUNT(*) FROM customers) as totalCustomers,
@@ -108,12 +125,16 @@ router.get('/overview', (req, res) => {
         (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as views30d
     `).get(since30d);
 
+    const everPaying = totals.activeCustomers + churnTotals.churnedTotal;
+    const churnRate = everPaying > 0 ? churnTotals.churnedTotal / everPaying : null;
+
     res.json({
-      totals: { ...totals, viewsLast7d },
+      totals: { ...totals, viewsLast7d, ...churnTotals, churnRate },
       viewsByChannel,
       leadsBySource,
       leadsByStatus,
-      customersByAcquisition
+      customersByAcquisition,
+      customersByPlan
     });
   } catch (error) {
     console.error('❌ Admin-Overview-Fehler:', error);
