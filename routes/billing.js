@@ -27,6 +27,60 @@ const STRIPE_PRICE_IDS = {
 // hier nur als Env-Var referenziert - kein Betrag im Code.
 const STRIPE_PRICE_AMAZON_ADDON = 'STRIPE_PRICE_AMAZON_ADDON';
 
+// ============================================================
+// ÖFFENTLICHE PREISE (für die Preisanzeige auf der Landingpage)
+// ============================================================
+// Zeigt dieselbe Währung, die Stripe Checkout dem Kunden anhand seiner
+// IP-Adresse ohnehin automatisch anzeigen würde (siehe currency_options
+// pro Preis im Stripe-Dashboard) - so stimmt der auf der Landingpage
+// angezeigte Preis mit dem später an der Kasse berechneten überein.
+// Kein Login nötig, da diese Daten ohnehin öffentlich auf der Preisseite
+// stehen. Kurzes In-Memory-Caching pro Währung, um nicht bei jedem
+// Seitenaufruf mehrere Stripe-API-Aufrufe auszulösen.
+const publicPriceCache = {};
+const PUBLIC_PRICE_CACHE_MS = 10 * 60 * 1000;
+
+async function getPublicPrices(currency) {
+  const cached = publicPriceCache[currency];
+  if (cached && Date.now() - cached.at < PUBLIC_PRICE_CACHE_MS) return cached.data;
+
+  const result = { currency, plans: {} };
+  for (const [interval, plans] of Object.entries(STRIPE_PRICE_IDS)) {
+    for (const [plan, envName] of Object.entries(plans)) {
+      const priceId = process.env[envName];
+      if (!priceId) continue;
+      try {
+        const price = await stripe.prices.retrieve(priceId, { expand: ['currency_options'] });
+        const lower = currency.toLowerCase();
+        const opt = price.currency_options && price.currency_options[lower];
+        const amount = opt ? opt.unit_amount : price.unit_amount;
+        const actualCurrency = opt ? currency : price.currency.toUpperCase();
+        if (!result.plans[plan]) result.plans[plan] = {};
+        result.plans[plan][interval] = { amount: (amount || 0) / 100, currency: actualCurrency };
+      } catch (err) {
+        console.error(`❌ Öffentlicher Preis ${envName} konnte nicht geladen werden:`, err.message);
+      }
+    }
+  }
+
+  publicPriceCache[currency] = { data: result, at: Date.now() };
+  return result;
+}
+
+router.get('/public-prices', async (req, res) => {
+  const currency = (req.query.currency || 'EUR').toUpperCase().slice(0, 3);
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    return res.status(400).json({ error: 'Ungültige Währung.' });
+  }
+  try {
+    const prices = await getPublicPrices(currency);
+    res.json(prices);
+  } catch (err) {
+    console.error('❌ /public-prices Fehler:', err.message);
+    res.status(503).json({ error: 'Preise gerade nicht verfügbar.' });
+  }
+});
+
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   const { plan } = req.body;
   const interval = req.body.interval === 'annual' ? 'annual' : 'monthly';
