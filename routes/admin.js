@@ -14,6 +14,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const Anthropic = require('@anthropic-ai/sdk');
+const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
+// zodOutputFormat() liest Schemas über die zod/v4-Introspection - siehe
+// die Erklärung in routes/feedback.js.
+const { z } = require('zod/v4');
 const { db } = require('../db');
 const { signToken, requireAuth, requireAdmin } = require('../middleware/auth');
 
@@ -244,6 +249,102 @@ router.get('/backup/download', async (req, res) => {
     console.error('❌ Backup-Fehler:', error);
     fs.unlink(tempPath, () => {});
     res.status(500).json({ error: 'Backup konnte nicht erstellt werden.' });
+  }
+});
+
+// ============================================================
+// THEMENANALYSE (häufigste Anliegen aus Feedback + Support-Chat)
+//
+// Läuft NICHT automatisch bei jedem Laden des Tools, sondern nur auf
+// Knopfdruck ("Jetzt analysieren") - jeder Lauf kostet einen echten
+// KI-Aufruf. Das letzte Ergebnis wird in topic_analysis
+// zwischengespeichert, damit man beim Öffnen des Tools sofort etwas
+// sieht, ohne erneut zu bezahlen.
+// ============================================================
+const TopicsSchema = z.object({
+  topics: z.array(z.object({
+    topic: z.string(),
+    count: z.number().int(),
+    example_quotes: z.array(z.string()).max(3)
+  })).max(10)
+});
+
+const TOPICS_SYSTEM_PROMPT = `
+Du bekommst eine Liste von Kunden-Feedback- und Support-Chat-Nachrichten
+für die SaaS Pack2EU (EU-Verpackungscompliance für Online-Händler).
+
+Fasse sie in maximal 10 wiederkehrende Themen/Anliegen zusammen, sortiert
+nach Häufigkeit (häufigstes zuerst). Fasse inhaltlich ähnliche Nachrichten
+zu einem Thema zusammen (z. B. mehrere Fragen zu Frankreich-EPR als ein
+Thema). Ignoriere reinen Spam oder Einzelfälle ohne Muster - die müssen
+nicht als eigenes Thema auftauchen.
+
+Für jedes Thema:
+- "topic": kurzer, konkreter Titel auf Deutsch (max. 8 Wörter)
+- "count": wie viele der gegebenen Nachrichten zu diesem Thema passen
+- "example_quotes": 1-3 kurze, wörtliche Ausschnitte als Beleg (max. 25 Wörter je Zitat)
+
+Wenn die Liste zu wenige/zu unterschiedliche Nachrichten für erkennbare
+Muster enthält, gib weniger oder gar keine Themen zurück statt Themen zu
+erfinden.
+`.trim();
+
+router.get('/topics', (req, res) => {
+  const latest = db.prepare('SELECT * FROM topic_analysis ORDER BY created_at DESC LIMIT 1').get();
+  if (!latest) return res.json({ topics: [], sourceCount: 0, analyzedAt: null });
+  res.json({ topics: JSON.parse(latest.results_json), sourceCount: latest.source_count, analyzedAt: latest.created_at });
+});
+
+router.post('/topics/analyze', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'Themenanalyse ist noch nicht eingerichtet (ANTHROPIC_API_KEY fehlt).' });
+  }
+
+  try {
+    const feedbackRows = db.prepare(`
+      SELECT message FROM feedback
+      WHERE category IS NULL OR category != 'spam'
+      ORDER BY created_at DESC LIMIT 150
+    `).all();
+    const supportRows = db.prepare(`
+      SELECT content FROM support_messages
+      WHERE role = 'user'
+      ORDER BY created_at DESC LIMIT 150
+    `).all();
+
+    const items = [
+      ...feedbackRows.map(r => `[Feedback] ${r.message}`),
+      ...supportRows.map(r => `[Support-Chat] ${r.content}`)
+    ];
+
+    if (items.length === 0) {
+      return res.json({ topics: [], sourceCount: 0, analyzedAt: null });
+    }
+
+    const client = new Anthropic();
+    const response = await client.messages.parse({
+      model: 'claude-opus-5',
+      max_tokens: 2048,
+      output_config: {
+        format: zodOutputFormat(TopicsSchema),
+        effort: 'medium'
+      },
+      system: TOPICS_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: items.map((t, i) => `${i + 1}. ${t}`).join('\n') }]
+    });
+
+    const parsed = response.parsed_output;
+    if (!parsed) {
+      return res.status(502).json({ error: 'Analyse konnte nicht verarbeitet werden.' });
+    }
+
+    db.prepare('INSERT INTO topic_analysis (results_json, source_count) VALUES (?, ?)')
+      .run(JSON.stringify(parsed.topics), items.length);
+
+    res.json({ topics: parsed.topics, sourceCount: items.length, analyzedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error('❌ Themenanalyse-Fehler:', error);
+    res.status(503).json({ error: 'Themenanalyse gerade nicht verfügbar. Bitte später erneut versuchen.' });
   }
 });
 
