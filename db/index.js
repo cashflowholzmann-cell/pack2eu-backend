@@ -2757,6 +2757,44 @@ function init() {
       );
     `);
 
+    // Rechtsänderungs-Radar (siehe legal-watch.js) - KI-gestützte
+    // Web-Recherche pro Land, die NIE automatisch die echte
+    // Kunden-Datenbank (Tabelle "countries") überschreibt, sondern hier
+    // erstmal als Fund landet. Erst wenn ein Mensch im internen Tool
+    // "Übernehmen" klickt, fließen die vorgeschlagenen Werte in
+    // "countries" ein - wir sind bewusst kein Rechtsberater und wollen
+    // nie ungeprüft eine KI-Aussage als geprüfte Rechtsauskunft
+    // ausgeben.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS legal_watch_findings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        country_code TEXT NOT NULL,
+        checked_at TEXT NOT NULL DEFAULT (datetime('now')),
+        has_update INTEGER NOT NULL DEFAULT 0,
+        summary TEXT,
+        ai_confidence TEXT,
+        suggested_fields_json TEXT,
+        sources_json TEXT,
+        status TEXT NOT NULL DEFAULT 'new',
+        reviewed_at TEXT,
+        reviewed_by TEXT
+      );
+    `);
+
+    // Ein Zeileneintrag pro Kalendertag, an dem der tägliche
+    // Rechtsänderungs-Radar-Lauf (siehe runDailyLegalWatch in
+    // server.js) tatsächlich durchgelaufen ist - verhindert doppelte
+    // Läufe am selben Tag nach einem Server-Neustart, ohne einen
+    // externen Scheduler zu brauchen.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS legal_watch_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_date TEXT NOT NULL UNIQUE,
+        ran_at TEXT NOT NULL DEFAULT (datetime('now')),
+        countries_checked INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+
     console.log(
       '=============================================='
     );
