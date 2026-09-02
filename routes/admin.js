@@ -541,4 +541,143 @@ router.post('/topics/analyze', async (req, res) => {
   }
 });
 
+// ============================================================
+// RECHTSÄNDERUNGS-RADAR
+//
+// Automatisierte Web-Recherche (siehe legal-watch.js) zum aktuellen
+// Stand der Verpackungs-/EPR-Pflichten pro Land. Schreibt NIE
+// automatisch in die "countries"-Tabelle - jeder Fund landet erst
+// hier zur Prüfung. Erst ein Klick auf "Übernehmen" durch einen
+// Menschen überträgt die vorgeschlagenen Werte, und auch dann bleibt
+// data_status bewusst auf 'needs_verification' stehen (nie 'verified'):
+// eine KI-Recherche ersetzt keine echte Rechtsprüfung, sie beschleunigt
+// nur die Vorarbeit dafür.
+// ============================================================
+router.get('/legal-watch', (req, res) => {
+  try {
+    const status = req.query.status;
+    const rows = status
+      ? db.prepare(`
+          SELECT lw.*, c.name AS country_name, c.flag
+          FROM legal_watch_findings lw
+          LEFT JOIN countries c ON c.code = lw.country_code
+          WHERE lw.status = ?
+          ORDER BY lw.checked_at DESC
+        `).all(status)
+      : db.prepare(`
+          SELECT lw.*, c.name AS country_name, c.flag
+          FROM legal_watch_findings lw
+          LEFT JOIN countries c ON c.code = lw.country_code
+          ORDER BY lw.checked_at DESC
+          LIMIT 200
+        `).all();
+
+    const findings = rows.map(r => ({
+      id: r.id,
+      countryCode: r.country_code,
+      countryName: r.country_name,
+      flag: r.flag,
+      checkedAt: r.checked_at,
+      hasUpdate: !!r.has_update,
+      summary: r.summary,
+      aiConfidence: r.ai_confidence,
+      suggestedFields: r.suggested_fields_json ? JSON.parse(r.suggested_fields_json) : null,
+      sources: r.sources_json ? JSON.parse(r.sources_json) : [],
+      status: r.status,
+      reviewedAt: r.reviewed_at,
+      reviewedBy: r.reviewed_by
+    }));
+
+    res.json({ findings });
+  } catch (error) {
+    console.error('❌ Rechtsänderungs-Radar Übersicht-Fehler:', error);
+    res.status(500).json({ error: 'Funde konnten nicht geladen werden.' });
+  }
+});
+
+router.post('/legal-watch/run', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'Rechtsänderungs-Radar ist noch nicht eingerichtet (ANTHROPIC_API_KEY fehlt).' });
+  }
+
+  try {
+    const { runLegalWatch } = require('../legal-watch');
+    const limit = Math.min(Number(req.body?.limit) || 3, 10);
+    const results = await runLegalWatch({ limit });
+    res.json({ results });
+  } catch (error) {
+    console.error('❌ Rechtsänderungs-Radar Lauf-Fehler:', error);
+    res.status(503).json({ error: 'Rechtsänderungs-Check gerade nicht verfügbar. Bitte später erneut versuchen.' });
+  }
+});
+
+router.post('/legal-watch/:id/apply', (req, res) => {
+  try {
+    const finding = db.prepare('SELECT * FROM legal_watch_findings WHERE id = ?').get(req.params.id);
+    if (!finding) return res.status(404).json({ error: 'Fund nicht gefunden.' });
+    if (finding.status !== 'new') return res.status(409).json({ error: 'Fund wurde bereits bearbeitet.' });
+
+    const suggested = JSON.parse(finding.suggested_fields_json || '{}');
+    const country = db.prepare('SELECT * FROM countries WHERE code = ?').get(finding.country_code);
+    if (!country) return res.status(404).json({ error: `Land ${finding.country_code} nicht gefunden.` });
+
+    // Nur Felder übernehmen, die die Recherche tatsächlich befüllt hat
+    // (nicht null) - alles andere bleibt unverändert stehen.
+    db.prepare(`
+      UPDATE countries SET
+        register_body = COALESCE(?, register_body),
+        representative_required = COALESCE(?, representative_required),
+        notary_required = COALESCE(?, notary_required),
+        notary_cost = COALESCE(?, notary_cost),
+        registration_url = COALESCE(?, registration_url),
+        eco_fee = COALESCE(?, eco_fee),
+        registration_generally_required = COALESCE(?, registration_generally_required),
+        reporting_frequency = COALESCE(?, reporting_frequency),
+        requirements_json = COALESCE(?, requirements_json),
+        labeling_json = COALESCE(?, labeling_json),
+        data_status = 'needs_verification'
+      WHERE code = ?
+    `).run(
+      suggested.register_body ?? null,
+      suggested.representative_required === null || suggested.representative_required === undefined ? null : (suggested.representative_required ? 1 : 0),
+      suggested.notary_required === null || suggested.notary_required === undefined ? null : (suggested.notary_required ? 1 : 0),
+      suggested.notary_cost ?? null,
+      suggested.registration_url ?? null,
+      suggested.eco_fee ?? null,
+      suggested.registration_generally_required === null || suggested.registration_generally_required === undefined ? null : (suggested.registration_generally_required ? 1 : 0),
+      suggested.reporting_frequency ?? null,
+      suggested.requirements ? JSON.stringify(suggested.requirements) : null,
+      suggested.labeling ? JSON.stringify(suggested.labeling) : null,
+      finding.country_code
+    );
+
+    db.prepare(`
+      UPDATE legal_watch_findings
+      SET status = 'applied', reviewed_at = datetime('now'), reviewed_by = ?
+      WHERE id = ?
+    `).run('admin', req.params.id);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Rechtsänderungs-Radar Übernahme-Fehler:', error);
+    res.status(500).json({ error: 'Fund konnte nicht übernommen werden.' });
+  }
+});
+
+router.post('/legal-watch/:id/dismiss', (req, res) => {
+  try {
+    const result = db.prepare(`
+      UPDATE legal_watch_findings
+      SET status = 'dismissed', reviewed_at = datetime('now'), reviewed_by = ?
+      WHERE id = ? AND status = 'new'
+    `).run('admin', req.params.id);
+
+    if (result.changes === 0) return res.status(404).json({ error: 'Fund nicht gefunden oder bereits bearbeitet.' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Rechtsänderungs-Radar Verwerfen-Fehler:', error);
+    res.status(500).json({ error: 'Fund konnte nicht verworfen werden.' });
+  }
+});
+
 module.exports = router;
