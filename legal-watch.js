@@ -10,12 +10,12 @@
 // CREATE TABLE in db/index.js). Wir sind kein Rechtsberater; das hier
 // ist eine Recherche-Beschleunigung, keine automatisierte Rechtsauskunft.
 //
-// Bewusst nicht mehrfach täglich, sondern einmal täglich in kleinen
-// Batches (siehe runDailyLegalWatch in server.js) - Gesetzestexte
-// ändern sich nicht stundenweise, und jeder Check kostet zwei
-// Claude-Aufrufe (Recherche mit Websuche + strukturierte Auswertung).
-// Zusätzlich über den "Jetzt prüfen"-Button im internen Tool jederzeit
-// manuell auslösbar.
+// Bewusst nicht täglich, sondern dienstags und donnerstags in Batches
+// (siehe runDailyLegalWatchIfDue in server.js) - Gesetzestexte ändern
+// sich nicht stundenweise, und jeder Check kostet zwei Claude-Aufrufe
+// (Recherche mit Websuche + strukturierte Auswertung). Zusätzlich über
+// den "Jetzt prüfen"-Button im internen Tool jederzeit manuell
+// auslösbar.
 // ================================================================
 
 const Anthropic = require('@anthropic-ai/sdk');

@@ -282,22 +282,31 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ============================================================
-// RECHTSÄNDERUNGS-RADAR: TÄGLICHER LAUF
+// RECHTSÄNDERUNGS-RADAR: LAUF DIENSTAGS UND DONNERSTAGS
 //
-// Bewusst 1x täglich statt mehrfach - Gesetzestexte ändern sich nicht
-// stundenweise, und jeder Check kostet zwei echte Claude-Aufrufe pro
-// Land (Recherche + strukturierte Auswertung). Zusätzlich über den
+// Bewusst nicht täglich - Gesetzestexte ändern sich nicht stundenweise,
+// und jeder Check kostet zwei echte Claude-Aufrufe pro Land (Recherche +
+// strukturierte Auswertung). Zwei feste Wochentage reichen, um zeitnah
+// auf Änderungen zu reagieren, ohne unnötig oft zu bezahlen. Pro Lauf
+// werden mehr Länder geprüft (10 statt vorher 3), damit trotzdem
+// regelmäßig alle Länder durchlaufen werden. Zusätzlich über den
 // "Jetzt prüfen"-Button im Admin-Tool jederzeit manuell auslösbar
 // (siehe routes/admin.js, POST /legal-watch/run).
 //
 // Kein externer Cron nötig: beim Start und danach stündlich wird
-// geprüft, ob heute (UTC-Datum) schon gelaufen ist - so überlebt der
-// Lauf auch einen Server-Neustart, ohne doppelt zu laufen.
+// geprüft, ob heute (UTC-Wochentag Dienstag/Donnerstag, Datum) schon
+// gelaufen ist - so überlebt der Lauf auch einen Server-Neustart, ohne
+// doppelt zu laufen.
 // ============================================================
+const LEGAL_WATCH_WEEKDAYS = [2, 4]; // UTC: 2 = Dienstag, 4 = Donnerstag
+
 async function runDailyLegalWatchIfDue() {
   if (!process.env.ANTHROPIC_API_KEY) return;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  if (!LEGAL_WATCH_WEEKDAYS.includes(now.getUTCDay())) return;
+
+  const today = now.toISOString().slice(0, 10);
   const alreadyRan = db.db
     .prepare('SELECT 1 FROM legal_watch_runs WHERE run_date = ?')
     .get(today);
@@ -305,13 +314,13 @@ async function runDailyLegalWatchIfDue() {
 
   try {
     const { runLegalWatch } = require('./legal-watch');
-    const results = await runLegalWatch({ limit: 3 });
+    const results = await runLegalWatch({ limit: 10 });
     db.db
       .prepare('INSERT OR IGNORE INTO legal_watch_runs (run_date, countries_checked) VALUES (?, ?)')
       .run(today, results.length);
     console.log(`📡 Rechtsänderungs-Radar: ${results.length} Länder geprüft (${today}).`);
   } catch (error) {
-    console.error('❌ Rechtsänderungs-Radar (täglicher Lauf) fehlgeschlagen:', error.message);
+    console.error('❌ Rechtsänderungs-Radar (Lauf) fehlgeschlagen:', error.message);
   }
 }
 
