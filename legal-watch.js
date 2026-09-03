@@ -16,6 +16,12 @@
 // (Recherche mit Websuche + strukturierte Auswertung). Zusätzlich über
 // den "Jetzt prüfen"-Button im internen Tool jederzeit manuell
 // auslösbar.
+//
+// Kosten-Vorfall 03.09.2026: ein einzelner 3-Länder-Testlauf mit Claude
+// Opus + Adaptive Thinking + 6 Websuchen pro Land hat mehrere Dollar
+// Guthaben verbraucht. Daraufhin bewusst reduziert: Claude Sonnet statt
+// Opus (Nutzerentscheidung), max. 2 Websuchen statt 6, effort "medium"
+// statt Standard/hoch.
 // ================================================================
 
 const Anthropic = require('@anthropic-ai/sdk');
@@ -64,11 +70,16 @@ Recherchiere und fasse zusammen:
 
 Schließe mit einer klaren Zusammenfassung inkl. Quellen-URLs ab.`;
 
+  // Kosten-Deckel: max_uses und effort bewusst niedrig gehalten - eine
+  // Recherche mit Opus + Adaptive Thinking + Websuche ist teuer, siehe
+  // Vorfall vom 03.09.2026 (ein einzelner "Jetzt prüfen"-Lauf über nur
+  // 3 Länder hat mehrere Dollar Guthaben verbraucht).
   let research = await client.messages.create({
-    model: 'claude-opus-5',
+    model: 'claude-sonnet-5',
     max_tokens: 4000,
     thinking: { type: 'adaptive' },
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
+    output_config: { effort: 'medium' },
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 }],
     messages: [{ role: 'user', content: researchPrompt }]
   });
 
@@ -77,10 +88,11 @@ Schließe mit einer klaren Zusammenfassung inkl. Quellen-URLs ab.`;
   // "pause_turn" auftreten, dann einmal fortsetzen.
   if (research.stop_reason === 'pause_turn') {
     research = await client.messages.create({
-      model: 'claude-opus-5',
+      model: 'claude-sonnet-5',
       max_tokens: 4000,
       thinking: { type: 'adaptive' },
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
+      output_config: { effort: 'medium' },
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 }],
       messages: [
         { role: 'user', content: researchPrompt },
         { role: 'assistant', content: research.content }
@@ -96,7 +108,7 @@ Schließe mit einer klaren Zusammenfassung inkl. Quellen-URLs ab.`;
   if (!researchText.trim()) return null;
 
   const extraction = await client.messages.parse({
-    model: 'claude-opus-5',
+    model: 'claude-sonnet-5',
     max_tokens: 2000,
     messages: [
       {

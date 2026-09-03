@@ -285,13 +285,15 @@ app.listen(PORT, '0.0.0.0', () => {
 // RECHTSÄNDERUNGS-RADAR: LAUF DIENSTAGS UND DONNERSTAGS
 //
 // Bewusst nicht täglich - Gesetzestexte ändern sich nicht stundenweise,
-// und jeder Check kostet zwei echte Claude-Aufrufe pro Land (Recherche +
-// strukturierte Auswertung). Zwei feste Wochentage reichen, um zeitnah
-// auf Änderungen zu reagieren, ohne unnötig oft zu bezahlen. Pro Lauf
-// werden mehr Länder geprüft (10 statt vorher 3), damit trotzdem
-// regelmäßig alle Länder durchlaufen werden. Zusätzlich über den
-// "Jetzt prüfen"-Button im Admin-Tool jederzeit manuell auslösbar
-// (siehe routes/admin.js, POST /legal-watch/run).
+// und jeder Check kostet zwei echte, nicht ganz billige Claude-Aufrufe
+// pro Land (Recherche mit Websuche + Adaptive Thinking, dann
+// strukturierte Auswertung) - siehe Vorfall vom 03.09.2026, bei dem ein
+// einziger 3-Länder-Testlauf (damals noch mit Opus, 6 Websuchen/Land)
+// mehrere Dollar Guthaben verbraucht hat. Deshalb bewusst klein gehalten
+// (3 Länder pro Lauf, siehe auch die Modell-/max_uses-/effort-Werte in
+// legal-watch.js) statt möglichst viele Länder pro Lauf abzudecken.
+// Zusätzlich über den "Jetzt prüfen"-Button im Admin-Tool jederzeit
+// manuell auslösbar (siehe routes/admin.js, POST /legal-watch/run).
 //
 // Kein externer Cron nötig: beim Start und danach stündlich wird
 // geprüft, ob heute (UTC-Wochentag Dienstag/Donnerstag, Datum) schon
@@ -314,7 +316,7 @@ async function runDailyLegalWatchIfDue() {
 
   try {
     const { runLegalWatch } = require('./legal-watch');
-    const results = await runLegalWatch({ limit: 10 });
+    const results = await runLegalWatch({ limit: 3 });
     db.db
       .prepare('INSERT OR IGNORE INTO legal_watch_runs (run_date, countries_checked) VALUES (?, ?)')
       .run(today, results.length);
