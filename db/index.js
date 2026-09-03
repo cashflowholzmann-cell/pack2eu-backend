@@ -1315,7 +1315,7 @@ function init() {
     //
     // Recherchierte, aber bewusst grobe Näherungswerte aus den jeweils
     // öffentlich einsehbaren Tarifen/Preislisten der nationalen
-    // Verpackungsregister/PROs (Stand 08/2026, siehe eco_fee_rates_json-
+    // Verpackungsregister/PROs (Stand 09/2026, siehe eco_fee_rates_json-
     // Kommentar in schema.sql). NUR Länder/Materialien mit einer
     // einigermaßen eindeutigen, aktuellen Quelle sind hier gesetzt - bei
     // stark bandbreiten- oder mengenstaffel-abhängigen Sätzen (z. B. sehr
@@ -1329,12 +1329,33 @@ function init() {
     // abweichenden Sätzen (z. B. Stahl vs. Aluminium) wurde jeweils der
     // gebräuchlichere/konservativere Wert für den allgemeinen "metall"-
     // Eintrag gewählt.
+    //
+    // 09/2026-Nachrecherche (Lücken auffüllen + neue Länder): folgende
+    // Fälle blieben bewusst ohne Satz, obwohl recherchiert wurde -
+    // NICHT vergessen, sondern aktiv ausgeschlossen:
+    // - DE (Metall), FR/LU (Kunststoff): nur stark gestaffelte/
+    //   uneinheitliche Tarife bzw. eine einzelne schwache Quelle ohne
+    //   verlässlichen Einzelwert gefunden.
+    // - DK (Papier): gefundener Wert wich um mehr als das 20-fache vom
+    //   ebenfalls recherchierten Karton-Satz ab - zu unplausibel für
+    //   einen Aufnahme ohne Zweitquelle.
+    // - LV (restliche Materialien): nur eine Quelle von 2020 gefunden,
+    //   zu veraltet.
+    // - GR: keine feste öffentliche Tarifliste (HERRCo verhandelt
+    //   vertraglich, Preis richtet sich nach Sekundärrohstoff-Markt).
+    // - LI: hat nach mehreren Quellen aktuell gar kein eigenes
+    //   Verpackungs-EPR-System (eng an die Schweizer Zollunion
+    //   angebunden).
+    // - SI: trotz mehrerer Versuche keine belastbare Zahl gefunden.
+    // - IT-Kunststoff (CONAI CAC) steigt laut CONAI zum 01.10.2026 von
+    //   0,79 auf 0,922 €/kg - hier bewusst noch der bis dahin gültige
+    //   Satz eingetragen, im Q4 2026 aktualisieren.
     // ========================================================
 
     const ecoFeeRates = {
       DE: { papier: 0.26, karton: 0.26 },
       FR: { papier: 0.2143, karton: 0.2143, glas: 0.0164, metall: 0.0535 },
-      IT: { papier: 0.045, karton: 0.045, glas: 0.035, metall: 0.005, holz: 0.009 },
+      IT: { papier: 0.045, karton: 0.045, kunststoff: 0.790, glas: 0.035, metall: 0.005, holz: 0.009 },
       ES: { papier: 0.115, karton: 0.115, kunststoff: 0.285, glas: 0.035 },
       AT: { papier: 0.190, karton: 0.190, kunststoff: 0.990, glas: 0.102, metall: 0.450, holz: 0.020, sonstige: 1.080 },
       NL: { kunststoff: 0.1972, glas: 0.0303, papier: 0.0154, karton: 0.0154, metall: 0.0663 },
@@ -1348,13 +1369,20 @@ function init() {
       LT: { glas: 0.160, papier: 0.180, karton: 0.180, kunststoff: 0.446, metall: 0.250, holz: 0.070 },
       LU: { glas: 0.0177, papier: 0.0402, karton: 0.0402, metall: 0.0271 },
       SK: { glas: 0.109, papier: 0.109, karton: 0.109, kunststoff: 0.299, metall: 0.110, holz: 0.010 },
-      HR: { metall: 0.0544 },
+      HR: { papier: 0.0498, karton: 0.0498, kunststoff: 0.0995, glas: 0.0199, metall: 0.0544 },
       LV: { metall: 0.099 },
       GB: { karton: 0.530, kunststoff: 0.486, holz: 0.322, metall: 0.298, glas: 0.221 },
       NO: { kunststoff: 0.510 },
       US: { papier: 0.122, karton: 0.122, kunststoff: 0.487 },
       CA: { kunststoff: 0.594, karton: 0.429, metall: 0.429 },
-      JP: { kunststoff: 0.397, papier: 0.139, karton: 0.139, glas: 0.069 }
+      JP: { kunststoff: 0.397, papier: 0.139, karton: 0.139, glas: 0.069 },
+      BE: { papier: 0.150, karton: 0.150, kunststoff: 0.360, glas: 0.105 },
+      BG: { papier: 0.0498, karton: 0.0498, kunststoff: 0.0544, metall: 0.0421 },
+      CZ: { papier: 0.283, karton: 0.283, kunststoff: 0.626, glas: 0.073, metall: 0.206 },
+      DK: { karton: 0.401, kunststoff: 0.692, glas: 0.495, metall: 0.930 },
+      FI: { papier: 0.102, karton: 0.102, kunststoff: 0.238, glas: 0.076, metall: 0.030 },
+      IS: { papier: 0.462, karton: 0.462, kunststoff: 0.462, glas: 0.178, metall: 0.178 },
+      MT: { papier: 0.203, karton: 0.203, kunststoff: 0.205, glas: 0.147, metall: 0.205 }
     };
 
     const updateEcoFeeRates =
