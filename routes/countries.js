@@ -4,6 +4,30 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Öffentlicher Endpoint für den Öko-Gebühr-Rechner auf der Landingpage -
+// bewusst NUR Code/Name/Flagge/Öko-Gebühr-Sätze. Explizit KEINE
+// registration_url oder representative_provider_name/url, siehe Kommentar
+// unten zu router.use(requireAuth) - genau diese Felder sind unser
+// recherchiertes USP und bleiben hinter dem Login.
+router.get('/public-eco-fees', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT code, name, flag, eco_fee_rates_json
+      FROM countries
+      ORDER BY name
+    `).all();
+    res.json(rows.map((r) => ({
+      code: r.code,
+      name: r.name,
+      flag: r.flag || '🇪🇺',
+      eco_fee_rates: r.eco_fee_rates_json ? JSON.parse(r.eco_fee_rates_json) : null
+    })));
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der öffentlichen Öko-Gebühr-Sätze:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Öko-Gebühr-Sätze' });
+  }
+});
+
 // Dieser Endpoint war zuvor komplett ohne Login abrufbar und hat für
 // ALLE Länder registration_url + representative_provider_name/url
 // öffentlich ausgeliefert - also genau die von uns recherchierten
