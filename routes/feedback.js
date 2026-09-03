@@ -22,6 +22,14 @@ const { requireAuth, requireCustomer } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth, requireCustomer);
 
+// Absichtlich abgeschaltet (03.09.2026, Nutzerentscheidung) - erst
+// wieder aktivieren, wenn genug Kunden da sind, dass sich die
+// automatische Vorsortierung lohnt. Bis dahin wird jedes Feedback ganz
+// normal gespeichert, nur ohne KI-Einordnung/Webhook-Benachrichtigung -
+// manuell im Admin-Tool/der DB durchsehen. Zum Reaktivieren einfach auf
+// true stellen.
+const AI_CLASSIFICATION_ENABLED = false;
+
 const ClassificationSchema = z.object({
   category: z.enum(['spam', 'useful', 'very_useful']),
   reasoning: z.string()
@@ -59,8 +67,9 @@ router.post('/', async (req, res) => {
     const insertResult = db.prepare('INSERT INTO feedback (customer_id, message) VALUES (?, ?)').run(customerId, message);
     const feedbackId = insertResult.lastInsertRowid;
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      // Ohne Schlüssel wird trotzdem gespeichert, nur ohne Einordnung/Benachrichtigung.
+    if (!AI_CLASSIFICATION_ENABLED || !process.env.ANTHROPIC_API_KEY) {
+      // Ohne aktivierte Einordnung (oder ohne Schlüssel) wird trotzdem
+      // gespeichert, nur ohne Einordnung/Benachrichtigung.
       return res.status(201).json({ ok: true, id: feedbackId, category: null });
     }
 
