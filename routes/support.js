@@ -301,7 +301,8 @@ function buildCustomerContext(customerId) {
       'AKTIVIERTE LÄNDER (inkl. aktuellstem Rechts- und Registerstand aus unserer Länder-Datenbank):',
       countryLines
     ].join('\n'),
-    activations
+    activations,
+    plan: customer.plan
   };
 }
 
@@ -333,7 +334,8 @@ router.post('/chat', async (req, res) => {
       escalate_target: 'none',
       escalate_reason: null,
       representative: null,
-      support_email: null
+      support_email: null,
+      calendar_url: null
     });
   }
 
@@ -417,13 +419,30 @@ router.post('/chat', async (req, res) => {
       }
     }
 
+    // Echte Notbremse für Enterprise-Kunden: nur wenn die KI selbst schon
+    // entschieden hat, dass weder das (bereits vorher geprüfte) FAQ noch
+    // sie selbst weiterhelfen kann (siehe ESCALATION_RULES - "letzte
+    // Stufe, nicht die erste Wahl"), UND der Kunde Enterprise ist, UND ein
+    // Kalender-Link hinterlegt ist, zeigen wir einen echten Termin-Buchungs-
+    // Link statt nur einer E-Mail-Adresse.
+    let supportEmail = null;
+    let calendarUrl = null;
+    if (parsed.escalate_target === 'support') {
+      if (context.plan === 'L' && process.env.ENTERPRISE_SUPPORT_CALENDAR_URL) {
+        calendarUrl = process.env.ENTERPRISE_SUPPORT_CALENDAR_URL;
+      } else {
+        supportEmail = process.env.SUPPORT_EMAIL || null;
+      }
+    }
+
     res.json({
       reply: parsed.reply,
       escalate: parsed.escalate,
       escalate_target: parsed.escalate_target,
       escalate_reason: parsed.escalate_reason || null,
       representative,
-      support_email: parsed.escalate_target === 'support' ? (process.env.SUPPORT_EMAIL || null) : null
+      support_email: supportEmail,
+      calendar_url: calendarUrl
     });
   } catch (error) {
     // Interne Fehlerdetails (z.B. eine ungültige ANTHROPIC_API_KEY) landen
