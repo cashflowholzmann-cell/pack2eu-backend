@@ -277,56 +277,17 @@ app.listen(PORT, '0.0.0.0', () => {
   );
   console.log('==============================================');
   console.log('');
-
-  scheduleLegalWatch();
 });
 
 // ============================================================
-// RECHTSÄNDERUNGS-RADAR: LAUF DIENSTAGS UND DONNERSTAGS
+// RECHTSÄNDERUNGS-RADAR: KEIN AUTOMATISCHER LAUF MEHR
 //
-// Bewusst nicht täglich - Gesetzestexte ändern sich nicht stundenweise,
-// und jeder Check kostet zwei echte, nicht ganz billige Claude-Aufrufe
-// pro Land (Recherche mit Websuche + Adaptive Thinking, dann
-// strukturierte Auswertung) - siehe Vorfall vom 03.09.2026, bei dem ein
-// einziger 3-Länder-Testlauf (damals noch mit Opus, 6 Websuchen/Land)
-// mehrere Dollar Guthaben verbraucht hat. Deshalb bewusst klein gehalten
-// (3 Länder pro Lauf, siehe auch die Modell-/max_uses-/effort-Werte in
-// legal-watch.js) statt möglichst viele Länder pro Lauf abzudecken.
-// Zusätzlich über den "Jetzt prüfen"-Button im Admin-Tool jederzeit
-// manuell auslösbar (siehe routes/admin.js, POST /legal-watch/run).
-//
-// Kein externer Cron nötig: beim Start und danach stündlich wird
-// geprüft, ob heute (UTC-Wochentag Dienstag/Donnerstag, Datum) schon
-// gelaufen ist - so überlebt der Lauf auch einen Server-Neustart, ohne
-// doppelt zu laufen.
+// Bis 03.09.2026 lief hier automatisch dienstags/donnerstags ein Check
+// (siehe Git-Historie). Nach einem Kosten-Vorfall an diesem Tag (ein
+// einzelner manueller 3-Länder-Testlauf hat mehrere Dollar
+// Anthropic-Guthaben verbraucht und das Konto ins Minus gebracht) hat
+// der Nutzer die automatische Ausführung ausdrücklich abgestellt. Das
+// Feature läuft jetzt NUR NOCH manuell über den "Jetzt prüfen"-Button
+// im Admin-Tool (siehe routes/admin.js, POST /legal-watch/run) - dort
+// entscheidet bewusst ein Mensch pro Klick, ob wieder Kosten anfallen.
 // ============================================================
-const LEGAL_WATCH_WEEKDAYS = [2, 4]; // UTC: 2 = Dienstag, 4 = Donnerstag
-
-async function runDailyLegalWatchIfDue() {
-  if (!process.env.ANTHROPIC_API_KEY) return;
-
-  const now = new Date();
-  if (!LEGAL_WATCH_WEEKDAYS.includes(now.getUTCDay())) return;
-
-  const today = now.toISOString().slice(0, 10);
-  const alreadyRan = db.db
-    .prepare('SELECT 1 FROM legal_watch_runs WHERE run_date = ?')
-    .get(today);
-  if (alreadyRan) return;
-
-  try {
-    const { runLegalWatch } = require('./legal-watch');
-    const results = await runLegalWatch({ limit: 3 });
-    db.db
-      .prepare('INSERT OR IGNORE INTO legal_watch_runs (run_date, countries_checked) VALUES (?, ?)')
-      .run(today, results.length);
-    console.log(`📡 Rechtsänderungs-Radar: ${results.length} Länder geprüft (${today}).`);
-  } catch (error) {
-    console.error('❌ Rechtsänderungs-Radar (Lauf) fehlgeschlagen:', error.message);
-  }
-}
-
-function scheduleLegalWatch() {
-  runDailyLegalWatchIfDue();
-  setInterval(runDailyLegalWatchIfDue, 60 * 60 * 1000);
-}
