@@ -250,6 +250,16 @@ router.post('/chat', async (req, res) => {
       messages: [...history, { role: 'user', content: message }]
     });
 
+    // Kurzes Kosten-Logging, u. a. um Prompt-Caching zu verifizieren -
+    // cache_read_input_tokens > 0 bedeutet: der Cache-Treffer hat
+    // gegriffen, dieser Anteil der Anfrage kostet ~90% weniger.
+    console.log(
+      `💬 Support-Chat: input=${response.usage.input_tokens} `
+      + `cache_read=${response.usage.cache_read_input_tokens ?? 0} `
+      + `cache_write=${response.usage.cache_creation_input_tokens ?? 0} `
+      + `output=${response.usage.output_tokens}`
+    );
+
     const parsed = response.parsed_output;
     if (!parsed) {
       return res.status(502).json({ error: 'Antwort konnte nicht verarbeitet werden.' });
