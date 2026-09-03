@@ -220,13 +220,18 @@ router.post('/chat', async (req, res) => {
           .map(m => ({ role: m.role, content: m.content }))
       : [];
 
-    const systemPrompt = [
+    // Prompt-Caching: der Instruktionsteil (Intro + Dashboard-/Rechts-Wissen +
+    // Eskalationsregeln) ist für JEDEN Kunden und JEDE Nachricht identisch -
+    // eigener cache_control-Breakpoint dafür, damit er nicht bei jeder
+    // einzelnen Chat-Nachricht neu (und voll bezahlt) mitgeschickt wird.
+    // Die Live-Kundendaten ändern sich dagegen pro Kunde/Zeitpunkt und
+    // bleiben deshalb bewusst außerhalb des gecachten Blocks.
+    const staticSystemPrompt = [
       'Du bist der Support-Assistent von Pack2EU, einer SaaS für EU-Verpackungscompliance. '
         + 'Antworte auf Deutsch, freundlich, konkret und knapp.',
       DASHBOARD_KNOWLEDGE,
       LEGAL_KNOWLEDGE,
-      ESCALATION_RULES,
-      'AKTUELLE DATEN DIESES KUNDEN (live aus dem Dashboard, nicht statisch):\n' + context.text
+      ESCALATION_RULES
     ].join('\n\n---\n\n');
 
     const client = new Anthropic();
@@ -238,7 +243,10 @@ router.post('/chat', async (req, res) => {
         format: zodOutputFormat(ChatResponseSchema),
         effort: 'medium'
       },
-      system: systemPrompt,
+      system: [
+        { type: 'text', text: staticSystemPrompt, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: 'AKTUELLE DATEN DIESES KUNDEN (live aus dem Dashboard, nicht statisch):\n' + context.text }
+      ],
       messages: [...history, { role: 'user', content: message }]
     });
 
