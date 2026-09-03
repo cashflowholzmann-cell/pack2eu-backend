@@ -10,18 +10,18 @@
 // CREATE TABLE in db/index.js). Wir sind kein Rechtsberater; das hier
 // ist eine Recherche-Beschleunigung, keine automatisierte Rechtsauskunft.
 //
-// Bewusst nicht täglich, sondern dienstags und donnerstags in Batches
-// (siehe runDailyLegalWatchIfDue in server.js) - Gesetzestexte ändern
-// sich nicht stundenweise, und jeder Check kostet zwei Claude-Aufrufe
-// (Recherche mit Websuche + strukturierte Auswertung). Zusätzlich über
-// den "Jetzt prüfen"-Button im internen Tool jederzeit manuell
-// auslösbar.
+// KEIN automatischer Lauf mehr (seit 03.09.2026 auf Nutzerwunsch
+// entfernt, siehe server.js) - läuft ausschließlich über den
+// "Jetzt prüfen"-Button im internen Tool (routes/admin.js,
+// POST /legal-watch/run). Jeder Check kostet zwei echte Claude-Aufrufe
+// pro Land (Recherche mit Websuche + strukturierte Auswertung).
 //
 // Kosten-Vorfall 03.09.2026: ein einzelner 3-Länder-Testlauf mit Claude
 // Opus + Adaptive Thinking + 6 Websuchen pro Land hat mehrere Dollar
-// Guthaben verbraucht. Daraufhin bewusst reduziert: Claude Sonnet statt
-// Opus (Nutzerentscheidung), max. 2 Websuchen statt 6, effort "medium"
-// statt Standard/hoch.
+// Guthaben verbraucht und das Konto ins Minus gebracht. Daraufhin
+// bewusst reduziert: Claude Sonnet statt Opus (Nutzerentscheidung),
+// max. 2 Websuchen statt 6, effort "medium" statt Standard/hoch - UND
+// die Automatik komplett abgeschaltet.
 // ================================================================
 
 const Anthropic = require('@anthropic-ai/sdk');
