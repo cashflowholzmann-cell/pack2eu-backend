@@ -122,6 +122,121 @@ Eskalations-Regeln:
   selbst.
 `.trim();
 
+// ============================================================
+// FAQ-VORFILTER (0 Cent, keine KI-Anfrage)
+// ============================================================
+//
+// Deckt die Fragen ab, die erfahrungsgemäß (eigener Test) und laut
+// einem Blick in die FAQs bekannter Mitbewerber (u.a. Lappa, Lizenzero,
+// Landbell) mit Abstand am häufigsten vorkommen UND sich generisch,
+// unabhängig vom einzelnen Kunden, korrekt beantworten lassen. Trifft
+// eine Nachricht hier, kostet die Antwort nichts - nur wenn nichts
+// passt, geht es weiter zur eigentlichen KI mit den echten
+// Kundendaten. Bewusst konservativ: jeder Eintrag braucht mehrere
+// passende Stichwort-Gruppen gleichzeitig (AND über die Gruppen, OR
+// innerhalb einer Gruppe), damit eine kundenspezifische Frage (z.B.
+// "muss ich für Frankreich selbst zahlen?") nicht hier landet, sondern
+// korrekt bei der KI mit den echten Kundendaten beantwortet wird.
+const FAQ_ENTRIES = [
+  {
+    id: 'ppwr_general',
+    groups: [[/ppwr/, /verpackungsverordnung/], [/was ist/, /seit wann/, /gilt/, /bedeutet/]],
+    answer: 'Die EU-Verpackungsverordnung (PPWR) gilt seit dem 12.08.2026 unmittelbar in allen 27 EU-Mitgliedstaaten - ohne Bagatellgrenze, also grundsätzlich ab dem ersten verkauften Paket. Sie schreibt je nach Land u. a. eine Registrierung im nationalen Verpackungsregister, laufende Mengenmeldungen und teils einen dortigen Bevollmächtigten vor.'
+  },
+  {
+    id: 'registration_per_country',
+    groups: [[/registrier/], [/jedem land/, /jedes land/, /alle länder/, /pro land/, /pro eu-land/, /in jedem eu-land/]],
+    answer: 'Ja - grundsätzlich musst du dich in jedem EU-Land, in das du verkaufst, im dortigen nationalen Verpackungsregister registrieren und dort deine Verpackungsmengen melden. Das ist Ländersache, es gibt keine EU-weite Sammelregistrierung. Im Dashboard unter "🌍 Meine Länder" siehst du für jedes aktivierte Land den genauen Status.'
+  },
+  {
+    id: 'representative_general',
+    groups: [[/bevollmächtigt/], [/was ist/, /brauche ich/, /wozu/, /wofür/, /muss ich einen/, /benötige ich/]],
+    answer: 'Ein Bevollmächtigter (Authorized Representative) ist eine im jeweiligen Land ansässige Person/Firma, die für dich die dortigen Verpackungspflichten (Registrierung, Meldung, Kommunikation mit Behörden) wahrnimmt. Besonders zwingend ist das für Händler mit Sitz außerhalb der EU. Ob und wo du für deine aktivierten Länder einen brauchst, siehst du im Dashboard bei "🌍 Meine Länder" (🔴 = zwingend erforderlich und noch nicht hinterlegt).'
+  },
+  {
+    id: 'pack2eu_is_representative',
+    groups: [[/pack2eu/, /ihr seid/, /seid ihr/, /bist du/], [/bevollmächtigt/]],
+    answer: 'Nein: Pack2EU selbst ist nicht dein Bevollmächtigter. Wir vermitteln bzw. organisieren dir einen passenden Bevollmächtigten im Zielland, dieser wird aber auf Grundlage einer eigenen Beauftragung/Vollmacht direkt für dich tätig und erfüllt die gesetzlichen Pflichten im eigenen Namen und in eigener Verantwortung. Details dazu stehen auch in unseren AGB.'
+  },
+  {
+    id: 'penalties',
+    groups: [[/bußgeld/, /strafe/, /geldbuße/, /sanktion/], [/wenn ich nicht/, /ohne registr/, /was passiert/, /wie hoch/]],
+    answer: 'Verstöße gegen die Verpackungspflichten können mit Bußgeldern geahndet werden, die je nach Land erheblich sein können (u. a. auch Sperren bei Marktplätzen oder Probleme beim Zoll sind möglich). Die genaue Höhe und wie streng das durchgesetzt wird, unterscheidet sich von Land zu Land - deshalb lohnt sich eine frühzeitige Registrierung statt abzuwarten.'
+  },
+  {
+    id: 'reporting_frequency',
+    groups: [[/wie oft/, /wie häufig/], [/melden/, /meldung/, /meldepflicht/]],
+    answer: 'Wie oft gemeldet werden muss (z. B. jährlich oder quartalsweise), ist von Land zu Land unterschiedlich. Für deine aktivierten Länder siehst du die konkrete Meldefrequenz im Dashboard unter "📨 Meldepflichten pro Land" - dort befüllt "📨 Jetzt melden" die Mengen sogar automatisch aus deinen erfassten Bestellungen.'
+  },
+  {
+    id: 'minimum_threshold',
+    groups: [[/bagatell/, /mindestmenge/, /schwellenwert/, /freigrenze/, /ab welcher menge/, /untergrenze/]],
+    answer: 'Nein, es gibt grundsätzlich keine Bagatell- oder Mindestmengengrenze - die Pflichten gelten in der Regel ab dem ersten verkauften Paket, unabhängig vom Umsatz oder der Menge. Manche Länder haben aber vereinfachte Verfahren für sehr kleine Mengen; Details dazu findest du für deine aktivierten Länder im Dashboard.'
+  },
+  {
+    id: 'representative_cost',
+    groups: [[/bevollmächtigt/], [/kosten/, /kostet/, /preis/, /gebühr/]],
+    answer: 'Die Kosten für einen Bevollmächtigten hängen stark vom Land und Anbieter ab und kommen zusätzlich zu den Registrierungs-/Öko-Gebühren des jeweiligen Landes hinzu. Bei Bestseller (bei jährlicher Zahlung) und Enterprise ist je nach Plan ein Bevollmächtigter bereits inklusive. Die für dich konkret geltenden Kosten siehst du am zuverlässigsten im Dashboard bei "🌍 Meine Länder" - frag mich gern auch direkt zu einem bestimmten Land, dann schaue ich in deine echten Daten.'
+  },
+  {
+    id: 'add_country',
+    groups: [[/land hinzufügen/, /land aktivieren/, /neues land/, /weiteres land/, /zusätzliches land/]],
+    answer: 'Ein neues Land aktivierst du im Dashboard unter "🌍 Meine Länder" über "+ Land aktivieren". Dort kannst du direkt eine vorhandene EPR-Nummer und/oder einen Bevollmächtigten eintragen - falls du noch keinen hast, zeigt dir Pack2EU den passenden Register-/Bestell-Link für dieses Land.'
+  },
+  {
+    id: 'how_to_report',
+    groups: [[/wie melde ich/, /meldung abgeben/, /wie funktioniert.{0,15}melden/]],
+    answer: 'Unter "📨 Meldepflichten pro Land" siehst du pro aktiviertem Land, wohin und wie oft gemeldet werden muss. Über "📨 Jetzt melden" werden die Materialien automatisch aus deinen echten erfassten Bestellungen befüllt - du musst nichts abtippen, kannst die Werte vor dem Absenden aber noch anpassen.'
+  },
+  {
+    id: 'epr_number',
+    groups: [[/epr-nummer/, /epr nummer/], [/was ist/, /brauche ich/, /wo finde ich/, /wo bekomme ich/, /wie beantrage/]],
+    answer: 'Die EPR-Nummer ist deine Registrierungsnummer im jeweiligen nationalen Verpackungsregister - sie bestätigt, dass du dort für dieses Land als Inverkehrbringer gemeldet bist. Falls du für ein Land noch keine hast, findest du im Dashboard bei "🌍 Meine Länder" den passenden Link zur zuständigen Registerstelle.'
+  },
+  {
+    id: 'notary',
+    groups: [[/notar/]],
+    answer: 'Ob für die Beauftragung eines Bevollmächtigten eine notarielle Beglaubigung nötig ist, hängt vom jeweiligen Land ab. Für deine aktivierten Länder siehst du das (inkl. ggf. der Kosten dafür) im Dashboard bei "🌍 Meine Länder" in den Detailangaben.'
+  },
+  {
+    id: 'plan_comparison',
+    groups: [[/starter/, /bestseller/, /enterprise/], [/unterschied/, /vergleich/, /welcher plan/, /welches paket/]],
+    answer: 'Starter: 250 kg/Jahr, 2 Länder. Bestseller: 1.000 kg/Jahr, 10 Länder, bei jährlicher Zahlung 1 Bevollmächtigter inklusive. Enterprise: unbegrenzte Menge, 1-2 Bevollmächtigte inklusive je nach Zahlweise. Welcher Plan zu dir passt, hängt von deiner Verpackungsmenge und Anzahl Zielländer ab - ein Wechsel ist jederzeit über die Kontoeinstellungen möglich.'
+  },
+  {
+    id: 'cancellation',
+    groups: [[/kündig/, /vertragslaufzeit/, /vertrag beenden/, /abo kündigen/]],
+    answer: 'Die genauen Kündigungsfristen und -bedingungen findest du in unseren AGB (Link im Footer der Seite) sowie direkt in deinen Kontoeinstellungen im Dashboard. Bei Fragen zu deinem konkreten Vertrag helfe ich dir gern auch hier weiter, wenn du magst.'
+  },
+  {
+    id: 'volume_change',
+    groups: [[/menge ändert/, /mehr verpackung/, /volumen erhöht/, /menge.{0,15}erhöht/, /mehr menge/, /plan wechseln/, /kontingent/, /quota/]],
+    answer: 'Wenn sich deine jährliche Verpackungsmenge deutlich ändert, kann es sein, dass dein aktueller Plan nicht mehr passt (Starter 250 kg, Bestseller 1.000 kg, Enterprise unbegrenzt) - ein Wechsel ist jederzeit über die Kontoeinstellungen möglich. Deine tatsächliche Meldemenge berechnet sich ohnehin automatisch aus deinen erfassten Bestellungen, du musst nichts manuell nachrechnen.'
+  },
+  {
+    id: 'lucid',
+    groups: [[/lucid/]],
+    answer: 'LUCID ist das zentrale deutsche Verpackungsregister der Stiftung Zentrale Stelle Verpackungsregister (ZSVR). Wer Verpackungen mit Erstbefüllung in Deutschland in Verkehr bringt, muss sich dort registrieren - unabhängig von der Menge. Für Deutschland als aktiviertes Land siehst du den Status dazu im Dashboard bei "🌍 Meine Länder".'
+  },
+  {
+    id: 'data_status_meaning',
+    groups: [[/datenstand/, /noch nicht abschließend verifiziert/]],
+    answer: 'Der "Datenstand" zeigt an, wie sicher die für ein Land hinterlegten Angaben (Registerstelle, Öko-Gebühr, Anforderungen) aktuell sind: "geprüft" heißt, das wurde bereits verifiziert. "Noch nicht abschließend verifiziert" heißt, die Angaben sind eine gute Orientierung, aber für verbindliche Detailfragen solltest du dich zusätzlich an deinen Bevollmächtigten für dieses Land wenden.'
+  },
+  {
+    id: 'registration_vs_reporting',
+    groups: [[/unterschied/], [/registrierung/, /lizenzierung/, /meldung/]],
+    answer: 'Registrierung ist die einmalige Anmeldung im nationalen Verpackungsregister (du bekommst dabei deine EPR-Nummer). Meldung ist die laufende Angabe deiner tatsächlich verkauften Verpackungsmengen an diese Stelle. Lizenzierung meint in manchen Ländern (z. B. Deutschland über ein duales System) zusätzlich die Beteiligung an der Entsorgung/Verwertung - das läuft neben der reinen Registrierung.'
+  }
+];
+
+function matchFaq(message) {
+  const text = message.toLowerCase();
+  return FAQ_ENTRIES.find(entry =>
+    entry.groups.every(group => group.some(re => re.test(text)))
+  ) || null;
+}
+
 function buildCustomerContext(customerId) {
   const customer = db.prepare(`
     SELECT company_name, origin_country, is_eu, plan, billing_interval
@@ -199,13 +314,34 @@ router.post('/chat', async (req, res) => {
     return res.status(400).json({ error: 'Nachricht ist zu lang (max. 2000 Zeichen).' });
   }
 
+  const customerId = req.auth.userId;
+
+  const faqMatch = matchFaq(message);
+  if (faqMatch) {
+    try {
+      db.prepare('INSERT INTO support_messages (customer_id, role, content, escalated) VALUES (?, ?, ?, 0)')
+        .run(customerId, 'user', message);
+      db.prepare('INSERT INTO support_messages (customer_id, role, content, escalated) VALUES (?, ?, ?, 0)')
+        .run(customerId, 'assistant', faqMatch.answer);
+    } catch (dbError) {
+      console.error('❌ Support-Chat FAQ-Verlauf Fehler:', dbError);
+    }
+    console.log(`💬 Support-Chat: FAQ-Treffer "${faqMatch.id}" (0 Cent, keine KI-Anfrage)`);
+    return res.json({
+      reply: faqMatch.answer,
+      escalate: false,
+      escalate_target: 'none',
+      escalate_reason: null,
+      representative: null,
+      support_email: null
+    });
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(503).json({
       error: 'Der Support-Chat ist noch nicht aktiv - dazu muss ANTHROPIC_API_KEY in der Backend-Konfiguration gesetzt sein.'
     });
   }
-
-  const customerId = req.auth.userId;
 
   try {
     const context = buildCustomerContext(customerId);
