@@ -91,6 +91,12 @@ Rechtsberatung im Einzelfall):
   Land X wirklich einen Bevollmächtigten in meinem Fall") NIEMALS eine
   eigene verbindliche Einschätzung geben, sondern an den Bevollmächtigten
   des Kunden für das jeweilige Land verweisen (siehe Eskalations-Regeln).
+- Für die tatsächlich aktivierten Länder des Kunden bekommst du unten bei
+  "AKTUELLE DATEN DIESES KUNDEN" den konkreten, für Pack2EU recherchierten
+  Stand (Registerstelle, Öko-Gebühr, Anforderungen, Kennzeichnung,
+  Datenstand). Nutze diese konkreten Angaben statt allgemeiner Vermutungen,
+  wo vorhanden - aber auch hier gilt: bei "Datenstand: noch nicht
+  abschließend verifiziert" nie als zu 100% verbindlich ausgeben.
 `.trim();
 
 const ESCALATION_RULES = `
@@ -124,10 +130,20 @@ function buildCustomerContext(customerId) {
 
   if (!customer) return null;
 
+  // Zieht dieselbe "countries"-Tabelle, die auch das Rechtsänderungs-Radar
+  // (legal-watch.js) pflegt - der Chat sieht also automatisch den
+  // aktuellsten Stand, sobald ein Fund im Admin-Tool per "Übernehmen"
+  // bestätigt wurde. Bewusst NICHT direkt an legal_watch_findings
+  // angebunden: ungeprüfte KI-Recherche darf nie ungefiltert in ein
+  // Kundengespräch einfließen, nur was schon menschlich freigegeben in
+  // "countries" gelandet ist.
   const activations = db.prepare(`
     SELECT a.country_code, c.name, a.status, a.existing_number,
            a.representative_name, a.representative_company,
-           c.reporting_frequency
+           c.reporting_frequency, c.register_body, c.eco_fee,
+           c.representative_required, c.notary_required, c.notary_cost,
+           c.registration_generally_required, c.requirements_json,
+           c.labeling_json, c.data_status
     FROM activations a
     JOIN countries c ON c.code = a.country_code
     WHERE a.customer_id = ?
@@ -143,9 +159,19 @@ function buildCustomerContext(customerId) {
     ? activations.map(a => {
         const hasEpr = !!a.existing_number;
         const hasRep = !!a.representative_name;
-        return `- ${a.name} (${a.country_code}): Status=${a.status}, EPR-Nummer=${hasEpr ? 'vorhanden' : 'FEHLT'}, `
-          + `Bevollmächtigter=${hasRep ? `${a.representative_name}${a.representative_company ? ' / ' + a.representative_company : ''}` : 'keiner hinterlegt'}, `
-          + `Meldefrequenz=${a.reporting_frequency}`;
+        const requirements = JSON.parse(a.requirements_json || '[]');
+        const labeling = JSON.parse(a.labeling_json || '[]');
+        return [
+          `- ${a.name} (${a.country_code}): Status=${a.status}, EPR-Nummer=${hasEpr ? 'vorhanden' : 'FEHLT'}, `
+            + `Bevollmächtigter=${hasRep ? `${a.representative_name}${a.representative_company ? ' / ' + a.representative_company : ''}` : 'keiner hinterlegt'}, `
+            + `Meldefrequenz=${a.reporting_frequency}`,
+          `  Registerstelle: ${a.register_body || 'unbekannt'} · Öko-Gebühr: ${a.eco_fee || 'unbekannt'} · `
+            + `Bevollmächtigter gesetzlich nötig: ${a.representative_required ? 'ja' : 'nein'} · `
+            + `Notarielle Beglaubigung nötig: ${a.notary_required ? `ja${a.notary_cost ? ' (' + a.notary_cost + ')' : ''}` : 'nein'}`,
+          requirements.length ? `  Anforderungen: ${requirements.join('; ')}` : null,
+          labeling.length ? `  Kennzeichnung: ${labeling.join('; ')}` : null,
+          `  Datenstand: ${a.data_status === 'verified' ? 'geprüft' : 'noch nicht abschließend verifiziert - bei bindenden Detailfragen an den Bevollmächtigten verweisen'}`
+        ].filter(Boolean).join('\n');
       }).join('\n')
     : '(noch kein Land aktiviert)';
 
@@ -157,7 +183,7 @@ function buildCustomerContext(customerId) {
         + `max. ${planLimits.maxCountries ?? 'unbegrenzt'} Länder)`,
       `Produkte angelegt: ${skuCount} · Bestellungen erfasst: ${orderCount} · Meldungen abgegeben: ${submissionCount}`,
       '',
-      'AKTIVIERTE LÄNDER:',
+      'AKTIVIERTE LÄNDER (inkl. aktuellstem Rechts- und Registerstand aus unserer Länder-Datenbank):',
       countryLines
     ].join('\n'),
     activations
