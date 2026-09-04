@@ -142,6 +142,100 @@ router.get('/overview', (req, res) => {
   }
 });
 
+// Rohe Referrer-URLs je Kanal (letzte 30 Tage) - die Übersicht oben
+// bucketet nur in Kategorien wie "sonstige_website"; hier lässt sich
+// nachschauen, welche konkrete Seite tatsächlich verlinkt hat.
+router.get('/traffic-detail', (req, res) => {
+  try {
+    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const views30d = db.prepare('SELECT referrer, utm_source, created_at FROM page_views WHERE created_at >= ?').all(since30d);
+
+    const byChannel = {};
+    views30d.forEach(v => {
+      const ch = classifyChannel(v);
+      if (!v.referrer) return; // "direkt" hat keinen Referrer zum Anzeigen
+      if (!byChannel[ch]) byChannel[ch] = {};
+      byChannel[ch][v.referrer] = (byChannel[ch][v.referrer] || 0) + 1;
+    });
+
+    const result = {};
+    Object.entries(byChannel).forEach(([ch, referrers]) => {
+      result[ch] = Object.entries(referrers)
+        .map(([referrer, count]) => ({ referrer, count }))
+        .sort((a, b) => b.count - a.count);
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Traffic-Detail-Fehler:', error);
+    res.status(500).json({ error: 'Details konnten nicht geladen werden.' });
+  }
+});
+
+// ============================================================
+// FUNNEL-ATTRIBUTION: Demo-/Rechner-Klick -> Registrierung -> Kauf
+//
+// Verknüpft die anonyme Session-ID aus dem Klick-Tracking (click_events,
+// siehe routes/track.js) mit der bei der Registrierung gespeicherten
+// customers.acquisition_session_id. Ein Kunde wird dem ersten passenden
+// Event VOR seiner Registrierung zugeordnet: zuerst "demo" (falls ein
+// demo_start-Event existiert), sonst "rechner" (calculator_click), sonst
+// "weder". So lässt sich beantworten "X Leute haben den Rechner geklickt,
+// davon sind Y zahlende Bestseller-Kunden geworden".
+// ============================================================
+router.get('/funnel-attribution', (req, res) => {
+  try {
+    const customers = db.prepare(`
+      SELECT id, plan, subscription_status, acquisition_session_id, created_at
+      FROM customers
+      WHERE acquisition_session_id IS NOT NULL
+    `).all();
+
+    const events = db.prepare(`
+      SELECT event_name, session_id, created_at FROM click_events
+    `).all();
+
+    const eventsBySession = {};
+    events.forEach(e => {
+      if (!eventsBySession[e.session_id]) eventsBySession[e.session_id] = [];
+      eventsBySession[e.session_id].push(e);
+    });
+
+    function attribute(customer) {
+      const sessionEvents = eventsBySession[customer.acquisition_session_id] || [];
+      const before = sessionEvents.filter(e => e.created_at <= customer.created_at);
+      if (before.some(e => e.event_name === 'demo_start')) return 'demo';
+      if (before.some(e => e.event_name === 'calculator_click')) return 'rechner';
+      return 'weder';
+    }
+
+    const summary = {
+      demo: { registered: 0, paying: 0, byPlan: {} },
+      rechner: { registered: 0, paying: 0, byPlan: {} },
+      weder: { registered: 0, paying: 0, byPlan: {} }
+    };
+
+    customers.forEach(c => {
+      const bucket = attribute(c);
+      summary[bucket].registered++;
+      if (c.subscription_status === 'active') {
+        summary[bucket].paying++;
+        summary[bucket].byPlan[c.plan] = (summary[bucket].byPlan[c.plan] || 0) + 1;
+      }
+    });
+
+    // Gesamt-Klicks unabhängig davon, ob daraus je eine Registrierung
+    // wurde - eindeutige Sessions, kein Zählen von Mehrfachklicks.
+    const totalDemoClicks = new Set(events.filter(e => e.event_name === 'demo_start').map(e => e.session_id)).size;
+    const totalCalculatorClicks = new Set(events.filter(e => e.event_name === 'calculator_click').map(e => e.session_id)).size;
+
+    res.json({ summary, totalDemoClicks, totalCalculatorClicks });
+  } catch (error) {
+    console.error('❌ Funnel-Attribution-Fehler:', error);
+    res.status(500).json({ error: 'Funnel-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
 // ============================================================
 // LEADS
 // ============================================================

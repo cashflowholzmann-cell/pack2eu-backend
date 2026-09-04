@@ -103,6 +103,15 @@ const registerSchema =
     acquisitionSource:
       z.string()
         .max(100)
+        .optional(),
+
+    // Dieselbe anonyme Session-ID wie beim Pageview-/Event-Tracking
+    // (siehe routes/track.js) - erlaubt im internen Tool die Zuordnung,
+    // ob vor der Registrierung ein Demo- oder Rechner-Klick derselben
+    // Session vorausging (siehe GET /admin/funnel-attribution).
+    sessionId:
+      z.string()
+        .max(100)
         .optional()
 
   });
@@ -153,7 +162,8 @@ router.post(
       password,
       plan,
       isEU,
-      acquisitionSource
+      acquisitionSource,
+      sessionId
     } =
       parsed.data;
 
@@ -215,9 +225,10 @@ router.post(
             password_hash,
             plan,
             is_eu,
-            acquisition_source
+            acquisition_source,
+            acquisition_session_id
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
 
@@ -248,6 +259,9 @@ router.post(
             : 0,
 
           acquisitionSource ||
+            null,
+
+          sessionId ||
             null
 
         );
