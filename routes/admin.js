@@ -20,7 +20,7 @@ const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 // zodOutputFormat() liest Schemas über die zod/v4-Introspection - siehe
 // die Erklärung in routes/feedback.js.
 const { z } = require('zod/v4');
-const { db } = require('../db');
+const { db, DB_PATH } = require('../db');
 const { signToken, requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -233,6 +233,76 @@ router.get('/funnel-attribution', (req, res) => {
   } catch (error) {
     console.error('❌ Funnel-Attribution-Fehler:', error);
     res.status(500).json({ error: 'Funnel-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
+// Wie lange schauen sich Besucher die Sandbox-Demo im Dashboard an
+// (siehe DEMO_MODE in dashboard.html, das 'demo_duration'-Event sendet).
+router.get('/demo-duration-stats', (req, res) => {
+  try {
+    const durations = db.prepare(`
+      SELECT event_value FROM click_events
+      WHERE event_name = 'demo_duration' AND event_value IS NOT NULL
+      ORDER BY event_value ASC
+    `).all().map(r => r.event_value);
+
+    if (durations.length === 0) {
+      return res.json({ count: 0, avgSeconds: null, medianSeconds: null });
+    }
+
+    const avgSeconds = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+    const mid = Math.floor(durations.length / 2);
+    const medianSeconds = durations.length % 2 === 0
+      ? Math.round((durations[mid - 1] + durations[mid]) / 2)
+      : durations[mid];
+
+    res.json({ count: durations.length, avgSeconds, medianSeconds });
+  } catch (error) {
+    console.error('❌ Demo-Dauer-Stats-Fehler:', error);
+    res.status(500).json({ error: 'Demo-Dauer-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
+// Was wird im Eco-Fee-Rechner auf der Landing Page tatsächlich
+// durchgerechnet - häufigste Länder, durchschnittliche Menge,
+// welcher Plan kommt am Ende raus (siehe calculator_usage-Tabelle).
+router.get('/calculator-usage', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT countries_json, country_count, total_kg, plan, savings
+      FROM calculator_usage
+      ORDER BY created_at DESC
+      LIMIT 500
+    `).all();
+
+    const countryCounts = {};
+    const planCounts = {};
+    let totalKgSum = 0;
+
+    rows.forEach(r => {
+      let countries = [];
+      try { countries = JSON.parse(r.countries_json); } catch (e) { countries = []; }
+      countries.forEach(c => {
+        countryCounts[c] = (countryCounts[c] || 0) + 1;
+      });
+      if (r.plan) planCounts[r.plan] = (planCounts[r.plan] || 0) + 1;
+      totalKgSum += r.total_kg || 0;
+    });
+
+    const topCountries = Object.entries(countryCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([code, count]) => ({ code, count }));
+
+    res.json({
+      totalCalculations: rows.length,
+      avgKg: rows.length ? Math.round(totalKgSum / rows.length) : null,
+      topCountries,
+      planCounts
+    });
+  } catch (error) {
+    console.error('❌ Rechner-Nutzungs-Stats-Fehler:', error);
+    res.status(500).json({ error: 'Rechner-Auswertung konnte nicht geladen werden.' });
   }
 });
 
@@ -536,6 +606,80 @@ router.get('/backup/download', async (req, res) => {
     console.error('❌ Backup-Fehler:', error);
     fs.unlink(tempPath, () => {});
     res.status(500).json({ error: 'Backup konnte nicht erstellt werden.' });
+  }
+});
+
+// ============================================================
+// DATENBANK-BACKUP WIEDERHERSTELLEN
+//
+// Einmaliger Notfall-Weg, um eine per /backup/download geladene Datei
+// zurückzuspielen (z.B. nach Umzug auf ein Render Persistent Disk).
+// Ersetzt die komplette DB_PATH-Datei - JEDE Anfrage danach verliert
+// alles, was seit dem Backup dazugekommen ist. Braucht express.raw()
+// auf genau dieser Route (siehe server.js), weil das globale
+// express.json() weder Binärdaten noch >500kb verträgt.
+//
+// Die laufende better-sqlite3-Verbindung (db, hier und in jeder
+// anderen Route) ist an die alte Datei gebunden und kann nicht "live"
+// auf die neue umgehängt werden - deshalb beendet sich der Prozess
+// nach erfolgreichem Restore bewusst selbst. Render startet den
+// Dienst automatisch neu, und beim Neustart öffnet db/index.js die
+// gerade wiederhergestellte Datei.
+// ============================================================
+router.post('/backup/restore', async (req, res) => {
+  const upload = req.body;
+
+  if (!Buffer.isBuffer(upload) || upload.length === 0) {
+    return res.status(400).json({ error: 'Keine Datei empfangen.' });
+  }
+
+  // SQLite-Dateien beginnen immer mit diesem 16-Byte-Header.
+  const SQLITE_MAGIC = 'SQLite format 3\0';
+  if (upload.length < 16 || upload.toString('utf8', 0, 16) !== SQLITE_MAGIC) {
+    return res.status(400).json({ error: 'Datei sieht nicht wie eine gültige SQLite-Datenbank aus.' });
+  }
+
+  const tempPath = path.join(os.tmpdir(), `pack2eu-restore-${Date.now()}.db`);
+
+  try {
+    fs.writeFileSync(tempPath, upload);
+
+    // Vor dem Ersetzen prüfen, ob sich die Datei überhaupt öffnen lässt
+    // und mindestens die erwarteten Kern-Tabellen enthält - lieber hier
+    // hart abbrechen als eine kaputte Datei live zu schalten.
+    const Database = require('better-sqlite3');
+    const check = new Database(tempPath, { readonly: true });
+    const tables = check.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name);
+    check.close();
+    if (!tables.includes('customers')) {
+      fs.unlink(tempPath, () => {});
+      return res.status(400).json({ error: 'Datei enthält keine erkennbare Pack2EU-Datenbank (Tabelle "customers" fehlt).' });
+    }
+
+    // Aktuellen Stand sicherheitshalber wegsichern, bevor er überschrieben wird.
+    const safetyStamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const safetyPath = `${DB_PATH}.before-restore-${safetyStamp}`;
+    try {
+      await db.backup(safetyPath);
+    } catch (safetyError) {
+      console.error('⚠️ Konnte Sicherheitskopie vor Restore nicht anlegen:', safetyError.message);
+    }
+
+    db.close();
+    fs.copyFileSync(tempPath, DB_PATH);
+    fs.unlink(tempPath, () => {});
+    // WAL-/SHM-Reste der alten Datei entfernen, damit sie beim Neustart
+    // nicht mit dem gerade eingespielten Stand kollidieren.
+    for (const suffix of ['-wal', '-shm']) {
+      fs.unlink(`${DB_PATH}${suffix}`, () => {});
+    }
+
+    res.json({ ok: true, message: 'Restore erfolgreich. Dienst startet jetzt neu.' });
+    setTimeout(() => process.exit(0), 500);
+  } catch (error) {
+    fs.unlink(tempPath, () => {});
+    console.error('❌ Restore-Fehler:', error);
+    res.status(500).json({ error: 'Restore fehlgeschlagen.' });
   }
 });
 

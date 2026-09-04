@@ -2749,6 +2749,30 @@ function init() {
     `);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_click_events_session_id ON click_events(session_id);`);
 
+    // Numerischer Zusatzwert für Events, die mehr als nur "ist passiert"
+    // transportieren - aktuell nur 'demo_duration' (Sekunden, die die
+    // Demo im Dashboard offen war, siehe dashboard.html + routes/track.js).
+    addColumnIfMissing('click_events', 'event_value', 'INTEGER');
+
+    // Anonyme Rechner-Nutzung: welche Länder/Mengen wurden im Eco-Fee-
+    // Rechner (Landing Page) tatsächlich durchgerechnet und welcher Plan
+    // kam raus - hilft zu sehen, wonach am meisten gesucht wird, ohne
+    // personenbezogene Daten (nur die anonyme Session-ID, siehe auch
+    // click_events/page_views).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS calculator_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        countries_json TEXT NOT NULL,
+        country_count INTEGER NOT NULL,
+        total_kg REAL NOT NULL,
+        plan TEXT,
+        savings REAL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_calculator_usage_created_at ON calculator_usage(created_at);`);
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
