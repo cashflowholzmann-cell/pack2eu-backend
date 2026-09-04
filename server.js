@@ -81,6 +81,14 @@ app.use(
   express.raw({ type: 'application/json' })
 );
 
+// DB-Restore braucht ebenfalls den rohen Body statt geparstem JSON -
+// hier ist es eine binäre .db-Datei, nicht JSON, und deutlich größer
+// als das 500kb-Limit von express.json() weiter unten.
+app.use(
+  '/api/admin/backup/restore',
+  express.raw({ type: 'application/octet-stream', limit: '100mb' })
+);
+
 // ============================================================
 // CORS
 // ============================================================

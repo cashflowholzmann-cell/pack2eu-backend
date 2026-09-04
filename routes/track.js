@@ -23,25 +23,85 @@ const trackLimiter = rateLimit({
 
 // Bewusst eine feste Whitelist statt beliebiger Event-Namen - sonst
 // wird der Endpoint zu einem Free-Text-Spam-Ziel wie der Pageview-
-// Endpunkt oben schon kommentiert. Nur die zwei Events, die für die
-// Funnel-Auswertung im internen Tool tatsächlich gebraucht werden.
-const ALLOWED_EVENTS = ['demo_start', 'calculator_click'];
+// Endpunkt oben schon kommentiert. 'demo_duration' trägt zusätzlich
+// einen numerischen Sekundenwert (siehe event_value unten).
+const ALLOWED_EVENTS = ['demo_start', 'calculator_click', 'demo_duration'];
+
+// Obergrenze für event_value bei 'demo_duration' - 4 Stunden. Verhindert
+// offensichtlich manipulierte/kaputte Werte, ohne echte lange Demo-
+// Sessions abzuschneiden.
+const MAX_DEMO_DURATION_SECONDS = 4 * 60 * 60;
 
 router.post('/event', trackLimiter, (req, res) => {
   try {
-    const { event_name, session_id } = req.body || {};
+    const { event_name, session_id, event_value } = req.body || {};
     if (!ALLOWED_EVENTS.includes(event_name) || !session_id) {
       return res.status(400).json({ error: 'Ungültiges Event.' });
     }
 
+    let value = null;
+    if (event_name === 'demo_duration') {
+      const parsed = Number(event_value);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > MAX_DEMO_DURATION_SECONDS) {
+        return res.status(400).json({ error: 'Ungültiger event_value.' });
+      }
+      value = Math.round(parsed);
+    }
+
     db.prepare(`
-      INSERT INTO click_events (event_name, session_id)
-      VALUES (?, ?)
-    `).run(event_name, String(session_id).slice(0, 100));
+      INSERT INTO click_events (event_name, session_id, event_value)
+      VALUES (?, ?, ?)
+    `).run(event_name, String(session_id).slice(0, 100), value);
 
     res.json({ ok: true });
   } catch (error) {
     console.error('❌ Event-Tracking-Fehler:', error.message);
+    res.json({ ok: false });
+  }
+});
+
+// Anonyme Rechner-Nutzung: wird beim Klick auf "Berechnen" im Eco-Fee-
+// Rechner der Landing Page gesendet (siehe index.html, calcCompute()/
+// heroCalcCompute()). Bewusst eigener Endpoint statt /event, weil hier
+// strukturierte Daten statt nur ein Event-Name reinkommen.
+router.post('/calculator-usage', trackLimiter, (req, res) => {
+  try {
+    const { session_id, countries, total_kg, plan, savings } = req.body || {};
+
+    if (!session_id || !Array.isArray(countries) || countries.length === 0) {
+      return res.status(400).json({ error: 'Ungültige Rechner-Daten.' });
+    }
+
+    const cleanCountries = countries
+      .filter(c => typeof c === 'string')
+      .map(c => c.slice(0, 10).toUpperCase())
+      .slice(0, 10);
+    if (cleanCountries.length === 0) {
+      return res.status(400).json({ error: 'Ungültige Rechner-Daten.' });
+    }
+
+    const kg = Number(total_kg);
+    if (!Number.isFinite(kg) || kg < 0 || kg > 100_000_000) {
+      return res.status(400).json({ error: 'Ungültige kg-Menge.' });
+    }
+
+    const savingsNum = Number(savings);
+
+    db.prepare(`
+      INSERT INTO calculator_usage (session_id, countries_json, country_count, total_kg, plan, savings)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      String(session_id).slice(0, 100),
+      JSON.stringify(cleanCountries),
+      cleanCountries.length,
+      kg,
+      typeof plan === 'string' ? plan.slice(0, 10) : null,
+      Number.isFinite(savingsNum) ? savingsNum : null
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Rechner-Tracking-Fehler:', error.message);
     res.json({ ok: false });
   }
 });
