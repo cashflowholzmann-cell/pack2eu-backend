@@ -2733,6 +2733,22 @@ function init() {
     `);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at);`);
 
+    // Klick-Events fürs Funnel-Tracking (siehe routes/track.js,
+    // POST /track/event) - erfasst gezielt "Demo gestartet" und
+    // "Rechner geöffnet" pro anonymer Session-ID, damit sich im
+    // internen Tool auswerten lässt, über welchen Einstiegspunkt
+    // später tatsächlich ein Abo abgeschlossen wurde (siehe
+    // customers.acquisition_session_id + GET /admin/funnel-attribution).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS click_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_name TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_click_events_session_id ON click_events(session_id);`);
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2763,6 +2779,12 @@ function init() {
     // wird bei der Registrierung aus UTM-Parametern/Referrer befüllt,
     // bleibt sonst NULL ("organisch"/unbekannt).
     addColumnIfMissing('customers', 'acquisition_source', 'TEXT');
+
+    // Anonyme Session-ID (dieselbe wie in page_views/click_events) zum
+    // Zeitpunkt der Registrierung - erlaubt im internen Tool die
+    // Zuordnung "kam über Demo-Klick" / "kam über Rechner-Klick" / "weder"
+    // für diesen Kunden (siehe GET /admin/funnel-attribution).
+    addColumnIfMissing('customers', 'acquisition_session_id', 'TEXT');
 
     // Zeitpunkt der Abo-Kündigung (siehe routes/billing.js,
     // customer.subscription.deleted-Webhook) - ohne diesen Zeitstempel
