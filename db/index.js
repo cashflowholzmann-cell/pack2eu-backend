@@ -933,8 +933,8 @@ function init() {
         registration_url = 'https://www.grontpunkt.no',
         requirements_json = ?,
         eco_fee = 'Mitgliedsbeitrag an die gewählte PRO (z. B. Grønt Punkt Norge), material- und mengenabhängig.',
-        representative_provider_name = NULL,
-        representative_provider_url = NULL,
+        representative_provider_name = 'JTI Ventures',
+        representative_provider_url = 'https://jtiventures.se/guide-weee-epr-compliance.html',
         representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'verified'
