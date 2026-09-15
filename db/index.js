@@ -728,6 +728,9 @@ function init() {
         registration_url = 'https://bdo.mos.gov.pl',
         requirements_json = ?,
         eco_fee = 'Recyclingbeitrag über das gewählte Rückgewinnungssystem, material- und mengenabhängig.',
+        representative_provider_name = 'Olimp Marketplace',
+        representative_provider_url = 'https://olimpmarketplace.com/de/index.php/obowiazki-srodowiskowe-i-epr-rop-w-krajach-ue-polska-niemcy-czechy-slowacja/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'verified'
       WHERE code = 'PL'
@@ -787,6 +790,9 @@ function init() {
         registration_url = 'https://www.repak.ie',
         requirements_json = ?,
         eco_fee = 'Lizenzentgelt an Repak, material- und mengenabhängig.',
+        representative_provider_name = 'ERP Ireland (European Recycling Platform)',
+        representative_provider_url = 'https://erp-recycling.org/ie/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
         data_status = 'verified'
       WHERE code = 'IE'
