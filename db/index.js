@@ -627,6 +627,8 @@ function init() {
         registration_url = 'https://edm.gv.at/edm_portal/cms.do?get=%2Fportal%2Finformationen%2Fanwendungenthemen%2Fverpackung.main',
         requirements_json = ?,
         eco_fee = 'Lizenzentgelt beim gewählten Sammel-/Verwertungssystem (z. B. ARA), abhängig von Material und Menge.',
+        representative_provider_name = 'get-e-right Austria GmbH',
+        representative_provider_url = 'https://www.get-e-right.at/en/authorised-representative-packaging/',
         representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
         data_status = 'verified'
