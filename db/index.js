@@ -648,6 +648,9 @@ function init() {
         registration_url = 'https://www.conai.org',
         requirements_json = ?,
         eco_fee = 'CONAI-Umweltbeitrag (Contributo Ambientale CONAI, CAC), materialabhängig gestaffelt.',
+        representative_provider_name = 'econ Consulting (Dr. Egon Prenn)',
+        representative_provider_url = 'https://www.econ.bz.it/dienstleistungen/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
         data_status = 'needs_verification'
       WHERE code = 'IT'
