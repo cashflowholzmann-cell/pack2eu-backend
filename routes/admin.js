@@ -374,6 +374,41 @@ router.post('/leads', (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM leads WHERE id = ?').get(result.lastInsertRowid));
 });
 
+// Sammel-Eintrag für bereits verschickte Kontaktaufnahmen (z. B. eine
+// Charge Steuerberater-/Fulfillment-Mails) - erspart, jeden Kontakt
+// einzeln über das Formular anzulegen. status default "contacted" statt
+// "new", weil diese Leads per Definition schon kontaktiert wurden.
+router.post('/leads/bulk', (req, res) => {
+  const { leads, source, status } = req.body || {};
+  if (!Array.isArray(leads) || leads.length === 0) {
+    return res.status(400).json({ error: 'Keine Leads übergeben.' });
+  }
+
+  const insert = db.prepare(`
+    INSERT INTO leads (name, contact, source, status, notes)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const insertMany = db.transaction((rows) => {
+    let count = 0;
+    for (const row of rows) {
+      const name = typeof row?.name === 'string' ? row.name.trim() : '';
+      if (!name) continue;
+      insert.run(
+        name,
+        typeof row.contact === 'string' && row.contact.trim() ? row.contact.trim() : null,
+        source || 'other',
+        status || 'contacted',
+        typeof row.notes === 'string' && row.notes.trim() ? row.notes.trim() : null
+      );
+      count++;
+    }
+    return count;
+  });
+
+  const inserted = insertMany(leads);
+  res.status(201).json({ inserted });
+});
+
 router.put('/leads/:id', (req, res) => {
   const existing = db.prepare('SELECT id FROM leads WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Lead nicht gefunden.' });
