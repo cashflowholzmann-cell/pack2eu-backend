@@ -2745,6 +2745,12 @@ function init() {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
+
+    // Herkunftsland des Besuchers (per clientseitiger IP-Geolocation
+    // erkannt, siehe index.html detectCountryByIP() - dieselbe Erkennung,
+    // die auch für Sprach-/Preisvorschlag genutzt wird). Nur der
+    // zweistellige ISO-Ländercode, keine IP-Adresse wird gespeichert.
+    addColumnIfMissing('page_views', 'country', 'TEXT');
     db.exec(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at);`);
 
     // Klick-Events fürs Funnel-Tracking (siehe routes/track.js,
