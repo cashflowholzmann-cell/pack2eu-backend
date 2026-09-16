@@ -7,6 +7,49 @@ router.use(requireAuth);
 router.use(requireActiveSubscription);
 
 // ============================================================
+// WEEE-/BATTERIE-KATEGORIEN (für die Klassifizierungs-Auswahl im
+// SKU-Editor - siehe dashboard.html)
+// ============================================================
+router.get('/categories', (req, res) => {
+  try {
+    res.json({
+      weee: db.prepare('SELECT code, name_de, name_en, description FROM weee_categories ORDER BY code').all(),
+      battery: db.prepare('SELECT code, name_de, name_en, description FROM battery_categories ORDER BY code').all()
+    });
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Kategorien:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Kategorien' });
+  }
+});
+
+// Ohne diese Angaben kann das System nicht wissen, ob eine SKU überhaupt
+// WEEE- oder Batteriepflichten auslöst - siehe Kommentar in db/index.js
+// zu den product_packaging-Klassifizierungsfeldern.
+function readClassification(body = {}) {
+  const isElectricalEquipment = Boolean(body.is_electrical_equipment);
+  const containsBattery = Boolean(body.contains_battery);
+
+  const weeeCategory = isElectricalEquipment && body.weee_category ? String(body.weee_category).trim() : null;
+  const batteryType = containsBattery && body.battery_type ? String(body.battery_type).trim() : null;
+
+  if (weeeCategory) {
+    const valid = db.prepare('SELECT 1 FROM weee_categories WHERE code = ?').get(weeeCategory);
+    if (!valid) throw new Error(`Unbekannte WEEE-Kategorie: ${weeeCategory}`);
+  }
+  if (batteryType) {
+    const valid = db.prepare('SELECT 1 FROM battery_categories WHERE code = ?').get(batteryType);
+    if (!valid) throw new Error(`Unbekannter Batterietyp: ${batteryType}`);
+  }
+
+  return {
+    is_electrical_equipment: isElectricalEquipment ? 1 : 0,
+    weee_category: weeeCategory,
+    contains_battery: containsBattery ? 1 : 0,
+    battery_type: batteryType
+  };
+}
+
+// ============================================================
 // ALLE SKUS DES KUNDEN
 // ============================================================
 router.get('/', (req, res) => {
@@ -37,12 +80,18 @@ router.post('/', (req, res) => {
 
     const total_weight = materials.reduce((sum, m) => sum + (m.weight_grams || 0), 0);
     const materials_json = JSON.stringify(materials);
+    const classification = readClassification(req.body);
 
     const result = db.prepare(`
       INSERT INTO product_packaging
-      (customer_id, sku_name, icon, shopify_product_id, destination, materials_json, total_weight_grams)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(customer_id, sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight);
+      (customer_id, sku_name, icon, shopify_product_id, destination, materials_json, total_weight_grams,
+       is_electrical_equipment, weee_category, contains_battery, battery_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      customer_id, sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
+      classification.is_electrical_equipment, classification.weee_category,
+      classification.contains_battery, classification.battery_type
+    );
 
     const newSku = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(newSku);
@@ -70,12 +119,20 @@ router.put('/:id', (req, res) => {
 
     const total_weight = materials.reduce((sum, m) => sum + (m.weight_grams || 0), 0);
     const materials_json = JSON.stringify(materials);
+    const classification = readClassification(req.body);
 
     db.prepare(`
       UPDATE product_packaging
-      SET sku_name = ?, icon = ?, shopify_product_id = ?, destination = ?, materials_json = ?, total_weight_grams = ?, updated_at = datetime('now')
+      SET sku_name = ?, icon = ?, shopify_product_id = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
+          is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
+          updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
-    `).run(sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight, id, customer_id);
+    `).run(
+      sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
+      classification.is_electrical_equipment, classification.weee_category,
+      classification.contains_battery, classification.battery_type,
+      id, customer_id
+    );
 
     const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
     res.json(updated);

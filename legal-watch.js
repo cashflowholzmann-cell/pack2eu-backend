@@ -50,21 +50,44 @@ const LegalFindingSchema = z.object({
   sources: z.array(z.object({ title: z.string(), url: z.string() }))
 });
 
-async function researchCountry(country, currentData) {
+// Stream-spezifische Recherche-Fragen - dieselbe Kosten-gedeckelte
+// Pipeline (Sonnet, effort "medium", max. 2 Websuchen), nur der fachliche
+// Fokus ändert sich. 'packaging' bleibt exakt der bisherige, bereits
+// produktiv genutzte Prompt (keine Verhaltensänderung).
+const STREAM_RESEARCH_FOCUS = {
+  packaging: {
+    topic: 'Verpackungs-/EPR-Registrierungspflichten',
+    legalBasisHint: 'die EU-Verpackungsverordnung PPWR (Verordnung (EU) 2025/40)',
+    representativeHint: 'PPWR Art. 45 macht das ab 12. August 2026 EU-weit für Drittstaaten-Hersteller verpflichtend'
+  },
+  weee: {
+    topic: 'WEEE-/Elektroaltgeräte-Registrierungspflichten',
+    legalBasisHint: 'die EU-WEEE-Richtlinie (Richtlinie 2012/19/EU) und ihre nationale Umsetzung',
+    representativeHint: 'Art. 17 der WEEE-Richtlinie verlangt von Nicht-EU-Herstellern einen bevollmächtigten Vertreter im jeweiligen Mitgliedstaat'
+  },
+  battery: {
+    topic: 'Batterie-Herstellerregistrierungspflichten',
+    legalBasisHint: 'die EU-Batterieverordnung (Verordnung (EU) 2023/1542)',
+    representativeHint: 'Art. 43 der Batterieverordnung verlangt von Nicht-EU-Herstellern einen bevollmächtigten Vertreter im jeweiligen Mitgliedstaat'
+  }
+};
+
+async function researchCountry(country, currentData, stream = 'packaging') {
   const client = new Anthropic();
+  const focus = STREAM_RESEARCH_FOCUS[stream] || STREAM_RESEARCH_FOCUS.packaging;
 
-  const researchPrompt = `Du recherchierst den aktuellen Stand der Verpackungs-/EPR-Registrierungspflichten für ${country.name} (${country.code}).
+  const researchPrompt = `Du recherchierst den aktuellen Stand der ${focus.topic} für ${country.name} (${country.code}).
 
-Bevorzugte Quellen: offizielle Register-/Behördenseiten des Landes, IHK-Länderprofile (ihk.de), die EU-Verpackungsverordnung PPWR (Verordnung (EU) 2025/40), sowie andere seriöse offizielle Quellen. Keine Foren, keine SEO-Blogartikel von Compliance-Dienstleistern als Hauptquelle.
+Bevorzugte Quellen: offizielle Register-/Behördenseiten des Landes, IHK-Länderprofile (ihk.de), ${focus.legalBasisHint}, sowie andere seriöse offizielle Quellen. Keine Foren, keine SEO-Blogartikel von Compliance-Dienstleistern als Hauptquelle.
 
 Bereits bei uns gespeicherter Stand (kann veraltet oder unvollständig sein):
 ${JSON.stringify(currentData, null, 2)}
 
 Recherchiere und fasse zusammen:
-1. Ist eine Registrierung im nationalen Verpackungsregister erforderlich?
-2. Ist ein Bevollmächtigter (representative) für nicht im Land ansässige Hersteller erforderlich? (Wichtig: PPWR Art. 45 macht das ab 12. August 2026 EU-weit für Drittstaaten-Hersteller verpflichtend.)
+1. Ist eine Registrierung im nationalen Register erforderlich?
+2. Ist ein Bevollmächtigter (representative) für nicht im Land ansässige Hersteller erforderlich? (Wichtig: ${focus.representativeHint}.)
 3. Ist eine notarielle Beglaubigung erforderlich?
-4. Ungefähre Höhe der Recycling-/Lizenzgebühren, falls öffentlich bekannt.
+4. Ungefähre Höhe der Gebühren, falls öffentlich bekannt.
 5. Melde-Rhythmus (monatlich/quartalsweise/jährlich).
 6. Hinweise auf jüngste Gesetzesänderungen.
 
@@ -122,21 +145,46 @@ Schließe mit einer klaren Zusammenfassung inkl. Quellen-URLs ab.`;
   return extraction.parsed_output;
 }
 
-async function runLegalWatch({ limit = 3 } = {}) {
-  const targets = db.prepare(`
+// Für 'packaging' unverändert: liest/schreibt weiterhin direkt die
+// countries-Tabelle (Live-Produktion, siehe Kommentar in db/schema.sql zu
+// country_stream_rules - bewusst nicht angetastet). Für 'weee'/'battery'
+// kommt der gespeicherte Stand aus country_stream_rules (kann pro Land
+// noch komplett leer sein - das ist der erwartete, unrecherchierte
+// Ausgangszustand, keine Fehlfunktion).
+function getWatchTargets(stream, limit) {
+  if (stream === 'packaging') {
+    return db.prepare(`
+      SELECT
+        code, name, register_body, representative_required, notary_required,
+        notary_cost, registration_url, eco_fee, registration_generally_required,
+        reporting_frequency, requirements_json, labeling_json, data_status
+      FROM countries
+      ORDER BY (data_status = 'needs_verification') DESC, code
+      LIMIT ?
+    `).all(limit);
+  }
+
+  return db.prepare(`
     SELECT
-      code, name, register_body, representative_required, notary_required,
-      notary_cost, registration_url, eco_fee, registration_generally_required,
-      reporting_frequency, requirements_json, labeling_json, data_status
-    FROM countries
-    ORDER BY (data_status = 'needs_verification') DESC, code
+      c.code, c.name,
+      csr.register_body, csr.representative_required, csr.notary_required,
+      csr.notary_cost, csr.registration_url, csr.registration_generally_required,
+      csr.reporting_frequency, csr.requirements_json, csr.labeling_json,
+      COALESCE(csr.data_status, 'needs_verification') AS data_status
+    FROM countries c
+    LEFT JOIN country_stream_rules csr ON csr.country_code = c.code AND csr.stream = ?
+    ORDER BY (COALESCE(csr.data_status, 'needs_verification') = 'needs_verification') DESC, c.code
     LIMIT ?
-  `).all(limit);
+  `).all(stream, limit);
+}
+
+async function runLegalWatch({ limit = 3, stream = 'packaging' } = {}) {
+  const targets = getWatchTargets(stream, limit);
 
   const insertFinding = db.prepare(`
     INSERT INTO legal_watch_findings
-      (country_code, has_update, summary, ai_confidence, suggested_fields_json, sources_json, status)
-    VALUES (?, 1, ?, ?, ?, ?, 'new')
+      (country_code, stream, has_update, summary, ai_confidence, suggested_fields_json, sources_json, status)
+    VALUES (?, ?, 1, ?, ?, ?, ?, 'new')
   `);
 
   const results = [];
@@ -148,7 +196,7 @@ async function runLegalWatch({ limit = 3 } = {}) {
       notary_required: !!country.notary_required,
       notary_cost: country.notary_cost,
       registration_url: country.registration_url,
-      eco_fee: country.eco_fee,
+      eco_fee: country.eco_fee ?? null,
       registration_generally_required: !!country.registration_generally_required,
       reporting_frequency: country.reporting_frequency,
       requirements: JSON.parse(country.requirements_json || '[]'),
@@ -157,10 +205,11 @@ async function runLegalWatch({ limit = 3 } = {}) {
     };
 
     try {
-      const finding = await researchCountry(country, currentData);
+      const finding = await researchCountry(country, currentData, stream);
       if (finding && finding.has_meaningful_update) {
         insertFinding.run(
           country.code,
+          stream,
           finding.summary,
           finding.confidence,
           JSON.stringify(finding.suggested_fields),

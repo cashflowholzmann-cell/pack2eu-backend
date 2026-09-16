@@ -69,14 +69,14 @@ function logAccess(representativeId, customerId, action, req) {
 // Löst nur "auto_match"-Zuweisungen wieder, nie von einem Admin manuell
 // gesetzte (assigned_by='admin') - eine Änderung/Löschung der vom Kunden
 // eingetragenen E-Mail darf keine bewusste Admin-Entscheidung umwerfen.
-function syncCustomerRepresentativeRequest(customerId, countryCode, email) {
+function syncCustomerRepresentativeRequest(customerId, countryCode, email, stream = 'packaging') {
   const cleanEmail = String(email || '').trim().toLowerCase();
 
   const previousRequest = db.prepare(`
     SELECT representative_id, status
     FROM customer_representative_requests
-    WHERE customer_id = ? AND country_code = ?
-  `).get(customerId, countryCode);
+    WHERE customer_id = ? AND country_code = ? AND stream = ?
+  `).get(customerId, countryCode, stream);
 
   function releasePreviousAutoMatch() {
     if (previousRequest?.status === 'matched' && previousRequest.representative_id) {
@@ -91,29 +91,33 @@ function syncCustomerRepresentativeRequest(customerId, countryCode, email) {
     releasePreviousAutoMatch();
     db.prepare(`
       DELETE FROM customer_representative_requests
-      WHERE customer_id = ? AND country_code = ?
-    `).run(customerId, countryCode);
+      WHERE customer_id = ? AND country_code = ? AND stream = ?
+    `).run(customerId, countryCode, stream);
     return;
   }
 
+  // Ein Bevollmächtigter deckt genau einen Strom pro Land ab (siehe
+  // representatives.stream) - deshalb hier zusätzlich nach stream filtern,
+  // sonst könnte ein für Verpackung verifizierter Account fälschlich auch
+  // für eine WEEE-Anfrage desselben Landes "bekannt" erscheinen.
   const knownRep = db.prepare(`
     SELECT id FROM representatives
-    WHERE email = ? AND country_code = ? AND active = 1 AND email_verified_at IS NOT NULL
-  `).get(cleanEmail, countryCode);
+    WHERE email = ? AND country_code = ? AND stream = ? AND active = 1 AND email_verified_at IS NOT NULL
+  `).get(cleanEmail, countryCode, stream);
 
   if (knownRep && previousRequest?.representative_id !== knownRep.id) {
     releasePreviousAutoMatch();
   }
 
   db.prepare(`
-    INSERT INTO customer_representative_requests (customer_id, country_code, requested_email, status, representative_id, updated_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(customer_id, country_code) DO UPDATE SET
+    INSERT INTO customer_representative_requests (customer_id, country_code, stream, requested_email, status, representative_id, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(customer_id, country_code, stream) DO UPDATE SET
       requested_email = excluded.requested_email,
       status = excluded.status,
       representative_id = excluded.representative_id,
       updated_at = datetime('now')
-  `).run(customerId, countryCode, cleanEmail, knownRep ? 'matched' : 'pending', knownRep ? knownRep.id : null);
+  `).run(customerId, countryCode, stream, cleanEmail, knownRep ? 'matched' : 'pending', knownRep ? knownRep.id : null);
 
   if (knownRep) {
     db.prepare(`

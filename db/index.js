@@ -81,6 +81,50 @@ function addColumnIfMissing(
 }
 
 
+// customer_representative_requests ist brandneu (erst in dieser Sitzung
+// gemergt) und hat praktisch keine echten Produktionsdaten - deshalb hier
+// ausnahmsweise ein echter Tabellen-Rebuild statt nur additiver Spalten,
+// um den UNIQUE-Constraint um stream zu erweitern (sonst würden sich eine
+// Verpackungs- und eine WEEE-Anfrage für dasselbe Land gegenseitig
+// überschreiben). Bei activations/compliance_cases (Jahre an echten
+// Kundendaten) wird das bewusst NICHT gemacht, siehe Kommentar dort.
+function migrateCustomerRepresentativeRequestsStreamUnique() {
+  if (!tableExists('customer_representative_requests')) return;
+  if (!columnExists('customer_representative_requests', 'stream')) return;
+
+  const currentSql = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'customer_representative_requests'
+  `).get()?.sql || '';
+
+  if (currentSql.includes('UNIQUE(customer_id, country_code, stream)')) return;
+
+  db.exec(`
+    CREATE TABLE customer_representative_requests_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      country_code TEXT NOT NULL REFERENCES countries(code),
+      stream TEXT NOT NULL DEFAULT 'packaging',
+      requested_email TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'matched', 'rejected')),
+      representative_id INTEGER REFERENCES representatives(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(customer_id, country_code, stream)
+    );
+
+    INSERT INTO customer_representative_requests_new
+      (id, customer_id, country_code, stream, requested_email, status, representative_id, created_at, updated_at)
+    SELECT id, customer_id, country_code, stream, requested_email, status, representative_id, created_at, updated_at
+    FROM customer_representative_requests;
+
+    DROP TABLE customer_representative_requests;
+    ALTER TABLE customer_representative_requests_new RENAME TO customer_representative_requests;
+  `);
+
+  console.log('✅ customer_representative_requests: UNIQUE-Constraint um stream erweitert');
+}
+
+
 // ============================================================
 // LÄNDER
 // ============================================================
@@ -323,6 +367,15 @@ function init() {
     addColumnIfMissing('representatives', 'login_code_expires_at', 'TEXT');
     addColumnIfMissing('representatives', 'last_login_at', 'TEXT');
 
+    // Ein Bevollmächtigten-Account deckt genau einen Pflichtenstrom pro
+    // Land ab (nicht automatisch alle) - eine Kanzlei, die sowohl
+    // Verpackung als auch WEEE für ein Land anbietet, bekommt zwei
+    // getrennte Accounts. Additiv, default 'packaging' - keine
+    // Verhaltensänderung für die bereits eingeladenen Bestands-Reps.
+    addColumnIfMissing('representatives', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    addColumnIfMissing('customer_representative_requests', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    migrateCustomerRepresentativeRequestsStreamUnique();
+
     // eBay (OAuth 2.0, siehe routes/ebay.js) - Code bereits fertig,
     // wartet auf eBays Produktions-Freigabe.
     addColumnIfMissing('customers', 'ebay_access_token', 'TEXT');
@@ -337,6 +390,33 @@ function init() {
     addColumnIfMissing('product_packaging', 'kaufland_product_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'amazon_sku', 'TEXT');
     addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
+
+    // WEEE-/Batterie-Klassifizierung je Produkt (siehe routes/skus.js) -
+    // ohne diese Angaben kann das System nicht wissen, ob eine SKU
+    // überhaupt WEEE- oder Batteriepflichten auslöst. weee_category/
+    // battery_type referenzieren weee_categories.code/battery_categories.code,
+    // bleiben aber bewusst freies TEXT statt FK (SQLite-ALTER-TABLE-
+    // Beschränkung + einfachere Migration).
+    addColumnIfMissing('product_packaging', 'is_electrical_equipment', 'INTEGER NOT NULL DEFAULT 0');
+    addColumnIfMissing('product_packaging', 'weee_category', 'TEXT');
+    addColumnIfMissing('product_packaging', 'contains_battery', 'INTEGER NOT NULL DEFAULT 0');
+    addColumnIfMissing('product_packaging', 'battery_type', 'TEXT');
+
+    // Stream-Dimension (siehe country_stream_rules-Kommentar in
+    // schema.sql): additiv, default 'packaging' - keine Verhaltensänderung
+    // für die bestehenden, ausschließlich Verpackungs-Aktivierungen aller
+    // heutigen Kunden. Der bestehende UNIQUE(customer_id, country_code)
+    // bleibt bewusst unverändert (siehe Kommentar oben) - ein Kunde kann
+    // aktuell weiterhin nur eine Aktivierung pro Land haben; echte
+    // Mehrfach-Stream-Aktivierung pro Land folgt erst mit einer eigenen,
+    // sorgfältig getesteten Constraint-Migration, sobald WEEE/Batterie
+    // tatsächlich Länderdaten haben.
+    addColumnIfMissing('activations', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    addColumnIfMissing('compliance_cases', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    addColumnIfMissing('monthly_reports', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    // compliance_rules existiert erst ab Abschnitt 7 weiter unten - die
+    // stream-Spalte dafür steht bei den anderen addColumnIfMissing-Aufrufen
+    // dieser Tabelle.
 
     // Herkunfts-Kanal einer manuell angelegten Bestellung (own_shop,
     // shopify, etsy, kaufland, amazon, ebay) - rein zur Zuordnung/
@@ -1337,6 +1417,49 @@ function init() {
 
 
     // ========================================================
+    // 4b. WEEE- UND BATTERIE-KATEGORIEN (feste EU-Taxonomie)
+    //
+    // Anhang III Richtlinie 2012/19/EU (WEEE) bzw. Art. 3 Verordnung (EU)
+    // 2023/1542 (Batterien) - direkt aus dem Rechtstext, keine pro Land
+    // recherchierten Fakten. Per WebSearch am 2026-09-16 gegengeprüft, da
+    // eine zuvor kursierende Konzept-Notiz die WEEE-Kategorie 6
+    // fälschlich als "Photovoltaikmodule" statt "Kleine IT- und
+    // Telekommunikationsgeräte" auflistete.
+    // ========================================================
+
+    const weeeCategories = [
+      ['1', 'Wärmeaustauschgeräte', 'Temperature exchange equipment', 'Kühlschränke, Gefriergeräte, Klimaanlagen, Wärmepumpen'],
+      ['2', 'Bildschirme, Monitore und Geräte mit Bildschirmen (> 100 cm²)', 'Screens, monitors and equipment containing screens (>100 cm²)', 'Fernseher, Laptops, Notebooks, Tablets'],
+      ['3', 'Lampen', 'Lamps', 'Leuchtstofflampen, LED-Lampen'],
+      ['4', 'Großgeräte (jede Abmessung > 50 cm)', 'Large equipment (any dimension >50 cm)', 'Waschmaschinen, Trockner, Öfen, große Drucker'],
+      ['5', 'Kleingeräte (keine Abmessung > 50 cm)', 'Small equipment (no dimension >50 cm)', 'Staubsauger, Toaster, Rasierer, Uhren'],
+      ['6', 'Kleine IT- und Telekommunikationsgeräte (keine Abmessung > 50 cm)', 'Small IT and telecommunication equipment (no dimension >50 cm)', 'Mobiltelefone, Router, Taschenrechner']
+    ];
+
+    const insertWeeeCategory = db.prepare(`
+      INSERT OR IGNORE INTO weee_categories (code, name_de, name_en, description)
+      VALUES (?, ?, ?, ?)
+    `);
+    for (const row of weeeCategories) insertWeeeCategory.run(...row);
+
+    const batteryCategories = [
+      ['portable', 'Portable Batterien', 'Portable batteries', 'Versiegelt, unter 5 kg, nicht industriell/LMT/SLI'],
+      ['lmt', 'LMT-Batterien (Leichtverkehrsmittel)', 'LMT (Light Means of Transport) batteries', 'E-Bikes, E-Scooter - versiegelt, bis 25 kg'],
+      ['industrial', 'Industrie-Batterien', 'Industrial batteries', 'Für industrielle Zwecke, nicht portable/LMT/EV/SLI'],
+      ['automotive', 'Fahrzeugbatterien (SLI)', 'Automotive (SLI) batteries', 'Starter-, Beleuchtungs-, Zündungsbatterien für Fahrzeuge'],
+      ['ev', 'Elektrofahrzeug-Batterien', 'Electric vehicle (EV) batteries', 'Antriebsbatterien für Elektrofahrzeuge']
+    ];
+
+    const insertBatteryCategory = db.prepare(`
+      INSERT OR IGNORE INTO battery_categories (code, name_de, name_en, description)
+      VALUES (?, ?, ?, ?)
+    `);
+    for (const row of batteryCategories) insertBatteryCategory.run(...row);
+
+    console.log('✅ WEEE-/Batterie-Kategorien geprüft');
+
+
+    // ========================================================
     // 5a. GROBE ÖKO-GEBÜHR-SÄTZE JE MATERIAL (EUR/kg)
     //
     // Recherchierte, aber bewusst grobe Näherungswerte aus den jeweils
@@ -1636,6 +1759,12 @@ function init() {
       'TEXT'
     );
 
+    addColumnIfMissing(
+      'compliance_rules',
+      'stream',
+      "TEXT NOT NULL DEFAULT 'packaging'"
+    );
+
 
     // ========================================================
     // 8. PROVIDER
@@ -1820,6 +1949,9 @@ function init() {
             representative_status TEXT NOT NULL
               DEFAULT 'not_required',
 
+            stream TEXT NOT NULL
+              DEFAULT 'packaging',
+
             provider_id TEXT,
 
             provider_case_id TEXT,
@@ -1909,6 +2041,15 @@ function init() {
             : `'not_required'`;
 
 
+        const streamExpression =
+          hasOld('stream')
+            ? `COALESCE(
+                stream,
+                'packaging'
+              )`
+            : `'packaging'`;
+
+
         const providerExpression =
           expression(
             'provider_id',
@@ -1994,6 +2135,7 @@ function init() {
             compliance_status,
             registration_status,
             representative_status,
+            stream,
 
             provider_id,
             provider_case_id,
@@ -2020,6 +2162,7 @@ function init() {
             ${complianceExpression},
             ${registrationExpression},
             ${representativeExpression},
+            ${streamExpression},
 
             ${providerExpression},
             ${providerCaseExpression},
@@ -2649,6 +2792,9 @@ function init() {
       'representative_customer_assignments',
       'representative_access_log',
       'customer_representative_requests',
+      'country_stream_rules',
+      'weee_categories',
+      'battery_categories',
       'country_jurisdictions',
       'compliance_rules',
       'compliance_providers',
@@ -2924,6 +3070,11 @@ function init() {
         reviewed_by TEXT
       );
     `);
+
+    // Additiv, default 'packaging' - Rechtsänderungs-Radar deckt jetzt auch
+    // WEEE/Batterie ab (siehe legal-watch.js), bestehende Funde bleiben
+    // unverändert als 'packaging' zugeordnet.
+    addColumnIfMissing('legal_watch_findings', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
 
     // Ein Zeileneintrag pro Kalendertag, an dem der tägliche
     // Rechtsänderungs-Radar-Lauf (siehe runDailyLegalWatch in
