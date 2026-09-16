@@ -389,13 +389,14 @@ router.post('/message', faqChatLimiter, async (req, res) => {
     // (statt reinem Text) wegen "response_type": steuert sowohl den
     // FAQ-Lücken-Vorschlag im Admin-Dashboard (nur bei "unknown") als auch
     // den Paywall-Hinweis samt Kauf-Link bei länderspezifischen
-    // Detailfragen (bei "paywall") - siehe PACK2EU_KNOWLEDGE oben.
+    // Detailfragen (bei "paywall") - siehe PACK2EU_KNOWLEDGE oben. KEIN
+    // "effort" hier setzen - das Feld wird von Haiku 4.5 nicht unterstützt
+    // und lässt den gesamten Request mit einem Fehler fehlschlagen.
     const response = await client.messages.parse({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-haiku-4-5',
       max_tokens: 400,
       output_config: {
-        format: zodOutputFormat(FaqChatResponseSchema),
-        effort: 'low'
+        format: zodOutputFormat(FaqChatResponseSchema)
       },
       system: [
         { type: 'text', text: PACK2EU_KNOWLEDGE, cache_control: { type: 'ephemeral' } },
