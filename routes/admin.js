@@ -449,40 +449,61 @@ router.delete('/leads/:id', (req, res) => {
 // Offene Aufgaben zuerst, darunter nach Dringlichkeit (hoch -> mittel ->
 // niedrig), dann Fälligkeitsdatum. Erledigte Aufgaben rutschen ans Ende,
 // unabhängig von ihrer Priorität.
+//
+// Täglich wiederkehrende Aufgaben (recurrence='daily', z. B. "Insta
+// Stories posten") haben KEINEN dauerhaften "erledigt"-Zustand - die
+// status-Spalte bleibt für sie technisch immer 'open', stattdessen
+// zeigt last_completed_date, ob HEUTE schon erledigt wurde. Der
+// "effective_status" unten ist das, was Sortierung und Frontend
+// tatsächlich als status sehen: für normale Aufgaben 1:1 die
+// gespeicherte status-Spalte, für tägliche Aufgaben "done" nur wenn
+// last_completed_date == heute - sonst automatisch wieder "open",
+// ganz ohne Cronjob zum Zurücksetzen.
+const TASK_SELECT_SQL = `
+  SELECT t.id, t.title, t.due_date, t.priority, t.recurrence, t.last_completed_date,
+    t.related_lead_id, t.created_at, t.updated_at, l.name as lead_name,
+    CASE WHEN t.recurrence = 'daily'
+         THEN (CASE WHEN t.last_completed_date = date('now') THEN 'done' ELSE 'open' END)
+         ELSE t.status
+    END as status
+  FROM admin_tasks t
+  LEFT JOIN leads l ON l.id = t.related_lead_id
+`;
 const TASK_ORDER_SQL = `
-  ORDER BY (t.status = 'done'),
-    CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 1 END,
-    COALESCE(t.due_date, '9999-12-31'), t.created_at
+  ORDER BY (status = 'done'),
+    CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 1 END,
+    COALESCE(due_date, '9999-12-31'), created_at
 `;
 
+function getTaskById(id) {
+  return db.prepare(`SELECT * FROM (${TASK_SELECT_SQL}) WHERE id = ?`).get(id);
+}
+
 router.get('/tasks', (req, res) => {
-  const tasks = db.prepare(`
-    SELECT t.*, l.name as lead_name
-    FROM admin_tasks t
-    LEFT JOIN leads l ON l.id = t.related_lead_id
-    ${TASK_ORDER_SQL}
-  `).all();
+  const tasks = db.prepare(`SELECT * FROM (${TASK_SELECT_SQL}) ${TASK_ORDER_SQL}`).all();
   res.json(tasks);
 });
 
 const VALID_TASK_PRIORITIES = ['high', 'medium', 'low'];
+const VALID_TASK_RECURRENCE = ['none', 'daily'];
 
 router.post('/tasks', (req, res) => {
-  const { title, due_date, related_lead_id, priority, status } = req.body || {};
+  const { title, due_date, related_lead_id, priority, status, recurrence } = req.body || {};
   if (!title) return res.status(400).json({ error: 'Titel ist erforderlich.' });
 
   const result = db.prepare(`
-    INSERT INTO admin_tasks (title, due_date, related_lead_id, priority, status)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO admin_tasks (title, due_date, related_lead_id, priority, status, recurrence)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(
     title,
     due_date || null,
     related_lead_id || null,
     VALID_TASK_PRIORITIES.includes(priority) ? priority : 'medium',
-    status === 'done' ? 'done' : 'open'
+    status === 'done' ? 'done' : 'open',
+    VALID_TASK_RECURRENCE.includes(recurrence) ? recurrence : 'none'
   );
 
-  res.status(201).json(db.prepare('SELECT * FROM admin_tasks WHERE id = ?').get(result.lastInsertRowid));
+  res.status(201).json(getTaskById(result.lastInsertRowid));
 });
 
 // Sammel-Eintrag, z. B. um einen bestehenden Launch-Ablaufplan (inkl.
@@ -495,8 +516,8 @@ router.post('/tasks/bulk', (req, res) => {
   }
 
   const insert = db.prepare(`
-    INSERT INTO admin_tasks (title, due_date, priority, status)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO admin_tasks (title, due_date, priority, status, recurrence)
+    VALUES (?, ?, ?, ?, ?)
   `);
   const insertMany = db.transaction((rows) => {
     let count = 0;
@@ -507,7 +528,8 @@ router.post('/tasks/bulk', (req, res) => {
         title,
         typeof row.due_date === 'string' && row.due_date.trim() ? row.due_date.trim() : null,
         VALID_TASK_PRIORITIES.includes(row.priority) ? row.priority : 'medium',
-        row.status === 'done' ? 'done' : 'open'
+        row.status === 'done' ? 'done' : 'open',
+        VALID_TASK_RECURRENCE.includes(row.recurrence) ? row.recurrence : 'none'
       );
       count++;
     }
@@ -519,10 +541,22 @@ router.post('/tasks/bulk', (req, res) => {
 });
 
 router.put('/tasks/:id', (req, res) => {
-  const existing = db.prepare('SELECT id FROM admin_tasks WHERE id = ?').get(req.params.id);
+  const existing = db.prepare('SELECT id, recurrence FROM admin_tasks WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Aufgabe nicht gefunden.' });
 
-  const { title, due_date, status, priority } = req.body || {};
+  const { title, due_date, status, priority, recurrence } = req.body || {};
+  const nextRecurrence = VALID_TASK_RECURRENCE.includes(recurrence) ? recurrence : existing.recurrence;
+  const isDaily = nextRecurrence === 'daily';
+
+  if (isDaily && status !== undefined) {
+    // Bei täglich wiederkehrenden Aufgaben steuert "status" nur, ob HEUTE
+    // erledigt wurde - dafür last_completed_date setzen/löschen statt der
+    // status-Spalte, damit der Haken am nächsten Tag von selbst verschwindet.
+    db.prepare(`
+      UPDATE admin_tasks SET last_completed_date = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(status === 'done' ? new Date().toISOString().slice(0, 10) : null, req.params.id);
+  }
+
   // due_date wird nur angefasst, wenn der Aufruf den Key überhaupt mitschickt
   // - toggleTask() im Dashboard schickt z. B. nur {status}, und darf dabei
   // ein bereits gesetztes Fälligkeitsdatum nicht versehentlich löschen.
@@ -530,20 +564,22 @@ router.put('/tasks/:id', (req, res) => {
     UPDATE admin_tasks
     SET title = COALESCE(?, title),
         due_date = CASE WHEN ? THEN ? ELSE due_date END,
-        status = COALESCE(?, status),
+        status = CASE WHEN ? THEN status ELSE COALESCE(?, status) END,
         priority = COALESCE(?, priority),
+        recurrence = COALESCE(?, recurrence),
         updated_at = datetime('now')
     WHERE id = ?
   `).run(
     title || null,
     due_date !== undefined ? 1 : 0,
     due_date || null,
-    status || null,
+    isDaily ? 1 : 0, status || null,
     VALID_TASK_PRIORITIES.includes(priority) ? priority : null,
+    VALID_TASK_RECURRENCE.includes(recurrence) ? recurrence : null,
     req.params.id
   );
 
-  res.json(db.prepare('SELECT * FROM admin_tasks WHERE id = ?').get(req.params.id));
+  res.json(getTaskById(req.params.id));
 });
 
 router.delete('/tasks/:id', (req, res) => {
