@@ -306,6 +306,9 @@ function buildCustomerContext(customerId) {
   };
 }
 
+const SUPPORTED_CHAT_LANGS = ['de', 'en', 'fr', 'it', 'es'];
+const CHAT_LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', it: 'Italienisch', es: 'Spanisch' };
+
 router.post('/chat', async (req, res) => {
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   if (!message) {
@@ -314,10 +317,16 @@ router.post('/chat', async (req, res) => {
   if (message.length > 2000) {
     return res.status(400).json({ error: 'Nachricht ist zu lang (max. 2000 Zeichen).' });
   }
+  // Sprache, die der Kunde im Dashboard eingestellt hat (siehe
+  // dashboard.html currentLang) - steuert die Antwortsprache der KI unten.
+  // Der FAQ-Vorfilter direkt darunter matcht bewusst nur deutsche
+  // Formulierungen; bei anderer Sprache wird er übersprungen, damit nie
+  // eine deutsche Antwort an einen nicht-deutschsprachigen Kunden geht.
+  const lang = SUPPORTED_CHAT_LANGS.includes(req.body?.lang) ? req.body.lang : 'de';
 
   const customerId = req.auth.userId;
 
-  const faqMatch = matchFaq(message);
+  const faqMatch = lang === 'de' ? matchFaq(message) : null;
   if (faqMatch) {
     try {
       db.prepare('INSERT INTO support_messages (customer_id, role, content, escalated) VALUES (?, ?, ?, 0)')
@@ -366,7 +375,7 @@ router.post('/chat', async (req, res) => {
     // bleiben deshalb bewusst außerhalb des gecachten Blocks.
     const staticSystemPrompt = [
       'Du bist der Support-Assistent von Pack2EU, einer SaaS für EU-Verpackungscompliance. '
-        + 'Antworte auf Deutsch, freundlich, konkret und knapp.',
+        + 'Antworte freundlich, konkret und knapp.',
       DASHBOARD_KNOWLEDGE,
       LEGAL_KNOWLEDGE,
       ESCALATION_RULES
@@ -383,6 +392,12 @@ router.post('/chat', async (req, res) => {
       },
       system: [
         { type: 'text', text: staticSystemPrompt, cache_control: { type: 'ephemeral' } },
+        {
+          type: 'text',
+          text: `Antworte in dieser Sprache: ${CHAT_LANG_NAMES[lang]} (Code "${lang}") - `
+            + 'das ist die im Dashboard eingestellte Sprache des Kunden, unabhängig davon, '
+            + 'in welcher Sprache die Nachricht unten getippt wurde.'
+        },
         { type: 'text', text: 'AKTUELLE DATEN DIESES KUNDEN (live aus dem Dashboard, nicht statisch):\n' + context.text }
       ],
       messages: [...history, { role: 'user', content: message }]
