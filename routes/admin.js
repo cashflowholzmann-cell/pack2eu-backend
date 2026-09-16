@@ -1151,6 +1151,25 @@ router.get('/representatives', (req, res) => {
   }
 });
 
+// Von /representatives (manuelle Anlage) UND /representative-requests/:id/approve
+// (Freigabe einer Kunden-Anfrage) genutzt - siehe dort.
+async function createAndInviteRepresentative({ countryCode, name, email, company }) {
+  // Platzhalter-Hash: kein bekanntes Passwort, wird durch das echte
+  // Passwort bei der Einladungs-Annahme ersetzt (siehe /accept-invite in
+  // routes/representatives.js) - so bleibt die NOT-NULL-Spalte erfüllt,
+  // ohne dass der Account vor Annahme der Einladung nutzbar wäre.
+  const placeholderHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
+
+  const insert = db.prepare(`
+    INSERT INTO representatives (country_code, name, email, password_hash, company)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const result = insert.run(countryCode, name, email, placeholderHash, company || null);
+
+  await issueRepInvite(result.lastInsertRowid, email, name);
+  return result.lastInsertRowid;
+}
+
 router.post('/representatives', async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   const name = String(req.body?.name || '').trim();
@@ -1165,21 +1184,8 @@ router.post('/representatives', async (req, res) => {
     const existing = db.prepare('SELECT id FROM representatives WHERE email = ?').get(email);
     if (existing) return res.status(409).json({ error: 'E-Mail bereits registriert.' });
 
-    // Platzhalter-Hash: kein bekanntes Passwort, wird durch das echte
-    // Passwort bei der Einladungs-Annahme ersetzt (siehe /accept-invite in
-    // routes/representatives.js) - so bleibt die NOT-NULL-Spalte erfüllt,
-    // ohne dass der Account vor Annahme der Einladung nutzbar wäre.
-    const placeholderHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
-
-    const insert = db.prepare(`
-      INSERT INTO representatives (country_code, name, email, password_hash, company)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const result = insert.run(countryCode, name, email, placeholderHash, company);
-
-    await issueRepInvite(result.lastInsertRowid, email, name);
-
-    res.status(201).json({ success: true, id: result.lastInsertRowid });
+    const id = await createAndInviteRepresentative({ countryCode, name, email, company });
+    res.status(201).json({ success: true, id });
   } catch (error) {
     console.error('❌ Admin Representative-Anlegen-Fehler:', error);
     res.status(500).json({ error: 'Bevollmächtigter konnte nicht angelegt werden.' });
@@ -1282,6 +1288,96 @@ router.get('/representatives/:id/access-log', (req, res) => {
   } catch (error) {
     console.error('❌ Admin Representative-Access-Log-Fehler:', error);
     res.status(500).json({ error: 'Zugriffs-Protokoll konnte nicht geladen werden.' });
+  }
+});
+
+// ============================================================
+// BEVOLLMÄCHTIGTEN-ANFRAGEN (vom Kunden beim Land-Aktivieren angegeben)
+//
+// "matched"/auto-verbundene Anfragen entstehen automatisch (siehe
+// syncCustomerRepresentativeRequest in routes/representatives.js) und
+// brauchen hier keine Aktion mehr - dieser Bereich ist vor allem für
+// "pending": eine dem System unbekannte E-Mail, die erst ein Admin
+// bestätigen muss, bevor überhaupt eine Einladung rausgeht.
+// ============================================================
+
+router.get('/representative-requests', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT rr.id, rr.country_code, rr.requested_email, rr.status, rr.created_at, rr.updated_at,
+             c.id as customer_id, c.company_name, c.customer_number,
+             a.representative_name, a.representative_company,
+             r.id as matched_representative_id, r.name as matched_representative_name
+      FROM customer_representative_requests rr
+      JOIN customers c ON c.id = rr.customer_id
+      LEFT JOIN activations a ON a.customer_id = rr.customer_id AND a.country_code = rr.country_code
+      LEFT JOIN representatives r ON r.id = rr.representative_id
+      ORDER BY rr.status = 'pending' DESC, rr.created_at DESC
+    `).all();
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Admin Representative-Requests-Fehler:', error);
+    res.status(500).json({ error: 'Anfragen konnten nicht geladen werden.' });
+  }
+});
+
+router.post('/representative-requests/:id/approve', async (req, res) => {
+  try {
+    const request = db.prepare(`
+      SELECT rr.*, a.representative_name, a.representative_company
+      FROM customer_representative_requests rr
+      LEFT JOIN activations a ON a.customer_id = rr.customer_id AND a.country_code = rr.country_code
+      WHERE rr.id = ?
+    `).get(req.params.id);
+    if (!request) return res.status(404).json({ error: 'Anfrage nicht gefunden.' });
+    if (request.status !== 'pending') return res.status(409).json({ error: 'Anfrage wurde bereits bearbeitet.' });
+
+    let repId;
+    const existingRep = db.prepare('SELECT id FROM representatives WHERE email = ?').get(request.requested_email);
+
+    if (existingRep) {
+      repId = existingRep.id;
+    } else {
+      const name = String(req.body?.name || request.representative_name || '').trim() || request.requested_email;
+      const company = req.body?.company ? String(req.body.company).trim() : (request.representative_company || null);
+      repId = await createAndInviteRepresentative({
+        countryCode: request.country_code,
+        name,
+        email: request.requested_email,
+        company
+      });
+    }
+
+    db.prepare(`
+      INSERT OR IGNORE INTO representative_customer_assignments (representative_id, customer_id, assigned_by)
+      VALUES (?, ?, 'admin')
+    `).run(repId, request.customer_id);
+
+    db.prepare(`
+      UPDATE customer_representative_requests
+      SET status = 'matched', representative_id = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(repId, request.id);
+
+    res.json({ success: true, representative_id: repId });
+  } catch (error) {
+    console.error('❌ Admin Representative-Request-Approve-Fehler:', error);
+    res.status(500).json({ error: 'Anfrage konnte nicht genehmigt werden.' });
+  }
+});
+
+router.post('/representative-requests/:id/reject', (req, res) => {
+  try {
+    const result = db.prepare(`
+      UPDATE customer_representative_requests
+      SET status = 'rejected', updated_at = datetime('now')
+      WHERE id = ? AND status = 'pending'
+    `).run(req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Anfrage nicht gefunden oder bereits bearbeitet.' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Admin Representative-Request-Reject-Fehler:', error);
+    res.status(500).json({ error: 'Anfrage konnte nicht abgelehnt werden.' });
   }
 });
 
