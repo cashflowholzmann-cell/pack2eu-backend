@@ -306,6 +306,54 @@ router.get('/calculator-usage', (req, res) => {
   }
 });
 
+// Nutzung des öffentlichen FAQ-Chats auf der Landing Page (siehe
+// routes/faq-chat.js): wie oft insgesamt genutzt, welche Fragen am
+// häufigsten vorkommen (vorgefertigte Klicks UND Freitext zusammen -
+// vorgefertigte/Vorfilter-Treffer werden über canned_id gruppiert,
+// Freitext über den normalisierten Fragetext), und eine Liste der
+// Fragen, die die KI NICHT sicher aus bekanntem Wissen beantworten
+// konnte - das sind Kandidaten für neue FAQ-Einträge, keine Fragen,
+// für die recherchiert wurde (der Chat betreibt bewusst keine eigene
+// Recherche, siehe faq-chat.js).
+router.get('/faq-chat-usage', (req, res) => {
+  try {
+    const totalQuestions = db.prepare('SELECT COUNT(*) AS n FROM faq_chat_log').get().n;
+
+    const rows = db.prepare(`
+      SELECT question, source, canned_id
+      FROM faq_chat_log
+      ORDER BY created_at DESC
+      LIMIT 2000
+    `).all();
+
+    const groups = {};
+    rows.forEach(r => {
+      const key = r.canned_id || r.question.trim().toLowerCase();
+      if (!groups[key]) groups[key] = { question: r.question, count: 0 };
+      groups[key].count++;
+    });
+    const topQuestions = Object.values(groups)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+
+    const sourceCounts = {};
+    rows.forEach(r => { sourceCounts[r.source] = (sourceCounts[r.source] || 0) + 1; });
+
+    const unanswered = db.prepare(`
+      SELECT question, created_at
+      FROM faq_chat_log
+      WHERE answered = 0
+      ORDER BY created_at DESC
+      LIMIT 30
+    `).all();
+
+    res.json({ totalQuestions, sourceCounts, topQuestions, unanswered });
+  } catch (error) {
+    console.error('❌ FAQ-Chat-Stats-Fehler:', error);
+    res.status(500).json({ error: 'FAQ-Chat-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
 // ============================================================
 // LEADS
 // ============================================================

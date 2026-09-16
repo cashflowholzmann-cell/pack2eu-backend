@@ -163,6 +163,12 @@
         .faq-msg.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 3px; }
         .faq-msg.bot { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
         .faq-msg.error { align-self: flex-start; background: #FEF2F2; border: 1px solid #FCA5A5; color: var(--danger); }
+        .faq-cta-btn {
+            display: inline-block; margin-top: 6px; background: var(--accent); color: white;
+            font-weight: 600; font-size: 12.5px; padding: 6px 12px; border-radius: 8px;
+            text-decoration: none;
+        }
+        .faq-cta-btn:hover { background: var(--primary); }
         .faq-chat-footer {
             flex-shrink: 0; padding: 10px 12px; border-top: 1px solid var(--border);
             display: flex; gap: 8px; align-items: flex-end;
@@ -1241,6 +1247,14 @@
         function askFaqCannedQuestion(item) {
             appendFaqChatMessage(item.question, 'user');
             appendFaqChatMessage(item.answer, 'bot');
+            // Nur ein Zähl-Request fürs Admin-Dashboard (keine KI-Anfrage,
+            // die Antwort steht ja schon oben) - Fehler hier bewusst
+            // ignoriert, das darf die Chat-Nutzung nicht blockieren.
+            fetch(API_BASE + '/faq-chat/canned-click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: item.id })
+            }).catch(() => {});
         }
 
         function toggleFaqChat() {
@@ -1290,8 +1304,18 @@
                     thinkingEl.textContent = data.error || faqChatT('faqchat.error_generic', 'Da ist etwas schiefgelaufen. Bitte versuch es gleich nochmal.');
                     thinkingEl.className = 'faq-msg error';
                 } else {
-                    thinkingEl.textContent = data.reply;
                     thinkingEl.className = 'faq-msg bot';
+                    thinkingEl.textContent = data.reply;
+                    if (data.cta_url) {
+                        const ctaLink = document.createElement('a');
+                        ctaLink.href = data.cta_url;
+                        ctaLink.target = '_blank';
+                        ctaLink.rel = 'noopener';
+                        ctaLink.className = 'faq-cta-btn';
+                        ctaLink.textContent = data.cta_label || 'Jetzt Preise ansehen →';
+                        thinkingEl.appendChild(document.createElement('br'));
+                        thinkingEl.appendChild(ctaLink);
+                    }
                 }
             } catch (e) {
                 thinkingEl.textContent = faqChatT('faqchat.error_generic', 'Da ist etwas schiefgelaufen. Bitte versuch es gleich nochmal.');

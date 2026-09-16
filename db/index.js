@@ -2787,6 +2787,28 @@ function init() {
     `);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_calculator_usage_created_at ON calculator_usage(created_at);`);
 
+    // Nutzung des öffentlichen FAQ-Chats auf der Landing Page (siehe
+    // routes/faq-chat.js): jede vorgefertigte Frage (Klick, 0 Cent) und
+    // jede Freitext-Frage wird geloggt - damit im Admin-Dashboard sichtbar
+    // wird, wie oft der Chat genutzt wird und welche Fragen am häufigsten
+    // vorkommen. 'answered' = false heißt: die KI konnte die Frage NICHT
+    // sicher aus bekanntem Pack2EU-Wissen beantworten (kein Bing/Web-Aufruf,
+    // keine Recherche-Kosten) - diese Fragen landen als Vorschlag für neue
+    // FAQ-Einträge im Admin-Dashboard, statt einfach nur eine Ausweich-
+    // antwort zu bekommen.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS faq_chat_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        source TEXT NOT NULL,
+        canned_id TEXT,
+        answered INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_faq_chat_log_created_at ON faq_chat_log(created_at);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_faq_chat_log_answered ON faq_chat_log(answered);`);
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
