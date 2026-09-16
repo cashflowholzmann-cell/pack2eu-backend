@@ -695,6 +695,9 @@ function init() {
         registration_url = 'https://www.verpact.nl',
         requirements_json = ?,
         eco_fee = 'Afvalbeheersbijdrage an Verpact, material- und mengenabhängig.',
+        representative_provider_name = 'CostManagement B.V.',
+        representative_provider_url = 'https://costmanagement.nl/en/help-with-dutch-ppwr/authorized-representative-for-ppwr-compliance/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'NL'
