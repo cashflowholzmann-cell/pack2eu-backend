@@ -15,6 +15,7 @@ const {
 } = require('../compliance-engine');
 
 const { getPlanLimits } = require('../config/plans');
+const { syncCustomerRepresentativeRequest } = require('./representatives');
 
 
 const router =
@@ -832,6 +833,13 @@ router.post(
 
         );
 
+      // Vom Kunden angegebenen vorhandenen Bevollmächtigten mit unserem
+      // Bevollmächtigten-Portal verbinden (auto-match falls bekannt+
+      // verifiziert, sonst Admin-Queue) - siehe routes/representatives.js.
+      if (representative.email) {
+        syncCustomerRepresentativeRequest(req.auth.userId, countryCode, representative.email);
+      }
+
 
       // --------------------------------------------------------
       // COMPLIANCE CASE
@@ -1156,6 +1164,12 @@ router.put(
         countryCode
 
       );
+
+      // Vom Kunden angegebenen vorhandenen Bevollmächtigten mit unserem
+      // Bevollmächtigten-Portal verbinden/aktualisieren (auto-match, Admin-
+      // Queue, oder Verbindung lösen falls E-Mail entfernt wurde) - siehe
+      // routes/representatives.js.
+      syncCustomerRepresentativeRequest(req.auth.userId, countryCode, representative.email);
 
 
       // Compliance Case synchronisieren

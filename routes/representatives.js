@@ -50,6 +50,81 @@ function logAccess(representativeId, customerId, action, req) {
 
 
 // ============================================================
+// KUNDE GIBT BEIM LAND-AKTIVIEREN EINEN VORHANDENEN BEVOLLMÄCHTIGTEN AN
+//
+// Wird von routes/activations.js bei jedem Anlegen/Ändern einer
+// Aktivierung mit representative_email aufgerufen (nicht hier als
+// eigener Endpoint, sondern direkt als Funktion, da es Teil des
+// bestehenden Aktivierungs-Formulars ist statt eines separaten Schritts).
+//
+// Ist die angegebene E-Mail bereits ein bei uns aktiver, verifizierter
+// Bevollmächtigten-Account für genau dieses Land: sofort automatisch
+// verbinden (assigned_by='auto_match') - der Kunde kennt seinen Partner
+// ja bereits, keine weitere Prüfung nötig. Ist die E-Mail unbekannt:
+// KEIN automatisches Anlegen+Einladen (das wäre ein Scam-Vektor - jeder
+// könnte durch bloßes Eintippen einer E-Mail eine Einladung mit
+// Datenzugriff auslösen) - stattdessen landet sie als "pending" in der
+// Admin-Queue (siehe /admin/representative-requests).
+//
+// Löst nur "auto_match"-Zuweisungen wieder, nie von einem Admin manuell
+// gesetzte (assigned_by='admin') - eine Änderung/Löschung der vom Kunden
+// eingetragenen E-Mail darf keine bewusste Admin-Entscheidung umwerfen.
+function syncCustomerRepresentativeRequest(customerId, countryCode, email) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+
+  const previousRequest = db.prepare(`
+    SELECT representative_id, status
+    FROM customer_representative_requests
+    WHERE customer_id = ? AND country_code = ?
+  `).get(customerId, countryCode);
+
+  function releasePreviousAutoMatch() {
+    if (previousRequest?.status === 'matched' && previousRequest.representative_id) {
+      db.prepare(`
+        DELETE FROM representative_customer_assignments
+        WHERE representative_id = ? AND customer_id = ? AND assigned_by = 'auto_match'
+      `).run(previousRequest.representative_id, customerId);
+    }
+  }
+
+  if (!cleanEmail) {
+    releasePreviousAutoMatch();
+    db.prepare(`
+      DELETE FROM customer_representative_requests
+      WHERE customer_id = ? AND country_code = ?
+    `).run(customerId, countryCode);
+    return;
+  }
+
+  const knownRep = db.prepare(`
+    SELECT id FROM representatives
+    WHERE email = ? AND country_code = ? AND active = 1 AND email_verified_at IS NOT NULL
+  `).get(cleanEmail, countryCode);
+
+  if (knownRep && previousRequest?.representative_id !== knownRep.id) {
+    releasePreviousAutoMatch();
+  }
+
+  db.prepare(`
+    INSERT INTO customer_representative_requests (customer_id, country_code, requested_email, status, representative_id, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(customer_id, country_code) DO UPDATE SET
+      requested_email = excluded.requested_email,
+      status = excluded.status,
+      representative_id = excluded.representative_id,
+      updated_at = datetime('now')
+  `).run(customerId, countryCode, cleanEmail, knownRep ? 'matched' : 'pending', knownRep ? knownRep.id : null);
+
+  if (knownRep) {
+    db.prepare(`
+      INSERT OR IGNORE INTO representative_customer_assignments (representative_id, customer_id, assigned_by)
+      VALUES (?, ?, 'auto_match')
+    `).run(knownRep.id, customerId);
+  }
+}
+
+
+// ============================================================
 // EINLADUNG ANNEHMEN (Passwort erstmalig festlegen)
 //
 // POST /api/representatives/accept-invite
@@ -267,4 +342,5 @@ router.get('/submissions', requireAuth, requireRepRole, (req, res) => {
   }
 });
 
+router.syncCustomerRepresentativeRequest = syncCustomerRepresentativeRequest;
 module.exports = router;

@@ -592,6 +592,51 @@ CREATE TABLE IF NOT EXISTS representative_customer_assignments (
 -- der Daten (siehe routes/representatives.js).
 -- ================================================================
 
+-- ================================================================
+-- KUNDE <-> BEVOLLMÄCHTIGTER: VOM KUNDEN ANGEGEBENE VERBINDUNG
+--
+-- Der Kunde trägt beim Land-Aktivieren (falls "ich habe schon einen
+-- Bevollmächtigten") dessen E-Mail an (activations.representative_email).
+-- Ist diese E-Mail bereits ein bei uns aktiver, verifizierter
+-- Bevollmächtigten-Account für genau dieses Land, wird automatisch
+-- verbunden (status='matched', siehe routes/representatives.js:
+-- syncCustomerRepresentativeRequest). Ist sie unbekannt, bleibt der
+-- Eintrag 'pending' und taucht im Admin-Tool als Anfrage auf - bewusst
+-- KEIN automatisches Anlegen+Einladen unbekannter Adressen (siehe
+-- Sicherheitsbegründung in routes/representatives.js).
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS customer_representative_requests (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  country_code TEXT NOT NULL
+    REFERENCES countries(code),
+
+  requested_email TEXT NOT NULL,
+
+  status TEXT NOT NULL
+    DEFAULT 'pending'
+    CHECK (status IN ('pending', 'matched', 'rejected')),
+
+  representative_id INTEGER
+    REFERENCES representatives(id)
+    ON DELETE SET NULL,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  updated_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  UNIQUE(customer_id, country_code)
+);
+
+
 CREATE TABLE IF NOT EXISTS representative_access_log (
 
   id INTEGER PRIMARY KEY AUTOINCREMENT,
