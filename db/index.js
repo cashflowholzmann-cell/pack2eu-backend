@@ -311,6 +311,18 @@ function init() {
     addColumnIfMissing('customers', 'password_reset_token_hash', 'TEXT');
     addColumnIfMissing('customers', 'password_reset_expires_at', 'TEXT');
 
+    // Bevollmächtigte: kein Self-Service-Signup mehr (siehe
+    // routes/representatives.js) - nur Admin-Einladung per Token
+    // (invite_*, wie beim Passwort-Reset gehasht gespeichert) + Login mit
+    // E-Mail-Code als zweitem Faktor (login_code_*). password_hash bleibt
+    // bis zur Einladungs-Annahme NULL.
+    addColumnIfMissing('representatives', 'invite_token_hash', 'TEXT');
+    addColumnIfMissing('representatives', 'invite_expires_at', 'TEXT');
+    addColumnIfMissing('representatives', 'email_verified_at', 'TEXT');
+    addColumnIfMissing('representatives', 'login_code_hash', 'TEXT');
+    addColumnIfMissing('representatives', 'login_code_expires_at', 'TEXT');
+    addColumnIfMissing('representatives', 'last_login_at', 'TEXT');
+
     // eBay (OAuth 2.0, siehe routes/ebay.js) - Code bereits fertig,
     // wartet auf eBays Produktions-Freigabe.
     addColumnIfMissing('customers', 'ebay_access_token', 'TEXT');

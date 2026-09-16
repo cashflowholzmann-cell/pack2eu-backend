@@ -554,6 +554,66 @@ CREATE TABLE IF NOT EXISTS representatives (
 
 
 -- ================================================================
+-- BEVOLLMÄCHTIGTE <-> KUNDEN-ZUWEISUNG
+--
+-- Ein Bevollmächtigter sieht ausschließlich Kunden, die ihm hier explizit
+-- zugewiesen wurden - nicht automatisch "alle Kunden seines Landes". Die
+-- Zuweisung wird ausschließlich von uns (Admin) gepflegt, siehe
+-- routes/admin.js. Kein Self-Service für Bevollmächtigte.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS representative_customer_assignments (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  representative_id INTEGER NOT NULL
+    REFERENCES representatives(id)
+    ON DELETE CASCADE,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  assigned_by TEXT,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  UNIQUE(representative_id, customer_id)
+);
+
+
+-- ================================================================
+-- BEVOLLMÄCHTIGTE – ZUGRIFFS-PROTOKOLL (AUDIT-LOG)
+--
+-- Jeder Datenzugriff eines Bevollmächtigten auf Kundendaten wird hier
+-- protokolliert - wer hat wann welchen Kunden eingesehen. Wird nie vom
+-- Bevollmächtigten selbst geschrieben, nur vom Backend beim Ausliefern
+-- der Daten (siehe routes/representatives.js).
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS representative_access_log (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  representative_id INTEGER NOT NULL
+    REFERENCES representatives(id)
+    ON DELETE CASCADE,
+
+  customer_id INTEGER
+    REFERENCES customers(id)
+    ON DELETE SET NULL,
+
+  action TEXT NOT NULL,
+
+  ip_address TEXT,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
 -- OAUTH STATES
 -- ================================================================
 
