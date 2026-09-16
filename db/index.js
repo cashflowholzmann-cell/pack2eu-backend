@@ -2846,6 +2846,14 @@ function init() {
     // danach nach Priorität statt nur nach Fälligkeitsdatum zu sortieren.
     addColumnIfMissing('admin_tasks', 'priority', "TEXT NOT NULL DEFAULT 'medium'");
 
+    // Täglich wiederkehrende Aufgaben (z. B. "Insta Stories posten") -
+    // 'status' bleibt bei recurrence='daily' technisch ungenutzt für die
+    // Anzeige, stattdessen zeigt last_completed_date, ob HEUTE schon
+    // erledigt wurde. Dadurch verschwindet der Haken am nächsten Tag von
+    // selbst, ganz ohne Cronjob zum Zurücksetzen (siehe routes/admin.js).
+    addColumnIfMissing('admin_tasks', 'recurrence', "TEXT NOT NULL DEFAULT 'none'");
+    addColumnIfMissing('admin_tasks', 'last_completed_date', 'TEXT');
+
     // Herkunft eines Kunden (woher kam der Lead, der zum Kunden wurde) -
     // wird bei der Registrierung aus UTM-Parametern/Referrer befüllt,
     // bleibt sonst NULL ("organisch"/unbekannt).
