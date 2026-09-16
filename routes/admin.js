@@ -77,7 +77,7 @@ router.get('/overview', (req, res) => {
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const views30d = db.prepare('SELECT referrer, utm_source, created_at FROM page_views WHERE created_at >= ?').all(since30d);
+    const views30d = db.prepare('SELECT referrer, utm_source, country, created_at FROM page_views WHERE created_at >= ?').all(since30d);
     const viewsByChannel = {};
     views30d.forEach(v => {
       const ch = classifyChannel(v);
@@ -85,6 +85,15 @@ router.get('/overview', (req, res) => {
     });
 
     const viewsLast7d = views30d.filter(v => v.created_at >= since7d).length;
+
+    // Herkunftsland der Besucher (aus der clientseitigen IP-Erkennung,
+    // siehe page_views.country) - zeigt, wo tatsächlich Traffic
+    // herkommt, damit gezielt in diesen Ländern geworben werden kann.
+    const viewsByCountry = {};
+    views30d.forEach(v => {
+      const c = v.country || 'unbekannt';
+      viewsByCountry[c] = (viewsByCountry[c] || 0) + 1;
+    });
 
     const leadsBySource = db.prepare(`
       SELECT source, COUNT(*) as count FROM leads GROUP BY source
@@ -131,6 +140,7 @@ router.get('/overview', (req, res) => {
     res.json({
       totals: { ...totals, viewsLast7d, ...churnTotals, churnRate },
       viewsByChannel,
+      viewsByCountry,
       leadsBySource,
       leadsByStatus,
       customersByAcquisition,

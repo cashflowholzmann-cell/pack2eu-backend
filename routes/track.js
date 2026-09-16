@@ -108,18 +108,26 @@ router.post('/calculator-usage', trackLimiter, (req, res) => {
 
 router.post('/pageview', trackLimiter, (req, res) => {
   try {
-    const { path, referrer, utm_source, utm_medium, utm_campaign, session_id } = req.body || {};
+    const { path, referrer, utm_source, utm_medium, utm_campaign, session_id, country } = req.body || {};
+
+    // Strenges Format statt Freitext (Whitelist-Prinzip wie bei den
+    // Events oben) - nur ein zweistelliger ISO-Ländercode wird
+    // übernommen, alles andere landet als NULL statt als Rohtext.
+    const cleanCountry = typeof country === 'string' && /^[A-Za-z]{2}$/.test(country)
+      ? country.toUpperCase()
+      : null;
 
     db.prepare(`
-      INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign, session_id)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign, session_id, country)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       String(path || '/').slice(0, 500),
       referrer ? String(referrer).slice(0, 500) : null,
       utm_source ? String(utm_source).slice(0, 100) : null,
       utm_medium ? String(utm_medium).slice(0, 100) : null,
       utm_campaign ? String(utm_campaign).slice(0, 100) : null,
-      session_id ? String(session_id).slice(0, 100) : null
+      session_id ? String(session_id).slice(0, 100) : null,
+      cleanCountry
     );
 
     res.json({ ok: true });
