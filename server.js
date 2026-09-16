@@ -57,6 +57,7 @@ const ebayRoutes = require('./routes/ebay');
 // Internes Vertriebs-/Marketing-Tool (Traffic, Leads, Aufgaben).
 const adminRoutes = require('./routes/admin');
 const trackRoutes = require('./routes/track');
+const faqChatRoutes = require('./routes/faq-chat');
 
 // ============================================================
 // APP
@@ -236,6 +237,7 @@ app.use('/api/ebay', ebayRoutes);
 // stoßen.
 app.use('/api/admin', adminRoutes);
 app.use('/api/track', trackRoutes);
+app.use('/api/faq-chat', faqChatRoutes);
 
 // ============================================================
 // 404
