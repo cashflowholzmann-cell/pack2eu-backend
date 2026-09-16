@@ -10,6 +10,7 @@
 // falls mehrere Personen mit unterschiedlichen Rechten dazukommen.
 const express = require('express');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -22,6 +23,7 @@ const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 const { z } = require('zod/v4');
 const { db, DB_PATH } = require('../db');
 const { signToken, requireAuth, requireAdmin } = require('../middleware/auth');
+const { sendRepresentativeInviteEmail } = require('../lib/email');
 
 const router = express.Router();
 
@@ -1105,6 +1107,181 @@ router.post('/legal-watch/:id/dismiss', (req, res) => {
   } catch (error) {
     console.error('❌ Rechtsänderungs-Radar Verwerfen-Fehler:', error);
     res.status(500).json({ error: 'Fund konnte nicht verworfen werden.' });
+  }
+});
+
+
+// ============================================================
+// BEVOLLMÄCHTIGTE-VERWALTUNG
+//
+// Kein Self-Service für Bevollmächtigte: Accounts werden ausschließlich
+// hier angelegt (Einladung per E-Mail), Kunden-Zuweisungen ausschließlich
+// hier gepflegt. Siehe routes/representatives.js für die Bevollmächtigten-
+// seitigen Endpoints (Login, eigene Kundenliste).
+// ============================================================
+
+function issueRepInvite(repId, email, name) {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+  db.prepare(`
+    UPDATE representatives
+    SET invite_token_hash = ?, invite_expires_at = ?
+    WHERE id = ?
+  `).run(tokenHash, expiresAt, repId);
+
+  const acceptUrl = `${process.env.APP_URL || ''}/representative.html?inviteToken=${rawToken}`;
+  return sendRepresentativeInviteEmail(email, name, acceptUrl);
+}
+
+router.get('/representatives', (req, res) => {
+  try {
+    const reps = db.prepare(`
+      SELECT r.id, r.country_code, r.name, r.email, r.company, r.active,
+             r.email_verified_at, r.last_login_at, r.created_at,
+             (SELECT COUNT(*) FROM representative_customer_assignments WHERE representative_id = r.id) as assignedCustomers
+      FROM representatives r
+      ORDER BY r.created_at DESC
+    `).all();
+    res.json(reps);
+  } catch (error) {
+    console.error('❌ Admin Representatives-Liste-Fehler:', error);
+    res.status(500).json({ error: 'Bevollmächtigte konnten nicht geladen werden.' });
+  }
+});
+
+router.post('/representatives', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const name = String(req.body?.name || '').trim();
+  const company = req.body?.company ? String(req.body.company).trim() : null;
+  const countryCode = String(req.body?.country_code || '').trim().toUpperCase();
+
+  if (!email || !name || !countryCode) {
+    return res.status(400).json({ error: 'E-Mail, Name und Land sind Pflichtfelder.' });
+  }
+
+  try {
+    const existing = db.prepare('SELECT id FROM representatives WHERE email = ?').get(email);
+    if (existing) return res.status(409).json({ error: 'E-Mail bereits registriert.' });
+
+    // Platzhalter-Hash: kein bekanntes Passwort, wird durch das echte
+    // Passwort bei der Einladungs-Annahme ersetzt (siehe /accept-invite in
+    // routes/representatives.js) - so bleibt die NOT-NULL-Spalte erfüllt,
+    // ohne dass der Account vor Annahme der Einladung nutzbar wäre.
+    const placeholderHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
+
+    const insert = db.prepare(`
+      INSERT INTO representatives (country_code, name, email, password_hash, company)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const result = insert.run(countryCode, name, email, placeholderHash, company);
+
+    await issueRepInvite(result.lastInsertRowid, email, name);
+
+    res.status(201).json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    console.error('❌ Admin Representative-Anlegen-Fehler:', error);
+    res.status(500).json({ error: 'Bevollmächtigter konnte nicht angelegt werden.' });
+  }
+});
+
+router.post('/representatives/:id/resend-invite', async (req, res) => {
+  try {
+    const rep = db.prepare('SELECT id, email, name FROM representatives WHERE id = ?').get(req.params.id);
+    if (!rep) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.' });
+
+    await issueRepInvite(rep.id, rep.email, rep.name);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Admin Representative-Invite-Erneut-Fehler:', error);
+    res.status(500).json({ error: 'Einladung konnte nicht erneut verschickt werden.' });
+  }
+});
+
+router.patch('/representatives/:id', (req, res) => {
+  if (typeof req.body?.active !== 'boolean') {
+    return res.status(400).json({ error: '"active" (true/false) ist erforderlich.' });
+  }
+  try {
+    const result = db.prepare('UPDATE representatives SET active = ? WHERE id = ?')
+      .run(req.body.active ? 1 : 0, req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Admin Representative-Update-Fehler:', error);
+    res.status(500).json({ error: 'Bevollmächtigter konnte nicht aktualisiert werden.' });
+  }
+});
+
+router.get('/representatives/:id/assignments', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT c.id, c.customer_number, c.company_name, c.email, rca.created_at as assigned_at
+      FROM representative_customer_assignments rca
+      JOIN customers c ON c.id = rca.customer_id
+      WHERE rca.representative_id = ?
+      ORDER BY c.company_name
+    `).all(req.params.id);
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Admin Representative-Assignments-Fehler:', error);
+    res.status(500).json({ error: 'Zuweisungen konnten nicht geladen werden.' });
+  }
+});
+
+router.post('/representatives/:id/assignments', (req, res) => {
+  const customerId = Number(req.body?.customer_id);
+  if (!Number.isInteger(customerId) || customerId <= 0) {
+    return res.status(400).json({ error: '"customer_id" ist erforderlich.' });
+  }
+  try {
+    const rep = db.prepare('SELECT id FROM representatives WHERE id = ?').get(req.params.id);
+    if (!rep) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.' });
+    const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(customerId);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    db.prepare(`
+      INSERT OR IGNORE INTO representative_customer_assignments (representative_id, customer_id, assigned_by)
+      VALUES (?, ?, ?)
+    `).run(req.params.id, customerId, 'admin');
+
+    res.status(201).json({ success: true });
+  } catch (error) {
+    console.error('❌ Admin Representative-Assignment-Anlegen-Fehler:', error);
+    res.status(500).json({ error: 'Zuweisung konnte nicht angelegt werden.' });
+  }
+});
+
+router.delete('/representatives/:id/assignments/:customerId', (req, res) => {
+  try {
+    const result = db.prepare(`
+      DELETE FROM representative_customer_assignments
+      WHERE representative_id = ? AND customer_id = ?
+    `).run(req.params.id, req.params.customerId);
+    if (result.changes === 0) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Admin Representative-Assignment-Löschen-Fehler:', error);
+    res.status(500).json({ error: 'Zuweisung konnte nicht entfernt werden.' });
+  }
+});
+
+router.get('/representatives/:id/access-log', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT ral.id, ral.action, ral.ip_address, ral.created_at,
+             c.company_name, c.customer_number
+      FROM representative_access_log ral
+      LEFT JOIN customers c ON c.id = ral.customer_id
+      WHERE ral.representative_id = ?
+      ORDER BY ral.created_at DESC
+      LIMIT 200
+    `).all(req.params.id);
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Admin Representative-Access-Log-Fehler:', error);
+    res.status(500).json({ error: 'Zugriffs-Protokoll konnte nicht geladen werden.' });
   }
 });
 
