@@ -436,41 +436,102 @@ router.delete('/leads/:id', (req, res) => {
 // ============================================================
 // AUFGABEN
 // ============================================================
+// Offene Aufgaben zuerst, darunter nach Dringlichkeit (hoch -> mittel ->
+// niedrig), dann Fälligkeitsdatum. Erledigte Aufgaben rutschen ans Ende,
+// unabhängig von ihrer Priorität.
+const TASK_ORDER_SQL = `
+  ORDER BY (t.status = 'done'),
+    CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 1 END,
+    COALESCE(t.due_date, '9999-12-31'), t.created_at
+`;
+
 router.get('/tasks', (req, res) => {
   const tasks = db.prepare(`
     SELECT t.*, l.name as lead_name
     FROM admin_tasks t
     LEFT JOIN leads l ON l.id = t.related_lead_id
-    ORDER BY (t.status = 'done'), COALESCE(t.due_date, '9999-12-31'), t.created_at
+    ${TASK_ORDER_SQL}
   `).all();
   res.json(tasks);
 });
 
+const VALID_TASK_PRIORITIES = ['high', 'medium', 'low'];
+
 router.post('/tasks', (req, res) => {
-  const { title, due_date, related_lead_id } = req.body || {};
+  const { title, due_date, related_lead_id, priority, status } = req.body || {};
   if (!title) return res.status(400).json({ error: 'Titel ist erforderlich.' });
 
   const result = db.prepare(`
-    INSERT INTO admin_tasks (title, due_date, related_lead_id)
-    VALUES (?, ?, ?)
-  `).run(title, due_date || null, related_lead_id || null);
+    INSERT INTO admin_tasks (title, due_date, related_lead_id, priority, status)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(
+    title,
+    due_date || null,
+    related_lead_id || null,
+    VALID_TASK_PRIORITIES.includes(priority) ? priority : 'medium',
+    status === 'done' ? 'done' : 'open'
+  );
 
   res.status(201).json(db.prepare('SELECT * FROM admin_tasks WHERE id = ?').get(result.lastInsertRowid));
+});
+
+// Sammel-Eintrag, z. B. um einen bestehenden Launch-Ablaufplan (inkl.
+// bereits erledigter Punkte) in einem Rutsch nachzutragen, statt jede
+// Zeile einzeln anzulegen und dann einzeln abzuhaken.
+router.post('/tasks/bulk', (req, res) => {
+  const { tasks } = req.body || {};
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return res.status(400).json({ error: 'Keine Aufgaben übergeben.' });
+  }
+
+  const insert = db.prepare(`
+    INSERT INTO admin_tasks (title, due_date, priority, status)
+    VALUES (?, ?, ?, ?)
+  `);
+  const insertMany = db.transaction((rows) => {
+    let count = 0;
+    for (const row of rows) {
+      const title = typeof row?.title === 'string' ? row.title.trim() : '';
+      if (!title) continue;
+      insert.run(
+        title,
+        typeof row.due_date === 'string' && row.due_date.trim() ? row.due_date.trim() : null,
+        VALID_TASK_PRIORITIES.includes(row.priority) ? row.priority : 'medium',
+        row.status === 'done' ? 'done' : 'open'
+      );
+      count++;
+    }
+    return count;
+  });
+
+  const inserted = insertMany(tasks);
+  res.status(201).json({ inserted });
 });
 
 router.put('/tasks/:id', (req, res) => {
   const existing = db.prepare('SELECT id FROM admin_tasks WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Aufgabe nicht gefunden.' });
 
-  const { title, due_date, status } = req.body || {};
+  const { title, due_date, status, priority } = req.body || {};
+  // due_date wird nur angefasst, wenn der Aufruf den Key überhaupt mitschickt
+  // - toggleTask() im Dashboard schickt z. B. nur {status}, und darf dabei
+  // ein bereits gesetztes Fälligkeitsdatum nicht versehentlich löschen.
   db.prepare(`
     UPDATE admin_tasks
     SET title = COALESCE(?, title),
-        due_date = ?,
+        due_date = CASE WHEN ? THEN ? ELSE due_date END,
         status = COALESCE(?, status),
+        priority = COALESCE(?, priority),
         updated_at = datetime('now')
     WHERE id = ?
-  `).run(title || null, due_date ?? null, status || null, req.params.id);
+  `).run(
+    title || null,
+    due_date !== undefined ? 1 : 0,
+    due_date || null,
+    status || null,
+    VALID_TASK_PRIORITIES.includes(priority) ? priority : null,
+    req.params.id
+  );
 
   res.json(db.prepare('SELECT * FROM admin_tasks WHERE id = ?').get(req.params.id));
 });

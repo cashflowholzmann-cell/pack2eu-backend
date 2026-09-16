@@ -2835,6 +2835,11 @@ function init() {
       );
     `);
 
+    // Dringlichkeit für die Aufgabenliste (siehe /admin/tasks) - erlaubt,
+    // z. B. einen alten Launch-Ablaufplan in einem Rutsch einzutragen und
+    // danach nach Priorität statt nur nach Fälligkeitsdatum zu sortieren.
+    addColumnIfMissing('admin_tasks', 'priority', "TEXT NOT NULL DEFAULT 'medium'");
+
     // Herkunft eines Kunden (woher kam der Lead, der zum Kunden wurde) -
     // wird bei der Registrierung aus UTM-Parametern/Referrer befüllt,
     // bleibt sonst NULL ("organisch"/unbekannt).
