@@ -441,6 +441,7 @@ router.get(
           JOIN countries c
             ON c.code = a.country_code
           WHERE a.customer_id = ?
+            AND a.stream = 'packaging'
           ORDER BY c.name ASC
         `).all(
           req.auth.userId
@@ -1552,6 +1553,304 @@ router.get(
     }
   }
 );
+
+
+// ============================================================
+// PFLICHTENSTROM-BEWUSSTE AKTIVIERUNGEN (WEEE, BATTERIE)
+//
+// Rein additiv, parallel zu den /:countryCode-Routen oben (die exakt
+// unverändert bleiben, implizit stream='packaging' - keine
+// Verhaltensänderung für Bestandskunden). Nutzt country_stream_rules
+// statt countries für die Länderregeln; calculateState()/buildSnapshot()/
+// readRepresentative()/clean() oben werden unverändert wiederverwendet,
+// da sie bereits stream-neutral sind.
+//
+// Bewusst NICHT übernommen: die Anbieter-Auto-Buchung (Lappa) und der
+// Signatur-Workflow der Verpackungs-Routen - dafür existiert aktuell
+// keine WEEE-/Batterie-Anbieteranbindung, das würde eine nicht
+// vorhandene Fähigkeit vortäuschen. country_stream_rules ist zudem noch
+// komplett unrecherchiert (siehe Kommentar in db/schema.sql) - jede
+// Aktivierung zeigt deshalb ehrlich "Prüfung erforderlich" statt einer
+// erfundenen Einschätzung.
+// ============================================================
+
+const ADDITIONAL_STREAMS = ['weee', 'battery'];
+
+function normalizeStream(stream) {
+  const s = String(stream || '').trim().toLowerCase();
+  return ADDITIONAL_STREAMS.includes(s) ? s : null;
+}
+
+function getCountryStreamRule(countryCode, stream) {
+  return db.prepare(`
+    SELECT * FROM country_stream_rules WHERE country_code = ? AND stream = ?
+  `).get(normalizeCode(countryCode), stream);
+}
+
+const STREAM_LEGAL_BASIS = {
+  weee: 'WEEE-Richtlinie (Richtlinie 2012/19/EU)',
+  battery: 'EU-Batterieverordnung (Verordnung (EU) 2023/1542)'
+};
+
+// country_stream_rules ins von decide() erwartete "rule"-Format
+// übersetzen (dieselben Feldnamen wie compliance_rules - siehe
+// compliance-engine.js). explanation/legal_basis werden aus den
+// recherchierten Feldern (register_body, requirements_json) gebaut -
+// die Recherche selbst bleibt aber grundsätzlich 'needs_verification'
+// (nie 'verified'), siehe Kommentar beim Seed in db/index.js: eine
+// per WebSearch recherchierte Web-Quelle ersetzt keine echte
+// Rechtsprüfung durch einen Menschen.
+function streamRuleToDecisionRule(streamRule, stream) {
+  if (!streamRule) return null;
+  const verified = streamRule.data_status === 'verified';
+  let requirements = [];
+  try { requirements = JSON.parse(streamRule.requirements_json || '[]'); } catch { /* noop */ }
+
+  const explanationParts = [];
+  if (streamRule.register_body) explanationParts.push(`Zuständige Stelle: ${streamRule.register_body}.`);
+  if (requirements[0]) explanationParts.push(requirements[0]);
+
+  return {
+    status: verified ? 'active' : 'needs_review',
+    registration_required: streamRule.registration_generally_required,
+    representative_required: streamRule.representative_required,
+    notary_required: streamRule.notary_required,
+    legal_label: verified ? 'Recherchiert' : 'Recherchiert, nicht final geprüft',
+    explanation: explanationParts.join(' '),
+    legal_basis: STREAM_LEGAL_BASIS[stream] || '',
+    confidence: verified ? 'primary_source_verified' : 'needs_review',
+    policy_version: '',
+    source_url: streamRule.registration_url || '',
+    source_type: 'internal',
+    provider_available: 0,
+    provider_id: null,
+    provider_cost_eur: null,
+    effective_from: null
+  };
+}
+
+function getStreamDecision(customerId, countryCode, stream) {
+  const customer = getCustomer(customerId);
+  const country = getCountry(countryCode);
+  if (!customer || !country) return null;
+
+  const streamRule = getCountryStreamRule(countryCode, stream);
+
+  const decision = decide({
+    originCountry: customer.origin_country,
+    destinationCountry: country.code,
+    rule: streamRuleToDecisionRule(streamRule, stream),
+    destinationMeta: country,
+    stream
+  });
+
+  return { customer, country, streamRule, decision };
+}
+
+// ============================================================
+// LAND FÜR EINEN STROM AKTIVIEREN
+// POST /api/activations/weee/DE
+// ============================================================
+
+router.post('/:stream/:countryCode', (req, res) => {
+  const stream = normalizeStream(req.params.stream);
+  if (!stream) return res.status(404).json({ error: 'Unbekannter Pflichtenstrom.' });
+
+  try {
+    const countryCode = normalizeCode(req.params.countryCode);
+    const result = getStreamDecision(req.auth.userId, countryCode, stream);
+    if (!result) return res.status(404).json({ error: `Land ${countryCode} wird nicht unterstützt.` });
+
+    const customer = result.customer;
+
+    const activationCount = db.prepare(`
+      SELECT COUNT(*) AS count FROM activations WHERE customer_id = ? AND stream = ?
+    `).get(customer.id, stream).count;
+
+    const maxCountries = getPlanLimits(customer.plan).maxCountries;
+    if (maxCountries !== null && activationCount >= maxCountries) {
+      return res.status(403).json({ error: `Ihr Plan erlaubt maximal ${maxCountries} Länder.` });
+    }
+
+    const existingActivation = db.prepare(`
+      SELECT * FROM activations WHERE customer_id = ? AND country_code = ? AND stream = ?
+    `).get(req.auth.userId, countryCode, stream);
+    if (existingActivation) {
+      return res.status(409).json({ error: 'Dieses Land ist für diesen Pflichtenstrom bereits aktiviert.', activation: existingActivation });
+    }
+
+    // activations/compliance_cases haben aktuell noch den ursprünglichen
+    // UNIQUE(customer_id, country_code) OHNE stream (siehe Kommentar in
+    // db/schema.sql - Constraint-Rebuild gegen echte Produktionsdaten
+    // bewusst nicht in dieser Runde). Ohne diese Prüfung würde der INSERT
+    // unten bei einer bereits bestehenden Aktivierung eines ANDEREN
+    // Stroms für dasselbe Land mit einer rohen SQLite-Fehlermeldung
+    // abstürzen, statt einer verständlichen Antwort.
+    const activationOtherStream = db.prepare(`
+      SELECT stream FROM activations WHERE customer_id = ? AND country_code = ?
+    `).get(req.auth.userId, countryCode);
+    if (activationOtherStream) {
+      return res.status(409).json({
+        error: `Dieses Land ist bereits für "${activationOtherStream.stream}" aktiviert. Mehrere Pflichtenströme gleichzeitig pro Land werden aktuell noch nicht unterstützt.`
+      });
+    }
+
+    const existingNumber = clean(req.body?.existing_number);
+    const representative = readRepresentative(req.body);
+
+    const state = calculateState({
+      decision: result.decision,
+      existingNumber,
+      representative,
+      providerStatus: result.decision.representativeRequired ? 'required_manual_check' : 'not_required'
+    });
+
+    const snapshot = buildSnapshot({
+      decision: result.decision,
+      state,
+      existingNumber,
+      representative: representative.name ? representative : null
+    });
+
+    const inserted = db.prepare(`
+      INSERT INTO activations (
+        customer_id, country_code, stream, status, existing_number,
+        representative_name, representative_company, representative_email,
+        provider_status, mode, mode_updated_at, compliance_status,
+        registration_status, representative_status, compliance_snapshot
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)
+    `).run(
+      req.auth.userId, countryCode, stream, state.status,
+      existingNumber || null,
+      representative.name || null, representative.company || null, representative.email || null,
+      state.providerStatus, state.mode,
+      result.decision.status, state.registrationStatus, state.representativeStatus,
+      snapshot
+    );
+
+    db.prepare(`
+      INSERT INTO compliance_cases (
+        customer_id, country_code, stream, compliance_status, registration_status,
+        representative_status, snapshot_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      ON CONFLICT(customer_id, country_code) DO UPDATE SET
+        compliance_status = excluded.compliance_status,
+        registration_status = excluded.registration_status,
+        representative_status = excluded.representative_status,
+        snapshot_json = excluded.snapshot_json,
+        updated_at = datetime('now')
+    `).run(
+      req.auth.userId, countryCode, stream, result.decision.status,
+      state.registrationStatus, state.representativeStatus, snapshot
+    );
+
+    if (representative.email) {
+      syncCustomerRepresentativeRequest(req.auth.userId, countryCode, representative.email, stream);
+    }
+
+    const activation = db.prepare(`
+      SELECT a.*, c.name, c.flag
+      FROM activations a
+      JOIN countries c ON c.code = a.country_code
+      WHERE a.id = ?
+    `).get(inserted.lastInsertRowid);
+
+    return res.status(201).json({ ok: true, activation, compliance: result.decision, fullyConfigured: state.fullyConfigured });
+  } catch (error) {
+    console.error(`❌ Fehler bei der ${stream}-Länderaktivierung:`, error);
+    return res.status(500).json({ error: `Fehler bei der Aktivierung: ${error.message}` });
+  }
+});
+
+// ============================================================
+// AKTIVIERUNG FÜR EINEN STROM AKTUALISIEREN
+// PUT /api/activations/weee/DE
+// ============================================================
+
+router.put('/:stream/:countryCode', (req, res) => {
+  const stream = normalizeStream(req.params.stream);
+  if (!stream) return res.status(404).json({ error: 'Unbekannter Pflichtenstrom.' });
+
+  try {
+    const countryCode = normalizeCode(req.params.countryCode);
+    const result = getStreamDecision(req.auth.userId, countryCode, stream);
+    if (!result) return res.status(404).json({ error: 'Land nicht gefunden.' });
+
+    const activation = db.prepare(`
+      SELECT * FROM activations WHERE customer_id = ? AND country_code = ? AND stream = ?
+    `).get(req.auth.userId, countryCode, stream);
+    if (!activation) return res.status(404).json({ error: 'Land ist für diesen Pflichtenstrom noch nicht aktiviert.' });
+
+    const existingNumber = clean(req.body?.existing_number);
+    const representative = readRepresentative(req.body);
+
+    const state = calculateState({
+      decision: result.decision,
+      existingNumber,
+      representative,
+      providerStatus: activation.provider_status
+    });
+
+    const snapshot = buildSnapshot({ decision: result.decision, state, existingNumber, representative });
+
+    db.prepare(`
+      UPDATE activations SET
+        existing_number = ?, representative_name = ?, representative_company = ?,
+        representative_email = ?, status = ?, mode_updated_at = datetime('now'),
+        compliance_status = ?, registration_status = ?, representative_status = ?,
+        compliance_snapshot = ?
+      WHERE customer_id = ? AND country_code = ? AND stream = ?
+    `).run(
+      existingNumber || null, representative.name || null, representative.company || null,
+      representative.email || null, state.status,
+      result.decision.status, state.registrationStatus, state.representativeStatus,
+      snapshot, req.auth.userId, countryCode, stream
+    );
+
+    syncCustomerRepresentativeRequest(req.auth.userId, countryCode, representative.email, stream);
+
+    const updated = db.prepare(`
+      SELECT a.*, c.name, c.flag
+      FROM activations a
+      JOIN countries c ON c.code = a.country_code
+      WHERE a.customer_id = ? AND a.country_code = ? AND a.stream = ?
+    `).get(req.auth.userId, countryCode, stream);
+
+    return res.json({ ok: true, activation: updated, compliance: result.decision, fullyConfigured: state.fullyConfigured });
+  } catch (error) {
+    console.error(`❌ Fehler beim Aktualisieren der ${stream}-Aktivierung:`, error);
+    return res.status(500).json({ error: `Aktivierung konnte nicht aktualisiert werden: ${error.message}` });
+  }
+});
+
+// ============================================================
+// ALLE AKTIVIERUNGEN EINES STROMS
+// GET /api/activations/weee
+// ============================================================
+
+router.get('/:stream', (req, res) => {
+  const stream = normalizeStream(req.params.stream);
+  if (!stream) return res.status(404).json({ error: 'Unbekannter Pflichtenstrom.' });
+
+  try {
+    const rows = db.prepare(`
+      SELECT a.*, c.name, c.flag
+      FROM activations a
+      JOIN countries c ON c.code = a.country_code
+      WHERE a.customer_id = ? AND a.stream = ?
+      ORDER BY c.name ASC
+    `).all(req.auth.userId, stream);
+
+    return res.json(rows.map(row => ({
+      ...row,
+      has_existing_number: Boolean(row.existing_number),
+      has_representative: Boolean(row.representative_name && row.representative_email)
+    })));
+  } catch (error) {
+    console.error(`❌ Fehler beim Laden der ${stream}-Aktivierungen:`, error);
+    return res.status(500).json({ error: `Fehler beim Laden der Aktivierungen: ${error.message}` });
+  }
+});
 
 
 module.exports = router;

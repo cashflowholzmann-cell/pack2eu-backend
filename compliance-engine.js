@@ -63,11 +63,38 @@ function isEUCountry(code) {
 // COMPLIANCE ENTSCHEIDUNG
 // ============================================================
 
+// Rechtsgrundlage + Fallback-Erklärung je Pflichtenstrom, nur für den
+// "keine verifizierte Regel"-Fall unten (rule === null) - sobald eine
+// echte, recherchierte Regel für Land+Stream vorliegt, kommen Text/Quelle
+// von dort, nicht von hier. 'packaging' bleibt exakt der bisherige,
+// bereits live genutzte Text (keine Verhaltensänderung für Bestandskunden).
+const STREAM_FALLBACK = {
+  packaging: {
+    legalBasis: 'Regulation (EU) 2025/40',
+    sourceUrl: 'https://eur-lex.europa.eu/eli/reg/2025/40/oj',
+    explanationRepRequired: 'Als außerhalb der EU ansässiger Händler benötigen Sie für dieses EU-Zielland einen Bevollmächtigten für die erweiterte Herstellerverantwortung. Die weiteren nationalen Anforderungen werden noch geprüft.',
+    explanationDefault: 'Für dieses Länderpaar liegt bei Pack2EU noch keine verifizierte nationale Regel vor. Deshalb wird keine pauschale Bevollmächtigtenpflicht angenommen.'
+  },
+  weee: {
+    legalBasis: 'Richtlinie 2012/19/EU (WEEE)',
+    sourceUrl: 'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A32012L0019',
+    explanationRepRequired: 'Als außerhalb der EU ansässiger Händler benötigen Sie für dieses EU-Zielland einen Bevollmächtigten für die Elektro-/Elektronikgeräte-Herstellerverantwortung (WEEE). Die weiteren nationalen Anforderungen werden noch geprüft.',
+    explanationDefault: 'Für dieses Länderpaar liegt bei Pack2EU noch keine verifizierte nationale WEEE-Regel vor. Deshalb wird keine pauschale Bevollmächtigtenpflicht angenommen.'
+  },
+  battery: {
+    legalBasis: 'Verordnung (EU) 2023/1542',
+    sourceUrl: 'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32023R1542',
+    explanationRepRequired: 'Als außerhalb der EU ansässiger Händler benötigen Sie für dieses EU-Zielland einen Bevollmächtigten für die Batterie-Herstellerverantwortung. Die weiteren nationalen Anforderungen werden noch geprüft.',
+    explanationDefault: 'Für dieses Länderpaar liegt bei Pack2EU noch keine verifizierte nationale Batterie-Regel vor. Deshalb wird keine pauschale Bevollmächtigtenpflicht angenommen.'
+  }
+};
+
 function decide({
   originCountry,
   destinationCountry,
   rule,
-  destinationMeta
+  destinationMeta,
+  stream = 'packaging'
 }) {
 
   const origin =
@@ -143,6 +170,8 @@ function decide({
 
       effectiveFrom:
         null,
+
+      stream,
 
       originEU,
 
@@ -227,6 +256,8 @@ function decide({
         rule.effective_from ||
         null,
 
+      stream,
+
       originEU,
 
       originCountry:
@@ -248,6 +279,10 @@ function decide({
   // EU-Zielland gilt die Pflicht jedoch unabhängig davon.
   // ----------------------------------------------------------
 
+  const fallback =
+    STREAM_FALLBACK[stream] ||
+    STREAM_FALLBACK.packaging;
+
   return {
 
     status:
@@ -267,11 +302,11 @@ function decide({
 
     explanation:
       nonEURepresentativeRequired
-        ? 'Als außerhalb der EU ansässiger Händler benötigen Sie für dieses EU-Zielland einen Bevollmächtigten für die erweiterte Herstellerverantwortung. Die weiteren nationalen Anforderungen werden noch geprüft.'
-        : 'Für dieses Länderpaar liegt bei Pack2EU noch keine verifizierte nationale Regel vor. Deshalb wird keine pauschale Bevollmächtigtenpflicht angenommen.',
+        ? fallback.explanationRepRequired
+        : fallback.explanationDefault,
 
     legalBasis:
-      'Regulation (EU) 2025/40',
+      fallback.legalBasis,
 
     confidence:
       'needs_national_rule',
@@ -280,7 +315,7 @@ function decide({
       '2026-08-25',
 
     sourceUrl:
-      'https://eur-lex.europa.eu/eli/reg/2025/40/oj',
+      fallback.sourceUrl,
 
     sourceType:
       'eu_regulation',
@@ -296,6 +331,8 @@ function decide({
 
     effectiveFrom:
       null,
+
+    stream,
 
     originEU,
 

@@ -1007,6 +1007,7 @@ router.get('/legal-watch', (req, res) => {
       countryCode: r.country_code,
       countryName: r.country_name,
       flag: r.flag,
+      stream: r.stream || 'packaging',
       checkedAt: r.checked_at,
       hasUpdate: !!r.has_update,
       summary: r.summary,
@@ -1033,7 +1034,8 @@ router.post('/legal-watch/run', async (req, res) => {
   try {
     const { runLegalWatch } = require('../legal-watch');
     const limit = Math.min(Number(req.body?.limit) || 3, 10);
-    const results = await runLegalWatch({ limit });
+    const stream = ['packaging', 'weee', 'battery'].includes(req.body?.stream) ? req.body.stream : 'packaging';
+    const results = await runLegalWatch({ limit, stream });
     res.json({ results });
   } catch (error) {
     console.error('❌ Rechtsänderungs-Radar Lauf-Fehler:', error);
@@ -1048,38 +1050,80 @@ router.post('/legal-watch/:id/apply', (req, res) => {
     if (finding.status !== 'new') return res.status(409).json({ error: 'Fund wurde bereits bearbeitet.' });
 
     const suggested = JSON.parse(finding.suggested_fields_json || '{}');
-    const country = db.prepare('SELECT * FROM countries WHERE code = ?').get(finding.country_code);
-    if (!country) return res.status(404).json({ error: `Land ${finding.country_code} nicht gefunden.` });
+    const stream = finding.stream || 'packaging';
 
-    // Nur Felder übernehmen, die die Recherche tatsächlich befüllt hat
-    // (nicht null) - alles andere bleibt unverändert stehen.
-    db.prepare(`
-      UPDATE countries SET
-        register_body = COALESCE(?, register_body),
-        representative_required = COALESCE(?, representative_required),
-        notary_required = COALESCE(?, notary_required),
-        notary_cost = COALESCE(?, notary_cost),
-        registration_url = COALESCE(?, registration_url),
-        eco_fee = COALESCE(?, eco_fee),
-        registration_generally_required = COALESCE(?, registration_generally_required),
-        reporting_frequency = COALESCE(?, reporting_frequency),
-        requirements_json = COALESCE(?, requirements_json),
-        labeling_json = COALESCE(?, labeling_json),
-        data_status = 'needs_verification'
-      WHERE code = ?
-    `).run(
-      suggested.register_body ?? null,
-      suggested.representative_required === null || suggested.representative_required === undefined ? null : (suggested.representative_required ? 1 : 0),
-      suggested.notary_required === null || suggested.notary_required === undefined ? null : (suggested.notary_required ? 1 : 0),
-      suggested.notary_cost ?? null,
-      suggested.registration_url ?? null,
-      suggested.eco_fee ?? null,
-      suggested.registration_generally_required === null || suggested.registration_generally_required === undefined ? null : (suggested.registration_generally_required ? 1 : 0),
-      suggested.reporting_frequency ?? null,
-      suggested.requirements ? JSON.stringify(suggested.requirements) : null,
-      suggested.labeling ? JSON.stringify(suggested.labeling) : null,
-      finding.country_code
-    );
+    if (stream === 'packaging') {
+      const country = db.prepare('SELECT * FROM countries WHERE code = ?').get(finding.country_code);
+      if (!country) return res.status(404).json({ error: `Land ${finding.country_code} nicht gefunden.` });
+
+      // Nur Felder übernehmen, die die Recherche tatsächlich befüllt hat
+      // (nicht null) - alles andere bleibt unverändert stehen.
+      db.prepare(`
+        UPDATE countries SET
+          register_body = COALESCE(?, register_body),
+          representative_required = COALESCE(?, representative_required),
+          notary_required = COALESCE(?, notary_required),
+          notary_cost = COALESCE(?, notary_cost),
+          registration_url = COALESCE(?, registration_url),
+          eco_fee = COALESCE(?, eco_fee),
+          registration_generally_required = COALESCE(?, registration_generally_required),
+          reporting_frequency = COALESCE(?, reporting_frequency),
+          requirements_json = COALESCE(?, requirements_json),
+          labeling_json = COALESCE(?, labeling_json),
+          data_status = 'needs_verification'
+        WHERE code = ?
+      `).run(
+        suggested.register_body ?? null,
+        suggested.representative_required === null || suggested.representative_required === undefined ? null : (suggested.representative_required ? 1 : 0),
+        suggested.notary_required === null || suggested.notary_required === undefined ? null : (suggested.notary_required ? 1 : 0),
+        suggested.notary_cost ?? null,
+        suggested.registration_url ?? null,
+        suggested.eco_fee ?? null,
+        suggested.registration_generally_required === null || suggested.registration_generally_required === undefined ? null : (suggested.registration_generally_required ? 1 : 0),
+        suggested.reporting_frequency ?? null,
+        suggested.requirements ? JSON.stringify(suggested.requirements) : null,
+        suggested.labeling ? JSON.stringify(suggested.labeling) : null,
+        finding.country_code
+      );
+    } else {
+      // WEEE/Batterie: country_stream_rules statt countries - Zeile
+      // existiert evtl. noch nicht (siehe Kommentar in db/schema.sql),
+      // deshalb INSERT...ON CONFLICT statt UPDATE.
+      const country = db.prepare('SELECT code FROM countries WHERE code = ?').get(finding.country_code);
+      if (!country) return res.status(404).json({ error: `Land ${finding.country_code} nicht gefunden.` });
+
+      db.prepare(`
+        INSERT INTO country_stream_rules (
+          country_code, stream, register_body, representative_required, notary_required,
+          notary_cost, registration_url, registration_generally_required, reporting_frequency,
+          requirements_json, labeling_json, data_status, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'needs_verification', datetime('now'))
+        ON CONFLICT(country_code, stream) DO UPDATE SET
+          register_body = COALESCE(excluded.register_body, register_body),
+          representative_required = COALESCE(excluded.representative_required, representative_required),
+          notary_required = COALESCE(excluded.notary_required, notary_required),
+          notary_cost = COALESCE(excluded.notary_cost, notary_cost),
+          registration_url = COALESCE(excluded.registration_url, registration_url),
+          registration_generally_required = COALESCE(excluded.registration_generally_required, registration_generally_required),
+          reporting_frequency = COALESCE(excluded.reporting_frequency, reporting_frequency),
+          requirements_json = COALESCE(excluded.requirements_json, requirements_json),
+          labeling_json = COALESCE(excluded.labeling_json, labeling_json),
+          data_status = 'needs_verification',
+          updated_at = datetime('now')
+      `).run(
+        finding.country_code,
+        stream,
+        suggested.register_body ?? null,
+        suggested.representative_required === null || suggested.representative_required === undefined ? null : (suggested.representative_required ? 1 : 0),
+        suggested.notary_required === null || suggested.notary_required === undefined ? null : (suggested.notary_required ? 1 : 0),
+        suggested.notary_cost ?? null,
+        suggested.registration_url ?? null,
+        suggested.registration_generally_required === null || suggested.registration_generally_required === undefined ? null : (suggested.registration_generally_required ? 1 : 0),
+        suggested.reporting_frequency ?? null,
+        suggested.requirements ? JSON.stringify(suggested.requirements) : null,
+        suggested.labeling ? JSON.stringify(suggested.labeling) : null
+      );
+    }
 
     db.prepare(`
       UPDATE legal_watch_findings
@@ -1138,7 +1182,7 @@ function issueRepInvite(repId, email, name) {
 router.get('/representatives', (req, res) => {
   try {
     const reps = db.prepare(`
-      SELECT r.id, r.country_code, r.name, r.email, r.company, r.active,
+      SELECT r.id, r.country_code, r.stream, r.name, r.email, r.company, r.active,
              r.email_verified_at, r.last_login_at, r.created_at,
              (SELECT COUNT(*) FROM representative_customer_assignments WHERE representative_id = r.id) as assignedCustomers
       FROM representatives r
@@ -1153,7 +1197,7 @@ router.get('/representatives', (req, res) => {
 
 // Von /representatives (manuelle Anlage) UND /representative-requests/:id/approve
 // (Freigabe einer Kunden-Anfrage) genutzt - siehe dort.
-async function createAndInviteRepresentative({ countryCode, name, email, company }) {
+async function createAndInviteRepresentative({ countryCode, name, email, company, stream = 'packaging' }) {
   // Platzhalter-Hash: kein bekanntes Passwort, wird durch das echte
   // Passwort bei der Einladungs-Annahme ersetzt (siehe /accept-invite in
   // routes/representatives.js) - so bleibt die NOT-NULL-Spalte erfüllt,
@@ -1161,10 +1205,10 @@ async function createAndInviteRepresentative({ countryCode, name, email, company
   const placeholderHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
 
   const insert = db.prepare(`
-    INSERT INTO representatives (country_code, name, email, password_hash, company)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO representatives (country_code, name, email, password_hash, company, stream)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
-  const result = insert.run(countryCode, name, email, placeholderHash, company || null);
+  const result = insert.run(countryCode, name, email, placeholderHash, company || null, stream);
 
   await issueRepInvite(result.lastInsertRowid, email, name);
   return result.lastInsertRowid;
@@ -1175,6 +1219,9 @@ router.post('/representatives', async (req, res) => {
   const name = String(req.body?.name || '').trim();
   const company = req.body?.company ? String(req.body.company).trim() : null;
   const countryCode = String(req.body?.country_code || '').trim().toUpperCase();
+  // Rückwärtskompatibel: fehlt stream im Request (alte admin.html-Version
+  // vor der Mehrfach-Pflichtenstrom-Erweiterung), gilt weiterhin 'packaging'.
+  const stream = ['packaging', 'weee', 'battery'].includes(req.body?.stream) ? req.body.stream : 'packaging';
 
   if (!email || !name || !countryCode) {
     return res.status(400).json({ error: 'E-Mail, Name und Land sind Pflichtfelder.' });
@@ -1184,7 +1231,7 @@ router.post('/representatives', async (req, res) => {
     const existing = db.prepare('SELECT id FROM representatives WHERE email = ?').get(email);
     if (existing) return res.status(409).json({ error: 'E-Mail bereits registriert.' });
 
-    const id = await createAndInviteRepresentative({ countryCode, name, email, company });
+    const id = await createAndInviteRepresentative({ countryCode, name, email, company, stream });
     res.status(201).json({ success: true, id });
   } catch (error) {
     console.error('❌ Admin Representative-Anlegen-Fehler:', error);
@@ -1304,13 +1351,13 @@ router.get('/representatives/:id/access-log', (req, res) => {
 router.get('/representative-requests', (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT rr.id, rr.country_code, rr.requested_email, rr.status, rr.created_at, rr.updated_at,
+      SELECT rr.id, rr.country_code, rr.stream, rr.requested_email, rr.status, rr.created_at, rr.updated_at,
              c.id as customer_id, c.company_name, c.customer_number,
              a.representative_name, a.representative_company,
              r.id as matched_representative_id, r.name as matched_representative_name
       FROM customer_representative_requests rr
       JOIN customers c ON c.id = rr.customer_id
-      LEFT JOIN activations a ON a.customer_id = rr.customer_id AND a.country_code = rr.country_code
+      LEFT JOIN activations a ON a.customer_id = rr.customer_id AND a.country_code = rr.country_code AND a.stream = rr.stream
       LEFT JOIN representatives r ON r.id = rr.representative_id
       ORDER BY rr.status = 'pending' DESC, rr.created_at DESC
     `).all();
@@ -1326,14 +1373,14 @@ router.post('/representative-requests/:id/approve', async (req, res) => {
     const request = db.prepare(`
       SELECT rr.*, a.representative_name, a.representative_company
       FROM customer_representative_requests rr
-      LEFT JOIN activations a ON a.customer_id = rr.customer_id AND a.country_code = rr.country_code
+      LEFT JOIN activations a ON a.customer_id = rr.customer_id AND a.country_code = rr.country_code AND a.stream = rr.stream
       WHERE rr.id = ?
     `).get(req.params.id);
     if (!request) return res.status(404).json({ error: 'Anfrage nicht gefunden.' });
     if (request.status !== 'pending') return res.status(409).json({ error: 'Anfrage wurde bereits bearbeitet.' });
 
     let repId;
-    const existingRep = db.prepare('SELECT id FROM representatives WHERE email = ?').get(request.requested_email);
+    const existingRep = db.prepare('SELECT id FROM representatives WHERE email = ? AND stream = ?').get(request.requested_email, request.stream);
 
     if (existingRep) {
       repId = existingRep.id;
@@ -1344,7 +1391,8 @@ router.post('/representative-requests/:id/approve', async (req, res) => {
         countryCode: request.country_code,
         name,
         email: request.requested_email,
-        company
+        company,
+        stream: request.stream
       });
     }
 

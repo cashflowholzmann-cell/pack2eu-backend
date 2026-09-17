@@ -142,6 +142,125 @@ CREATE TABLE IF NOT EXISTS countries (
 
 
 -- ================================================================
+-- PFLICHTENSTROM-SPEZIFISCHE LÄNDERREGELN (WEEE, BATTERIE, ...)
+--
+-- Die bestehende countries-Tabelle trägt ihre Verpackungsregeln
+-- (register_body, representative_required, eco_fee_rates_json, ...) als
+-- feste Spalten direkt am Land - das bleibt für 'packaging' bewusst
+-- unverändert (Live-Produktion, keine riskante Migration ohne Grund).
+-- Für neue Pflichtenströme (WEEE, Batterie) gilt dieselbe Struktur, aber
+-- pro (Land, Strom) statt pro Land - deshalb eine eigene Tabelle statt
+-- weiterer countries-Spalten. Jede Zeile startet unrecherchiert
+-- (data_status='needs_verification') - siehe legal-watch.js für die
+-- Recherche-Pipeline, die hier künftig einträgt statt zu raten.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS country_stream_rules (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  country_code TEXT NOT NULL
+    REFERENCES countries(code),
+
+  stream TEXT NOT NULL
+    CHECK (stream IN ('weee', 'battery')),
+
+  register_body TEXT,
+
+  requirements_json TEXT NOT NULL
+    DEFAULT '[]',
+
+  labeling_json TEXT NOT NULL
+    DEFAULT '[]',
+
+  steps_json TEXT NOT NULL
+    DEFAULT '[]',
+
+  representative_required INTEGER
+    NOT NULL DEFAULT 0,
+
+  notary_required INTEGER
+    NOT NULL DEFAULT 0,
+
+  notary_cost TEXT,
+
+  registration_url TEXT,
+
+  representative_provider_name TEXT,
+
+  representative_provider_url TEXT,
+
+  representative_data_status TEXT NOT NULL
+    DEFAULT 'needs_verification',
+
+  data_status TEXT NOT NULL
+    DEFAULT 'needs_verification',
+
+  registration_generally_required INTEGER NOT NULL
+    DEFAULT 1,
+
+  -- Wie oft Stückzahlen/Kategorien gemeldet werden müssen - siehe
+  -- countries.reporting_frequency-Kommentar für dieselbe Vorsichtsregel:
+  -- nur ein konkreter Wert, wenn recherchiert bestätigt.
+  reporting_frequency TEXT NOT NULL
+    DEFAULT 'needs_verification',
+
+  -- Grobe, recherchierte Gebühren-/Entgeltsätze - Struktur bewusst offen
+  -- (JSON), da WEEE/Batterie meist nach Stückzahl/Kategorie statt nach
+  -- Material/Gewicht abrechnen, anders als bei Verpackung.
+  fee_rates_json TEXT,
+
+  next_filing_rule_json TEXT,
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  updated_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  UNIQUE(country_code, stream)
+);
+
+
+-- ================================================================
+-- WEEE-KATEGORIEN (Anhang III, Richtlinie 2012/19/EU)
+--
+-- Feste, EU-weit einheitliche Taxonomie - keine "recherchierten", pro
+-- Land unterschiedlichen Fakten, sondern direkt aus dem Rechtstext.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS weee_categories (
+
+  code TEXT PRIMARY KEY,
+
+  name_de TEXT NOT NULL,
+
+  name_en TEXT NOT NULL,
+
+  description TEXT
+);
+
+
+-- ================================================================
+-- BATTERIE-KATEGORIEN (Art. 3, Verordnung (EU) 2023/1542)
+--
+-- Ebenfalls feste, EU-weit einheitliche Taxonomie direkt aus dem
+-- Rechtstext.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS battery_categories (
+
+  code TEXT PRIMARY KEY,
+
+  name_de TEXT NOT NULL,
+
+  name_en TEXT NOT NULL,
+
+  description TEXT
+);
+
+
+-- ================================================================
 -- AKTIVIERUNGEN
 -- ================================================================
 
@@ -617,6 +736,11 @@ CREATE TABLE IF NOT EXISTS customer_representative_requests (
   country_code TEXT NOT NULL
     REFERENCES countries(code),
 
+  -- Ein Bevollmächtigter deckt genau einen Pflichtenstrom pro Land ab -
+  -- siehe country_stream_rules-Kommentar weiter oben.
+  stream TEXT NOT NULL
+    DEFAULT 'packaging',
+
   requested_email TEXT NOT NULL,
 
   status TEXT NOT NULL
@@ -633,7 +757,7 @@ CREATE TABLE IF NOT EXISTS customer_representative_requests (
   updated_at TEXT NOT NULL
     DEFAULT (datetime('now')),
 
-  UNIQUE(customer_id, country_code)
+  UNIQUE(customer_id, country_code, stream)
 );
 
 
