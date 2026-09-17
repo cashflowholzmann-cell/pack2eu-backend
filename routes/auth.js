@@ -557,7 +557,8 @@ const ONBOARDING_NICHES = [
 ];
 
 const onboardingSchema = z.object({
-  niche: z.enum(ONBOARDING_NICHES).nullable().optional()
+  niche: z.enum(ONBOARDING_NICHES).nullable().optional(),
+  wantsWeeeBattery: z.boolean().optional()
 });
 
 router.post(
@@ -583,14 +584,20 @@ router.post(
         parsed.data.niche ||
         null;
 
+      // Nur auf 1 setzen, nie zurück auf 0 - falls der Kunde das
+      // Onboarding später über den "❓ Onboarding"-Button erneut ansieht
+      // und die Checkbox diesmal nicht anklickt, soll ein einmal
+      // geäußertes Interesse nicht wieder verschwinden.
       db.prepare(`
         UPDATE customers
         SET
           niche = ?,
-          onboarding_completed_at = datetime('now')
+          onboarding_completed_at = datetime('now'),
+          weee_battery_interest_declared = CASE WHEN ? = 1 THEN 1 ELSE weee_battery_interest_declared END
         WHERE id = ?
       `).run(
         niche,
+        parsed.data.wantsWeeeBattery ? 1 : 0,
         req.auth.userId
       );
 

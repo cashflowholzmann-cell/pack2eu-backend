@@ -1523,11 +1523,18 @@ router.post('/representative-requests/:id/reject', (req, res) => {
 // Batterie als eigenständiges Verkaufsargument, unabhängig von
 // Verpackung?", nicht nur "wird die neue Sparte überhaupt genutzt?".
 // Aktivierungen sind das stärkste verfügbare Interesse-Signal (echte
-// Nutzung statt nur eines Seitenaufrufs) - ein reines "hat die Sparte
-// im Dashboard geöffnet"-Tracking gibt es (noch) nicht.
+// Nutzung statt nur eines Seitenaufrufs). Zusätzlich zählt
+// declaredInterest die Selbstauskunft aus dem Onboarding-Checkbox
+// (customers.weee_battery_interest_declared) - ein FRÜHERES Signal, das
+// auch Kunden erfasst, die die neue Sparte im Dashboard noch nicht
+// tatsächlich genutzt haben.
 // ============================================================
 router.get('/weee-battery-interest', (req, res) => {
   try {
+    const declaredInterest = db.prepare(`
+      SELECT COUNT(*) as count FROM customers WHERE weee_battery_interest_declared = 1
+    `).get().count;
+
     const rows = db.prepare(`
       SELECT customer_id, stream, COUNT(*) as country_count
       FROM activations
@@ -1561,6 +1568,7 @@ router.get('/weee-battery-interest', (req, res) => {
     });
 
     res.json({
+      declaredInterest,
       totalWithWeeeOrBattery,
       weee: { customers: weeeCustomers, countries: weeeCountries },
       battery: { customers: batteryCustomers, countries: batteryCountries },

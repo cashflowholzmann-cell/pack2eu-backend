@@ -3358,6 +3358,14 @@ function init() {
     // eine spätere Due-Diligence bei einem Verkauf von Pack2EU.
     addColumnIfMissing('customers', 'cancelled_at', 'TEXT');
 
+    // Selbstauskunft aus dem Onboarding ("Verkaufst du auch Elektrogeräte
+    // oder Produkte mit eingebauter Batterie?", siehe dashboard.html
+    // onboarding-weee-battery-checkbox) - ein FRÜHERES Interesse-Signal
+    // als eine tatsächliche WEEE-/Batterie-Aktivierung (siehe GET
+    // /admin/weee-battery-interest), zeigt also auch Interesse von
+    // Kunden, die die neue Sparte noch nicht genutzt haben.
+    addColumnIfMissing('customers', 'weee_battery_interest_declared', 'INTEGER NOT NULL DEFAULT 0');
+
     // Zwischengespeichertes Ergebnis der KI-Themenanalyse (siehe
     // routes/admin.js, POST /topics/analyze) - läuft nicht bei jedem
     // Seitenaufruf automatisch, sondern nur auf Knopfdruck im internen
