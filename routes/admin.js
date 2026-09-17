@@ -1513,4 +1513,68 @@ router.post('/representative-requests/:id/reject', (req, res) => {
   }
 });
 
+// ============================================================
+// WEEE-/BATTERIE-INTERESSE
+//
+// Wie viele Kunden nutzen bereits WEEE oder Batterie (mind. ein
+// aktiviertes Land in diesem Strom) und - besonders wichtig - wie viele
+// davon haben GAR KEINE Verpackungs-Aktivierung, sind also potenziell
+// nur wegen WEEE/Batterie bei Pack2EU. Beantwortet "lohnt sich WEEE/
+// Batterie als eigenständiges Verkaufsargument, unabhängig von
+// Verpackung?", nicht nur "wird die neue Sparte überhaupt genutzt?".
+// Aktivierungen sind das stärkste verfügbare Interesse-Signal (echte
+// Nutzung statt nur eines Seitenaufrufs) - ein reines "hat die Sparte
+// im Dashboard geöffnet"-Tracking gibt es (noch) nicht.
+// ============================================================
+router.get('/weee-battery-interest', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT customer_id, stream, COUNT(*) as country_count
+      FROM activations
+      GROUP BY customer_id, stream
+    `).all();
+
+    const byCustomer = {};
+    rows.forEach(r => {
+      if (!byCustomer[r.customer_id]) byCustomer[r.customer_id] = {};
+      byCustomer[r.customer_id][r.stream] = r.country_count;
+    });
+
+    let weeeCustomers = 0, batteryCustomers = 0, weeeCountries = 0, batteryCountries = 0;
+    let onlyWeee = 0, onlyBattery = 0, bothNoPackaging = 0, totalWithWeeeOrBattery = 0;
+
+    Object.values(byCustomer).forEach(streams => {
+      const hasWeee = !!streams.weee;
+      const hasBattery = !!streams.battery;
+      const hasPackaging = !!streams.packaging;
+
+      if (hasWeee) { weeeCustomers++; weeeCountries += streams.weee; }
+      if (hasBattery) { batteryCustomers++; batteryCountries += streams.battery; }
+      if (!hasWeee && !hasBattery) return;
+
+      totalWithWeeeOrBattery++;
+      if (hasPackaging) return;
+
+      if (hasWeee && hasBattery) bothNoPackaging++;
+      else if (hasWeee) onlyWeee++;
+      else onlyBattery++;
+    });
+
+    res.json({
+      totalWithWeeeOrBattery,
+      weee: { customers: weeeCustomers, countries: weeeCountries },
+      battery: { customers: batteryCustomers, countries: batteryCountries },
+      onlyWeeeBatteryNoPackaging: {
+        total: onlyWeee + onlyBattery + bothNoPackaging,
+        onlyWeee,
+        onlyBattery,
+        both: bothNoPackaging
+      }
+    });
+  } catch (error) {
+    console.error('❌ WEEE-/Batterie-Interesse-Fehler:', error);
+    res.status(500).json({ error: 'WEEE-/Batterie-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
 module.exports = router;
