@@ -25,7 +25,11 @@ const trackLimiter = rateLimit({
 // wird der Endpoint zu einem Free-Text-Spam-Ziel wie der Pageview-
 // Endpunkt oben schon kommentiert. 'demo_duration' trägt zusätzlich
 // einen numerischen Sekundenwert (siehe event_value unten).
-const ALLOWED_EVENTS = ['demo_start', 'calculator_click', 'demo_duration'];
+// 'demo_cta_click' = Klick auf "Jetzt kostenpflichtig starten" INNERHALB
+// der Demo (siehe dashboard.html, exitDemoToSignup()) - deutlich
+// stärkeres Kaufsignal als nur 'demo_start' (Demo geöffnet), analog zu
+// 'calculator_click' vs. der calculator_usage-Tabelle beim Rechner.
+const ALLOWED_EVENTS = ['demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click'];
 
 // Obergrenze für event_value bei 'demo_duration' - 4 Stunden. Verhindert
 // offensichtlich manipulierte/kaputte Werte, ohne echte lange Demo-

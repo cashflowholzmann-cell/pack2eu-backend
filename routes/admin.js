@@ -275,6 +275,30 @@ router.get('/funnel-attribution', (req, res) => {
       }
     });
 
+    // Analoger Funnel für die Demo: 'demo_start' (Demo geöffnet) ist nur
+    // ein schwaches Signal, der Klick auf "Jetzt kostenpflichtig starten"
+    // INNERHALB der Demo ('demo_cta_click', siehe dashboard.html
+    // exitDemoToSignup()) ist echte Kaufabsicht - eigene, zusätzliche
+    // Stufe zwischen "geöffnet" und "registriert", genau wie beim
+    // Rechner-Funnel oben.
+    const firstCtaClickBySession = {};
+    events.filter(e => e.event_name === 'demo_cta_click').forEach(e => {
+      if (!firstCtaClickBySession[e.session_id] || e.created_at < firstCtaClickBySession[e.session_id]) {
+        firstCtaClickBySession[e.session_id] = e.created_at;
+      }
+    });
+    const totalDemoCtaClicks = Object.keys(firstCtaClickBySession).length;
+
+    let demoCtaClicksRegistered = 0;
+    let demoCtaClicksPaying = 0;
+    customers.forEach(c => {
+      const firstCtaClick = firstCtaClickBySession[c.acquisition_session_id];
+      if (firstCtaClick && firstCtaClick <= c.created_at) {
+        demoCtaClicksRegistered++;
+        if (c.subscription_status === 'active') demoCtaClicksPaying++;
+      }
+    });
+
     res.json({
       summary,
       totalDemoClicks,
@@ -284,6 +308,12 @@ router.get('/funnel-attribution', (req, res) => {
         completed: totalCalculatorCompletions,
         registered: calculatorCompletionsRegistered,
         paying: calculatorCompletionsPaying
+      },
+      demoFunnel: {
+        opened: totalDemoClicks,
+        completed: totalDemoCtaClicks,
+        registered: demoCtaClicksRegistered,
+        paying: demoCtaClicksPaying
       }
     });
   } catch (error) {
