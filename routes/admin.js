@@ -309,6 +309,37 @@ router.get('/funnel-attribution', (req, res) => {
       }
     });
 
+    // WEEE/Batterie-Sektion auf der Landingpage: zwei eigene CTAs
+    // ("Jetzt loslegen" -> Onboarding, "Demo starten" -> dieselbe
+    // Sandbox-Demo wie der Hero-CTA) mit eigenen Events
+    // (weeebat_cta_click/weeebat_demo_click, siehe routes/track.js) -
+    // damit sich dieser Einstiegspunkt getrennt von Hero/Rechner/Demo
+    // auswerten lässt, nach demselben Muster wie calculatorFunnel/
+    // demoFunnel oben (erstes Vorkommen pro Session vs. Registrierung).
+    function firstOccurrenceBySession(eventName) {
+      const map = {};
+      events.filter(e => e.event_name === eventName).forEach(e => {
+        if (!map[e.session_id] || e.created_at < map[e.session_id]) map[e.session_id] = e.created_at;
+      });
+      return map;
+    }
+    function clicksRegisteredPaying(firstBySession) {
+      const clicks = Object.keys(firstBySession).length;
+      let registered = 0;
+      let paying = 0;
+      customers.forEach(c => {
+        const first = firstBySession[c.acquisition_session_id];
+        if (first && first <= c.created_at) {
+          registered++;
+          if (c.subscription_status === 'active') paying++;
+        }
+      });
+      return { clicks, registered, paying };
+    }
+
+    const weeebatCtaBySession = firstOccurrenceBySession('weeebat_cta_click');
+    const weeebatDemoBySession = firstOccurrenceBySession('weeebat_demo_click');
+
     res.json({
       summary,
       totalDemoClicks,
@@ -324,6 +355,10 @@ router.get('/funnel-attribution', (req, res) => {
         completed: totalDemoCtaClicks,
         registered: demoCtaClicksRegistered,
         paying: demoCtaClicksPaying
+      },
+      weeeBatterySectionFunnel: {
+        cta: clicksRegisteredPaying(weeebatCtaBySession),
+        demo: clicksRegisteredPaying(weeebatDemoBySession)
       }
     });
   } catch (error) {
