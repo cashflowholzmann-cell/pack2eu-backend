@@ -29,7 +29,12 @@ const trackLimiter = rateLimit({
 // der Demo (siehe dashboard.html, exitDemoToSignup()) - deutlich
 // stärkeres Kaufsignal als nur 'demo_start' (Demo geöffnet), analog zu
 // 'calculator_click' vs. der calculator_usage-Tabelle beim Rechner.
-const ALLOWED_EVENTS = ['demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click'];
+// 'weeebat_cta_click'/'weeebat_demo_click' = Klicks auf die beiden CTAs
+// in der WEEE/Batterie-Sektion der Landingpage (index.html) - eigene
+// Events statt Wiederverwendung von 'demo_start', damit sich dieser
+// Einstiegspunkt getrennt von Hero-Demo/Rechner auswerten lässt (siehe
+// GET /admin/funnel-attribution -> weeeBatterySectionFunnel).
+const ALLOWED_EVENTS = ['demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click', 'weeebat_cta_click', 'weeebat_demo_click'];
 
 // Obergrenze für event_value bei 'demo_duration' - 4 Stunden. Verhindert
 // offensichtlich manipulierte/kaputte Werte, ohne echte lange Demo-
