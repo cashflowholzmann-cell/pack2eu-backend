@@ -107,4 +107,81 @@ router.get('/', (req, res) => {
   }
 });
 
+// ⭐ ALLE LÄNDER MIT WEEE-/BATTERIE-DETAILS (country_stream_rules)
+//
+// Analog zu GET / oben, aber für die additiven Pflichtenströme statt der
+// countries-Tabelle - siehe country_stream_rules-Kommentar in
+// schema.sql. Gleiche Feldnamen wie oben, damit das Frontend dieselbe
+// Vorschau-/Aktivierungslogik (previewCountryActivation() etc.)
+// wiederverwenden kann.
+router.get('/stream/:stream', (req, res) => {
+  const stream = String(req.params.stream || '').toLowerCase();
+  if (!['weee', 'battery'].includes(stream)) {
+    return res.status(404).json({ error: 'Unbekannter Pflichtenstrom.' });
+  }
+
+  try {
+    const rows = db.prepare(`
+      SELECT
+        c.code,
+        c.name,
+        c.flag,
+        csr.register_body,
+        csr.requirements_json,
+        csr.labeling_json,
+        csr.steps_json,
+        csr.representative_required,
+        csr.notary_required,
+        csr.notary_cost,
+        csr.registration_url,
+        csr.representative_provider_name,
+        csr.representative_provider_url,
+        csr.representative_data_status,
+        csr.data_status,
+        csr.registration_generally_required,
+        csr.reporting_frequency
+      FROM countries c
+      LEFT JOIN country_stream_rules csr ON csr.country_code = c.code AND csr.stream = ?
+      ORDER BY c.name
+    `).all(stream);
+
+    const activatedCodes = new Set(
+      db.prepare(`
+        SELECT country_code
+        FROM activations
+        WHERE customer_id = ? AND stream = ?
+      `).all(req.auth.userId, stream).map(a => a.country_code)
+    );
+
+    const countries = rows.map((r) => {
+      const isActivated = activatedCodes.has(r.code);
+      return {
+        code: r.code,
+        name: r.name,
+        flag: r.flag || '🇪🇺',
+        register_body: r.register_body,
+        requirements: JSON.parse(r.requirements_json || '[]'),
+        labeling: JSON.parse(r.labeling_json || '[]'),
+        steps: JSON.parse(r.steps_json || '[]'),
+        representative_required: r.representative_required === 1,
+        notary_required: r.notary_required === 1,
+        notary_cost: r.notary_cost || '',
+        registration_url: isActivated ? (r.registration_url || '') : '',
+        representative_provider_name: isActivated ? (r.representative_provider_name || '') : '',
+        representative_provider_url: isActivated ? (r.representative_provider_url || '') : '',
+        representative_data_status: r.representative_data_status || 'needs_verification',
+        data_status: r.data_status || 'needs_verification',
+        registration_generally_required: r.registration_generally_required === null
+          ? true
+          : Number(r.registration_generally_required) !== 0,
+        reporting_frequency: r.reporting_frequency || 'needs_verification'
+      };
+    });
+    res.json(countries);
+  } catch (error) {
+    console.error(`❌ Fehler beim Laden der ${stream}-Länder:`, error);
+    res.status(500).json({ error: 'Fehler beim Laden der Länder' });
+  }
+});
+
 module.exports = router;
