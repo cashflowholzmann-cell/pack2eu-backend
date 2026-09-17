@@ -1587,20 +1587,37 @@ function getCountryStreamRule(countryCode, stream) {
   `).get(normalizeCode(countryCode), stream);
 }
 
+const STREAM_LEGAL_BASIS = {
+  weee: 'WEEE-Richtlinie (Richtlinie 2012/19/EU)',
+  battery: 'EU-Batterieverordnung (Verordnung (EU) 2023/1542)'
+};
+
 // country_stream_rules ins von decide() erwartete "rule"-Format
 // übersetzen (dieselben Feldnamen wie compliance_rules - siehe
-// compliance-engine.js).
-function streamRuleToDecisionRule(streamRule) {
+// compliance-engine.js). explanation/legal_basis werden aus den
+// recherchierten Feldern (register_body, requirements_json) gebaut -
+// die Recherche selbst bleibt aber grundsätzlich 'needs_verification'
+// (nie 'verified'), siehe Kommentar beim Seed in db/index.js: eine
+// per WebSearch recherchierte Web-Quelle ersetzt keine echte
+// Rechtsprüfung durch einen Menschen.
+function streamRuleToDecisionRule(streamRule, stream) {
   if (!streamRule) return null;
   const verified = streamRule.data_status === 'verified';
+  let requirements = [];
+  try { requirements = JSON.parse(streamRule.requirements_json || '[]'); } catch { /* noop */ }
+
+  const explanationParts = [];
+  if (streamRule.register_body) explanationParts.push(`Zuständige Stelle: ${streamRule.register_body}.`);
+  if (requirements[0]) explanationParts.push(requirements[0]);
+
   return {
     status: verified ? 'active' : 'needs_review',
     registration_required: streamRule.registration_generally_required,
     representative_required: streamRule.representative_required,
     notary_required: streamRule.notary_required,
-    legal_label: verified ? 'Recherchiert' : 'Prüfung erforderlich',
-    explanation: '',
-    legal_basis: '',
+    legal_label: verified ? 'Recherchiert' : 'Recherchiert, nicht final geprüft',
+    explanation: explanationParts.join(' '),
+    legal_basis: STREAM_LEGAL_BASIS[stream] || '',
     confidence: verified ? 'primary_source_verified' : 'needs_review',
     policy_version: '',
     source_url: streamRule.registration_url || '',
@@ -1622,7 +1639,7 @@ function getStreamDecision(customerId, countryCode, stream) {
   const decision = decide({
     originCountry: customer.origin_country,
     destinationCountry: country.code,
-    rule: streamRuleToDecisionRule(streamRule),
+    rule: streamRuleToDecisionRule(streamRule, stream),
     destinationMeta: country,
     stream
   });

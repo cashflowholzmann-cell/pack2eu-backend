@@ -1460,6 +1460,330 @@ function init() {
 
 
     // ========================================================
+    // 4c. WEEE-/BATTERIE-LÄNDERREGELN (recherchiert)
+    //
+    // Per WebSearch recherchiert am 2026-09-16 (offizielle nationale
+    // Register/Behörden, IHK-Länderprofile, EU-Rechtstexte) - KEINE
+    // erfundenen Werte. Wo die Recherche keine verlässliche Quelle für
+    // ein Detail (insb. Melde-Rhythmus) fand, steht dort bewusst
+    // 'needs_verification' statt eines geratenen Werts - siehe auch
+    // representative_data_status/data_status-Kommentar in schema.sql:
+    // auch mit Quellenangaben ersetzt eine KI-gestützte Web-Recherche
+    // keine echte Rechtsprüfung, deshalb bleibt data_status hier
+    // durchgehend 'needs_verification', nie 'verified'.
+    //
+    // Batterie-Sonderhinweis: Die EU-Kommission hat am 10.12.2025
+    // vorgeschlagen, die Bevollmächtigten-Pflicht aus Art. 56(3) der
+    // Batterieverordnung (EU) 2023/1542 bis 2035 auszusetzen
+    // (COM(2025) 982) - Stand der Recherche (09/2026) war der Vorschlag
+    // noch nicht verabschiedet, die Pflicht gilt bislang unverändert
+    // weiter. Bei allen EU-/EWR-Batterie-Zeilen unten vermerkt.
+    // ========================================================
+
+    const EU_WEEE_LABELING = JSON.stringify([
+      'Kennzeichnung mit dem Symbol der durchgestrichenen Mülltonne auf Rädern (Anhang IX Richtlinie 2012/19/EU)'
+    ]);
+    const EU_BATTERY_LABELING = JSON.stringify([
+      'Kennzeichnung mit dem Symbol der durchgestrichenen Mülltonne auf Rädern sowie ggf. chemischen Symbolen (Cd/Pb/Hg) gemäß Verordnung (EU) 2023/1542'
+    ]);
+    const BATTERY_SUSPENSION_NOTE =
+      'Hinweis: EU-Kommission hat am 10.12.2025 vorgeschlagen, die Bevollmächtigten-Pflicht aus Art. 56(3) der EU-Batterieverordnung bis 2035 auszusetzen (COM(2025) 982) - Stand 09/2026 noch nicht verabschiedet, Pflicht gilt bislang unverändert weiter.';
+
+    // [country_code, stream, register_body, requirements[], labelingJson, representative_required, registration_generally_required, reporting_frequency, registration_url]
+    const countryStreamRulesData = [
+      // ---------- EU-Mitgliedstaaten ----------
+      ['AT', 'weee', 'EDM-Portal (Elektronisches Datenmanagement) / EAK-Austria (Koordinierungsstelle)',
+        ['Registrierung im EDM-Portal (Aktivitätsprofil Hersteller)', 'Ausländische Fernabsatz-Anbieter benötigen einen in Österreich ansässigen Bevollmächtigten (EAG-VO, Art. 17 WEEE-Richtlinie)', 'Quartalsweise Meldung der in Verkehr gebrachten Menge, jährlicher Recycling-Bericht bis 10. April'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://edm.gv.at'],
+      ['AT', 'battery', 'EDM-Portal / EAK-Austria',
+        ['Registrierung im EDM-Portal (Stammdaten-Register)', 'Ausländische Fernabsatz-Anbieter benötigen einen in Österreich ansässigen Bevollmächtigten (AWG §12b)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://edm.gv.at'],
+
+      ['BE', 'weee', 'Recupel / BeWeee (OVAM, SPW, Leefmilieu Brussel)',
+        ['Anmeldung über Recupel oder direkt über BeWeee bei den Regionalbehörden', 'Ausländische Fernabsatz-Anbieter benötigen einen belgischen Bevollmächtigten - Recupel bietet dies Mitgliedern kostenlos an', 'Quartalsweise (wahlweise monatliche) Meldung der in Verkehr gebrachten Menge'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://www.recupel.be'],
+      ['BE', 'battery', 'Bebat',
+        ['Mitgliedschaft bei Bebat oder genehmigtes Individualsystem', 'Ausländische Hersteller benötigen einen belgischen Bevollmächtigten', 'Meldung über MyBebat: monatlich bei >10.000 Batterien/Jahr, sonst jährlich', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://www.bebat.be'],
+
+      ['BG', 'weee', 'Изпълнителна агенция по околна среда (ИАОС) / Ministerium für Umwelt und Wasser',
+        ['Registrierung bei der Exekutivagentur Umwelt (ИАОС) erforderlich', 'Bevollmächtigten-Pflicht für ausländische Fernabsatz-Anbieter wahrscheinlich (EU-Richtlinie), aber nicht anhand des bulgarischen Gesetzestexts einzeln bestätigt', 'Melde-Rhythmus nicht verlässlich recherchierbar'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://eea.government.bg/registri-spravki'],
+      ['BG', 'battery', 'Регистър на лицата, които пускат на пазара батерии и акумулатори (НИСО / ИАОС)',
+        ['Registrierung im NISO-Batterieregister (qualifizierte elektronische Signatur erforderlich)', 'Bevollmächtigten-Pflicht wahrscheinlich (EU-Verordnung), bulgarische Gesetzesstelle nicht einzeln bestätigt', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://nwms.eea.government.bg/app/registers/batteries'],
+
+      ['CY', 'weee', 'Department of Environment (MARDE) / Electrocyclosis Cyprus',
+        ['Registrierung beim Department of Environment', 'Beitritt zu einem lizenzierten Kollektivsystem (Electrocyclosis Cyprus) oder Einzelgenehmigung', 'Ausländische Fernabsatz-Anbieter benötigen einen in Zypern ansässigen Bevollmächtigten', 'Quartalsweise Mengenmeldung'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://moa.gov.cy/sectors/environment/environment-department-of-environment/'],
+      ['CY', 'battery', 'AFIS Cyprus Ltd (Kollektivsystem, mit Green Dot Cyprus)',
+        ['Mitgliedschaft bei AFIS Cyprus ist für praktisch alle Marktteilnehmer verpflichtend', 'Ausländische Hersteller benötigen einen in Zypern ansässigen Bevollmächtigten vor Registrierung', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://afiscyprus.com.cy'],
+
+      ['CZ', 'weee', 'Seznam výrobců elektrozařízení (Ministerium für Umwelt / VISOH2)',
+        ['Registrierung im Herstellerregister VISOH2, meist über ein Kollektivsystem (z. B. Elektrowin, Ekolamp)', 'Ausländische Hersteller benötigen einen tschechischen Bevollmächtigten mit schriftlichem Vertrag (§11 Gesetz Nr. 542/2020 Sb.)'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://visoh2.mzp.cz/Elektrozarizeni/VyrobciPublic/OsobyIndex'],
+      ['CZ', 'battery', 'Seznam výrobců baterií a akumulátorů (Ministerium für Umwelt / VISOH2)',
+        ['Registrierung innerhalb von 60 Tagen nach erstem Inverkehrbringen', 'Ausländische Hersteller benötigen einen tschechischen Bevollmächtigten', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://visoh2.mzp.cz/Baterie/PovinneOsoby'],
+
+      ['DE', 'weee', 'Stiftung EAR (Elektro-Altgeräte Register)',
+        ['Registrierung bei Stiftung EAR (Markenanmeldung)', 'Hersteller ohne Sitz in Deutschland benötigen einen deutschen Bevollmächtigten (§8 ElektroG)', 'Laufende monatliche/quartalsweise Mengenmeldungen je nach Gerätekategorie, jährliche Abschlussmeldung bis 15. Mai'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://www.stiftung-ear.de'],
+      ['DE', 'battery', 'Stiftung EAR (Batterieregister, BattDG)',
+        ['Bevollmächtigten-Pflicht für nicht in Deutschland ansässige Hersteller (BattDG)', 'Seit 01.01.2026: Zuordnung zu einer Herstellerverantwortungsorganisation (PRO) mit Nachweis bis 15.01.2026', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://www.stiftung-ear.de/en/guides/applying-for-battery-registration/'],
+
+      ['DK', 'weee', 'Dansk Producentansvar (DPA-System)',
+        ['Registrierung im DPA-System, direkt oder über einen dänischen Bevollmächtigten (bemyndiget repræsentant) mit CVR-Nummer', 'Jährliche Mengenmeldung bis 31. März'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://www.dpa-system.dk'],
+      ['DK', 'battery', 'Dansk Producentansvar (DPA-System)',
+        ['Registrierung im DPA-System, ausländische Hersteller ohne dänische Präsenz benötigen einen bemyndiget repræsentant', 'Jährliche Mengenmeldung bis 31. März, Sammelquoten-Bericht bis 30. Juni', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'annually', 'https://www.dpa-system.dk'],
+
+      ['EE', 'weee', 'Probleemtooteregister (PROTO), Kliimaministeerium',
+        ['Registrierung in PROTO - Hersteller ohne Sitz in Estland benötigen einen estnischen Bevollmächtigten (Jäätmeseadus/Abfallgesetz), gilt ausdrücklich für Fernabsatz', 'Vertrag mit einer Herstellerverantwortungsorganisation für Sammlung/Verwertung'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://proto.envir.ee/proto/main/welcome'],
+      ['EE', 'battery', 'Probleemtooteregister (PROTO)',
+        ['Gleiches Register wie WEEE - Bevollmächtigten-Pflicht für nicht in Estland ansässige Hersteller', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://proto.envir.ee/proto/main/welcome'],
+
+      ['ES', 'weee', 'RII-AEE (Registro Integrado Industrial, Ministerio de Industria y Turismo)',
+        ['Registrierung im RII-AEE vor Inverkehrbringen', 'Nicht in Spanien niedergelassene Hersteller/Fernabsatzhändler benötigen einen spanischen Bevollmächtigten (RD 110/2015)', 'Quartalsweise Meldung (Jan/Apr/Jul/Okt)'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://industria.gob.es/registros-industriales/RAEE/Paginas/Index.aspx'],
+      ['ES', 'battery', 'RII-PYA (Registro Integrado Industrial de Pilas y Acumuladores)',
+        ['Registrierung im RII-PYA vor Inverkehrbringen', 'Nicht in Spanien niedergelassene Hersteller benötigen einen spanischen Bevollmächtigten', 'Quartalsweise Mengenmeldung', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'quarterly', 'https://industria.gob.es/registros-industriales/pilas/Paginas/Inicio.aspx'],
+
+      ['FI', 'weee', 'Tuottajarekisteri (seit 01.01.2026: Lupa- ja valvontavirasto LVV, zuvor Pirkanmaan ELY-keskus)',
+        ['Registrierung im Tuottajarekisteri', 'Ausländische Fernabsatz-Anbieter benötigen einen in Finnland ansässigen Bevollmächtigten (valtuutettu edustaja)', 'Jährlicher Monitoring-Bericht bis 30. Juni'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://lvv.fi'],
+      ['FI', 'battery', 'Tuottajarekisteri (LVV)',
+        ['Gleiches Register wie WEEE - Bevollmächtigten-Pflicht seit 18.08.2025 für ausländische Fernabsatz-Anbieter', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://lvv.fi'],
+
+      ['FR', 'weee', 'ADEME / SYDEREP (Ökoorganismen Ecosystem, Ecologic)',
+        ['Beitritt zu einem zugelassenen Ökoorganismus (Ecosystem oder Ecologic)', 'Identifikationsnummer (IDU) über SYDEREP', 'Seit 10.07.2026 (Gesetz Nr. 2026-602): jeder nicht in Frankreich niedergelassene Hersteller (EU wie Nicht-EU) muss einen französischen Mandataire benennen', 'Jährliche Meldung bis 31. Mai'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://www.syderep.ademe.fr'],
+      ['FR', 'battery', 'ADEME / SYDEREP (Ökoorganismen Corepile, Screlec)',
+        ['Beitritt zu einem zugelassenen Ökoorganismus (Corepile/Screlec) oder genehmigtes Individualsystem', 'Seit 10.07.2026 verpflichtender französischer Mandataire für nicht in Frankreich niedergelassene Hersteller', 'Jährliche Meldung', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'annually', 'https://www.syderep.ademe.fr'],
+
+      ['GR', 'weee', 'Εθνικό Μητρώο Παραγωγών (ΕΜΠΑ) / EOAN (Hellenic Recycling Agency)',
+        ['Registrierung im ΕΜΠΑ zur Erlangung einer Produzenten-Registernummer', 'Definition "Produzent" schließt ausdrücklich Fernabsatzhändler aus anderen EU-Staaten/Drittstaaten ein - genauer Bevollmächtigten-Mechanismus national nicht einzeln bestätigt', 'Melde-Rhythmus nicht verlässlich recherchierbar'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://empa.eoan.gr'],
+      ['GR', 'battery', 'ΕΜΠΑ / EOAN (gleiches Register wie WEEE, z. B. Re-Battery A.E. als Kollektivsystem)',
+        ['Registrierung im ΕΜΠΑ verpflichtend', 'Bevollmächtigten-Mechanismus für Batterien aus EU-Recht abgeleitet, griechische Spezifika nicht einzeln bestätigt (niedrige Konfidenz)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://empa.eoan.gr'],
+
+      ['HR', 'weee', 'RPPO - Registar proizvođača s proširenom odgovornosti (FZOEU)',
+        ['Direkte Online-Registrierung im RPPO (Hersteller oder Bevollmächtigter)', 'Fernabsatz-Anbieter ohne Sitz in Kroatien benötigen einen kroatischen Bevollmächtigten (schriftliche Vollmacht)', 'Meldung und Selbstberechnung der Abfallgebühr an FZOEU'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://rppo.fzoeu.hr/'],
+      ['HR', 'battery', 'RPPO (FZOEU) - Batterie-/Akkumulator-Hersteller',
+        ['Registrierung im RPPO', 'Monatliche Meldung per Formular OBA1 (fällig zum Monatsende für den Vormonat)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'monthly', 'https://rppo.fzoeu.hr/'],
+
+      ['HU', 'weee', 'OKIR (nationales Umweltinformationssystem) / MOHU (staatlicher EPR-Konzessionsinhaber)',
+        ['Registrierung als EPR-Produzent im MOHU-Partnerportal und Antrag über das OKIR-Gate', 'Ausländische Online-Verkäufer benötigen faktisch einen ungarischen Bevollmächtigten (ungarische Steuernummer/Regierungsportal-Zugang erforderlich)', 'Quartalsweise Meldung bis zum 20. Tag nach Quartalsende'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://kapu.okir.hu'],
+      ['HU', 'battery', 'OKIR / MOHU (gleiches System wie WEEE, seit 01.07.2023 reformiert)',
+        ['Registrierung als EPR-Produzent bei MOHU und über das OKIR-Gate', 'Quartalsweise Meldung bis zum 20. Tag nach Quartalsende', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'quarterly', 'https://kapu.okir.hu'],
+
+      ['IE', 'weee', 'Producer Register Limited (PRL) / EPA',
+        ['Jährliche Registrierung bei PRL', 'Nicht in Irland niedergelassene Fernabsatzhändler benötigen einen irischen Bevollmächtigten, der sämtliche WEEE-Pflichten übernimmt (S.I. No. 149/2014)', 'Monatliche Mengenmeldung über das PRL-Blackbox-Portal (fällig zum 19. des Monats)'],
+        EU_WEEE_LABELING, 1, 1, 'monthly', 'https://www.producerregister.ie'],
+      ['IE', 'battery', 'Producer Register Limited (PRL) / EPA',
+        ['Registrierung bei PRL als Batterie-Produzent', 'Bevollmächtigten-Pflicht für nicht in Irland niedergelassene Hersteller', 'Monatliche Meldung von Gewicht/Chemie über PRL Blackbox', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'monthly', 'https://www.producerregister.ie'],
+
+      ['IT', 'weee', 'Registro Nazionale dei Produttori di AEE (Handelskammern/Unioncamere)',
+        ['Elektronische Registrierung über die zuständige Handelskammer vor Inverkehrbringen', 'Fernabsatzhändler ohne Sitz in Italien benötigen einen italienischen Bevollmächtigten (Rappresentante Autorizzato, D.Lgs. 49/2014)', 'Jährliche Meldung im Rahmen der MUD-Erklärung (ca. 30. April)'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://www.registroaee.it/'],
+      ['IT', 'battery', 'RENAP - Registro Nazionale dei Produttori (Pile e Accumulatori)',
+        ['Elektronische Registrierung über die Handelskammer', 'Ausländische Hersteller registrieren über einen italienischen Bevollmächtigten', 'Jährliche Meldung bis 31. März (Stückzahl/Gewicht)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'annually', 'https://www.renap.gov.it/it/registro-pile-e-accumulatori'],
+
+      ['LT', 'weee', 'GPAIS - Gaminių, pakuočių ir atliekų informacinė sistema (Umweltschutzagentur AAA)',
+        ['Registrierung in GPAIS (ein Konto deckt auch Verpackung, Batterien u. a. Ströme ab)', 'Ausländische Hersteller ohne litauische Niederlassung benötigen einen litauischen Bevollmächtigten mit Vollmacht (Art. 34¹(3) Abfallgesetz)', 'Jährliche Meldung binnen 50 Tagen nach Jahresende'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://www.gpais.eu'],
+      ['LT', 'battery', 'GPAIS (gleiches System wie WEEE)',
+        ['Registrierung als Batterie-Produzent in GPAIS über einen litauischen Bevollmächtigten (falls nicht ansässig)', 'Melde-Rhythmus analog WEEE angenommen, für Batterien nicht einzeln bestätigt', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://www.gpais.eu'],
+
+      ['LU', 'weee', 'Administration de l’environnement (AEV) / Ecotrel ASBL',
+        ['Registrierung bei der Administration de l’Environnement, direkt oder über einen luxemburgischen Bevollmächtigten', 'Beitritt zu Ecotrel ASBL (derzeit einziges zugelassenes Kollektivsystem) oder Einzelgenehmigung', 'Jährliche Meldung bis 30. April'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://environnement.public.lu/fr/emweltprozeduren/Autorisations/Gestion_des_dechets_et_ressources/Dechets_d_equipements_electriques_et_electroniques.html'],
+      ['LU', 'battery', 'Administration de l’environnement (AEV) / Ecobatterien ASBL',
+        ['Registrierung bei der Administration de l’Environnement, direkt oder über einen luxemburgischen Bevollmächtigten', 'Beitritt zu Ecobatterien ASBL oder Einzelgenehmigung über das e-RA-Tool', 'Jährliche Meldung bis 30. Juni (Einzelgenehmigung)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'annually', 'https://www.ecobatterien.lu'],
+
+      ['LV', 'weee', 'Elektroregistrs (LETERA, im Auftrag des Klima- und Energieministeriums)',
+        ['Registrierung im Elektroregistrs, direkt oder über einen lettischen Bevollmächtigten mit schriftlicher Vollmacht und WEEE-Sammelvertrag', 'Halbjährliche Meldung (fällig 30. April und 30. Oktober)'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://elektroregistrs.lv/registration/en'],
+      ['LV', 'battery', 'BARR - Bateriju un Akumulatoru Reģistrs (LETERA-Infrastruktur)',
+        ['Registrierung im Batterieregister BARR, direkt oder über einen lettischen Bevollmächtigten mit schriftlicher Vollmacht', 'Halbjährliche Meldung analog WEEE angenommen', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', null],
+
+      ['MT', 'weee', 'Environment and Resources Authority (ERA)',
+        ['Registrierung bei ERA (Formular A) vor Inverkehrbringen', 'Fernabsatzhändler ohne Sitz in Malta benötigen einen maltesischen Bevollmächtigten, der gegenüber ERA haftet (S.L. 549.89, §17(2))', 'Quartalsweise Meldung binnen 40 Werktagen nach Quartalsende, jährliche Erneuerung (Formular B)'],
+        EU_WEEE_LABELING, 1, 1, 'quarterly', 'https://era.org.mt/topic/waste-electrical-and-electronic-equipment/'],
+      ['MT', 'battery', 'ERA - Nationales Register der Batterie-/Akkumulator-Hersteller',
+        ['Registrierung bei ERA vor erstem Inverkehrbringen', 'Ausländische Hersteller benötigen einen maltesischen Bevollmächtigten mit schriftlicher Vollmacht (S.L. 549.178, seit 14.10.2025)', 'Melde-Rhythmus noch nicht verlässlich recherchierbar (sehr neue Regelung)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://era.org.mt/topic/batteries-and-accumulators-and-waste-batteries-and-accumulators/'],
+
+      ['NL', 'weee', 'Nationaal (W)EEE Register (NWR) / Stichting OPEN',
+        ['Beitritt zu Stichting OPEN (übernimmt auch die NWR-Registrierung)', 'Hersteller außerhalb der EU benötigen einen niederländischen Bevollmächtigten; für EU-Hersteller evtl. Ausnahme direkter Registrierung (nicht offiziell bestätigt)', 'Meldung quartalsweise (größere Teilnehmer) oder jährlich (kleinere), über das myOPEN-2.0-Portal'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://www.stichting-open.org/en/'],
+      ['NL', 'battery', 'Stichting OPEN (vormals Stibat, seit 01.01.2024 integriert)',
+        ['Registrierung als Batterie-Produzent bei Stichting OPEN', 'Hersteller außerhalb der Niederlande benötigen einen niederländischen Bevollmächtigten', 'Melde-Rhythmus je nach Größe monatlich/quartalsweise/jährlich', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://www.stichting-open.org/en/forms/register-producer-batteries/'],
+
+      ['PL', 'weee', 'BDO - Baza danych o produktach i opakowaniach oraz o gospodarce odpadami',
+        ['Eintragung in BDO vor Aufnahme der Tätigkeit', 'Fernabsatz-Hersteller ohne Sitz in Polen benötigen einen im BDO-Register eingetragenen autoryzowany przedstawiciel (Bevollmächtigten)', 'Jährliche Meldung (Abschnitt V: Elektro-/Elektronikgeräte)'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://bdo.mos.gov.pl'],
+      ['PL', 'battery', 'BDO (gleiche Plattform wie WEEE)',
+        ['Eintragung als "wprowadzający" (Inverkehrbringer) von Batterien in BDO', 'Bevollmächtigten-Mechanismus im BDO-Register seit ca. 12.08.2026 vorgesehen; eigenständiges neues polnisches Batteriegesetz war zum RechercheZeitpunkt noch Gesetzentwurf', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://bdo.mos.gov.pl'],
+
+      ['PT', 'weee', 'Agência Portuguesa do Ambiente (APA) / SILiAmb',
+        ['Registrierung über die SILiAmb-Plattform', 'Unternehmen ohne portugiesische Niederlassung benötigen einen representante autorizado (schriftliches Mandat, mind. 15 Tage vor Wirksamkeit bei APA eingereicht)', 'Jährliche Meldung bis 31. März (Vorjahres-Ist-Werte + laufende Schätzung)'],
+        EU_WEEE_LABELING, 1, 1, 'annually', 'https://apambiente.pt/residuos/registo-de-produtoresembaladores'],
+      ['PT', 'battery', 'APA / SILiAmb (gleiches System wie WEEE)',
+        ['Registrierung über SILiAmb, representante autorizado für nicht in Portugal niedergelassene Hersteller erforderlich', 'Jährliche Meldung bis 31. März', 'Ab 18.02.2027: Registrierungspflicht im EU-Batteriepass für LMT-, Industrie- (>2kWh) und EV-Batterien', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'annually', 'https://apambiente.pt/en/node/370'],
+
+      ['RO', 'weee', 'Administrația Fondului pentru Mediu (AFM)',
+        ['Registrierung im nationalen Herstellerregister (online.afm.ro), direkt (qualifizierte elektronische Signatur) oder über einen Bevollmächtigten', 'Beitritt zu einem lizenzierten Kollektivsystem (z. B. Ecotic) oder Einzelsystem', 'Monatliche Meldung an AFM bis zum 25. des Monats (mittlere Konfidenz)'],
+        EU_WEEE_LABELING, 1, 1, 'monthly', 'https://online.afm.ro'],
+      ['RO', 'battery', 'AFM (gleiches System wie WEEE)',
+        ['Registrierung als Batterie-Hersteller/Importeur im nationalen B&A-Register bei AFM', 'Beitritt zu einem lizenzierten Kollektivsystem (z. B. Ecotic BAT) oder Einzelsystem', 'Monatliche Meldung für portable Batterien angenommen (mittlere Konfidenz)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'monthly', 'https://online.afm.ro'],
+
+      ['SE', 'weee', 'Naturvårdsverket (Producentansvarsregistret) / El-Kretsen',
+        ['Registrierung im Producentansvarsregister bei Naturvårdsverket - verpflichtend auch für Mitglieder des Kollektivsystems El-Kretsen', 'Nicht in Schweden niedergelassene Fernabsatzhändler benötigen einen schwedischen Bevollmächtigten (auktoriserad representant)', 'Genauer Melde-Rhythmus nicht verlässlich recherchierbar'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://www.naturvardsverket.se/vagledning-och-stod/producentansvar/producentansvar-for-elutrustning/'],
+      ['SE', 'battery', 'Naturvårdsverket (gleiches Register wie WEEE)',
+        ['Registrierung im Producentansvarsregister, Bevollmächtigten-Pflicht laut offizieller Naturvårdsverket-Anleitung ausdrücklich für Fernabsatzhändler ohne schwedische Niederlassung', 'Melde-Rhythmus nicht verlässlich recherchierbar', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://www.naturvardsverket.se/en/guidance/extended-producer-responsibility-epr/producer-responsibility-for-batteries/'],
+
+      ['SI', 'weee', 'MOPE (Ministrstvo za okolje, podnebje in energijo) über SPOT-Portal',
+        ['Antrag auf Eintragung in die Herstellerdatenbank über das staatliche SPOT-Portal, Registrierung von Hersteller ODER Bevollmächtigtem erforderlich vor jedem Verkauf', 'Melde-Rhythmus nicht verlässlich recherchierbar'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://spot.gov.si/sl/dejavnosti-in-poklici/dovoljenja/vpis-v-evidenco-proizvajalcev-in-pooblascenih-zastopnikov-elektricne-in-elektronske-opreme'],
+      ['SI', 'battery', 'MOPE über SPOT-Portal (Batterie-Herstellerregister)',
+        ['Antrag auf Eintragung über SPOT vor erstem Inverkehrbringen, Beteiligung an einem kollektiven Batteriemanagementplan', 'Bevollmächtigten-Mechanismus für Batterien speziell nicht einzeln bestätigt (mittlere Konfidenz)', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://spot.gov.si/sl/dejavnosti-in-poklici/dovoljenja/vpis-v-evidenco-proizvajalcev-baterij-in-akumulatorjev/'],
+
+      ['SK', 'weee', 'Register výrobcov vyhradených výrobkov (MŽP SR / ISOH.gov.sk)',
+        ['Elektronischer Antrag über das ISOH-Portal auf Eintragung', 'Nicht ansässige Hersteller müssen einen in der Slowakei ansässigen Bevollmächtigten benennen (offiziell bestätigt)', 'Melde-Rhythmus nicht verlässlich recherchierbar'],
+        EU_WEEE_LABELING, 1, 1, 'needs_verification', 'https://www.isoh.gov.sk/uvod/zivotna-situacia-registracia.html'],
+      ['SK', 'battery', 'Zoznam výrobcov batérií a akumulátorov (MŽP SR / ISOH.gov.sk)',
+        ['Registrierungsantrag bei MŽP SR vor erstem Inverkehrbringen', 'Bevollmächtigten-Pflicht für Hersteller mit Sitz außerhalb der Slowakei offiziell bestätigt', 'Änderungen müssen binnen 30 Tagen gemeldet werden', BATTERY_SUSPENSION_NOTE],
+        EU_BATTERY_LABELING, 1, 1, 'needs_verification', 'https://www.isoh.gov.sk/uvod/registre/zoznam-vyrobcov-baterii-a-akumulatorov.html'],
+
+      // ---------- EWR / UK / Schweiz ----------
+      ['NO', 'weee', 'Miljødirektoratet (Produsentregister) + zugelassene Rücknahmegesellschaft (z. B. NORSIRK, Renas)',
+        ['Registrierung im Produsentregister bei Miljødirektoratet - nur Unternehmen mit norwegischer Organisationsnummer können direkt registrieren, ausländische Hersteller benötigen einen norwegischen Bevollmächtigten mit schriftlicher Vollmacht (Avfallsforskriften Kap. 1)', 'Beitritt zu einer zugelassenen Rücknahmegesellschaft', 'Meldung an Rücknahmegesellschaft vermutlich halbjährlich, an Miljødirektoratet jährlich (nicht abschließend bestätigt)'],
+        JSON.stringify([]), 1, 1, 'needs_verification', 'https://produsentansvar.miljodirektoratet.no/'],
+      ['NO', 'battery', 'Miljødirektoratet + zugelassene Batterie-Rücknahmegesellschaft (z. B. Batteriretur)',
+        ['Registrierung analog WEEE - norwegischer Bevollmächtigter mit schriftlicher Vollmacht für ausländische Hersteller (Avfallsforskriften Kap. 3)', 'Meldepflicht der Compliance-Lösung binnen 3 Monaten nach Verkaufsbeginn, danach jährliche Mengendokumentation'],
+        JSON.stringify([]), 1, 1, 'annually', 'https://produsentansvar.miljodirektoratet.no/'],
+
+      ['IS', 'weee', 'Umhverfis- og orkustofnun (UST) + Úrvinnslusjóður (Recyclingfonds)',
+        ['Registrierung als gebührenpflichtiger Importeur/Hersteller bei der Steuerbehörde (Skatturinn) binnen 15 Tagen vor Tätigkeitsbeginn (Recyclinggebühr úrvinnslugjald)', 'Zusätzliche Registrierung bei Umhverfis- og orkustofnun für die WEEE-Herstellerverantwortung', 'Bevollmächtigten-Mechanismus für nicht ansässige Fernabsatzhändler nicht eindeutig bestätigt - als EWR-Staat wird die EU-Richtlinie grundsätzlich umgesetzt, genaue isländische Ausgestaltung unklar'],
+        JSON.stringify([]), 1, 1, 'needs_verification', 'https://www.urvinnslusjodur.is/english'],
+      ['IS', 'battery', 'Úrvinnslusjóður (Reglugerð 1020/2011)',
+        ['Registrierung als Hersteller/Importeur von Batterien bei Úrvinnslusjóður (Name + Kennitala) Pflicht laut Verordnung 1020/2011', 'Finanzierung der Entsorgung über Zahlungen an den Recyclingfonds', 'Bevollmächtigten-Mechanismus für nicht ansässige Fernabsatzhändler nicht eindeutig bestätigt'],
+        JSON.stringify([]), 1, 1, 'needs_verification', 'https://www.urvinnslusjodur.is/framleidendaabyrgd/voruflokkar/rafhlodur'],
+
+      ['LI', 'weee', 'Kein eigenes Register - Liechtenstein folgt über die Zollunion mit der Schweiz (Vertrag von 1923) direkt dem Schweizer VREG-System',
+        ['Gleiche Pflichten wie in der Schweiz: Beitritt zu SENS eRecycling (Haushaltsgeräte) oder Swico Recycling (IT/Elektronik) - beide Systeme decken Liechtenstein ausdrücklich mit ab', 'Lokale Rücknahmestelle in Liechtenstein vorhanden (z. B. ELREC AG)', 'Kein eigenständiger liechtensteinischer Bevollmächtigten-Mechanismus gefunden'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://www.swico.ch/en/recycling/'],
+      ['LI', 'battery', 'INOBAT (gemeinsames System für Schweiz und Liechtenstein, Zollunion)',
+        ['Registrierung bei INOBAT - Geltungsbereich ausdrücklich "Schweiz und Fürstentum Liechtenstein"', 'Kein eigenständiges liechtensteinisches Batterieregister', 'Kein eigenständiger Bevollmächtigten-Mechanismus gefunden'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://www.inobat.ch/'],
+
+      ['GB', 'weee', 'Environment Agency (National Producer Registration/NPWD) bzw. regionale Äquivalente (SEPA, NRW, NIEA) + Producer Compliance Scheme (PCS)',
+        ['Kein klassischer "Bevollmächtigter" wie in der EU - ein Fernabsatzhändler ohne UK-Sitz, der direkt an britische Endkunden verkauft, gilt selbst als "Producer" und muss registrieren; seit 12.08.2025 gelten auch Online-Marktplätze selbst als Producer für Drittanbieter-Verkäufe', 'Einstufung als "small producer" (<5t/Jahr, Direktregistrierung) oder "large producer" (≥5t/Jahr, Beitritt zu einem PCS) vor Inverkehrbringen', 'Quartalsweise Mengenmeldung (große Hersteller), jährlich (kleine)'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://npwd.environment-agency.gov.uk/public/WEEEHome.aspx'],
+      ['GB', 'battery', 'Environment Agency (NPWD Batteries) + Battery Compliance Scheme (BCS)',
+        ['Gleiche Logik wie WEEE: Fernabsatzhändler, die direkt an britische Endkunden verkaufen, gelten selbst als "Producer" statt einen separaten Bevollmächtigten zu benennen (Batteries and Accumulators Regulations 2008 i.d.F.)', 'Bei >1 Tonne/Jahr: Beitritt zu einem Battery Compliance Scheme mit quartalsweiser Meldung; bei ≤1 Tonne: Direktregistrierung bei der Environment Agency (jährliche Gebühr £30)'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://npwd.environment-agency.gov.uk/public/BatteriesHome.aspx'],
+
+      ['CH', 'weee', 'SENS eRecycling (Haushaltsgeräte) / Swico Recycling (IT/Unterhaltungselektronik), unter Aufsicht des BAFU',
+        ['Beitritt zum passenden Rücknahmesystem je nach Produktkategorie (SENS oder Swico)', 'Seit der VREG-Revision 2022 gelten auch ausländische Fernabsatzhändler, die direkt an Schweizer Endkunden verkaufen, selbst als "Hersteller" - kein eigenständiger Bevollmächtigten-Mechanismus im EU-Sinn bestätigt', 'Vorgezogene Recyclinggebühr (vRG) im Verkaufspreis eingerechnet'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://www.swico.ch/en/recycling/'],
+      ['CH', 'battery', 'INOBAT (Verein INOBAT, betrieben mit Batrec Industrie AG), unter Aufsicht des BAFU',
+        ['Registrierung bei INOBAT als Hersteller/Importeur vor Inverkehrbringen', 'Vorgezogene Entsorgungsgebühr (VEG) im Verkaufspreis eingerechnet', 'Kein eigenständiger Bevollmächtigten-Mechanismus im EU-Sinn bestätigt - Erfassung erfolgt über direkte INOBAT-Registrierung'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://www.inobat.ch/'],
+
+      // ---------- Nicht-EU/EWR ----------
+      ['AU', 'weee', 'National Television and Computer Recycling Scheme (NTCRS) - DCCEEW; nur TV/Computer/Drucker/Peripheriegeräte über Mengenschwelle',
+        ['Nur für Importeure/Hersteller von TV, Computern, Druckern und Peripheriegeräten über einem Mengenschwellenwert verpflichtend - kein allgemeines Register für alle Elektrogeräte', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus', 'Geplante Ausweitung auf "kleine Elektro-/Elektronikgeräte" (SEEE) war zum Recherchezeitpunkt noch nicht Gesetz', 'Jährliche Recycling-Zielvorgaben'],
+        JSON.stringify([]), 0, 0, 'annually', 'https://www.dcceew.gov.au/environment/protection/waste/e-waste'],
+      ['AU', 'battery', 'National: freiwillig über Battery Stewardship Council / B-cycle; ab 01.10.2026 in New South Wales verpflichtend (Product Lifecycle Responsibility Act 2026)',
+        ['Landesweit bislang nur freiwillige Teilnahme an B-cycle üblich', 'Bundesstaat New South Wales führt ab 01.10.2026 als erster australischer Bundesstaat eine verpflichtende Regelung ein (Registrierung bei einer akkreditierten Product Stewardship Organisation, quartalsweise UND jährliche Meldung)', 'Andere Bundesstaaten folgen bislang nicht - fragmentiertes Bild ähnlich wie bei Verpackung/USA/Kanada'],
+        JSON.stringify([]), 0, 0, 'needs_verification', 'https://bcycle.com.au/'],
+
+      ['CA', 'weee', 'Keine Bundesregelung - provinzweise EPR-Programme, meist über EPRA (Electronic Products Recycling Association) abgewickelt',
+        ['Pflichten bestehen provinzweise, nicht national - Registrierung als "Steward" bei EPRA oder der jeweiligen Provinzbehörde (z. B. Ontario: RPRA) erforderlich', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus', 'Nunavut hat bislang kein Programm'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://epra.ca/'],
+      ['CA', 'battery', 'Keine Bundesregelung - provinzweise EPR, meist über Call2Recycle Canada abgewickelt',
+        ['Registrierung als Mitglied/"Steward" bei Call2Recycle (getrennte Programme für Haushalts- und E-Mobility-/EV-Batterien) je nach belieferter Provinz', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://call2recycle.ca/'],
+
+      ['CN', 'weee', 'Ministerium für Ökologie und Umwelt (MEE) / Finanzministerium (MOF) - Fonds für die Behandlung von Elektroaltgeräten, nur 5 regulierte Gerätekategorien (u. a. Fernseher, Kühlschränke, Waschmaschinen, Klimaanlagen, Computer)',
+        ['Nur für 5 gesetzlich definierte Gerätekategorien verpflichtend, kein allgemeines Register für alle Elektrogeräte', 'Einzahlung in den staatlichen WEEE-Fonds durch Hersteller bzw. Importeur/dessen Agenten', 'Kein bestätigtes öffentliches Registrierungsportal gefunden - needs_verification'],
+        JSON.stringify([]), 1, 1, 'needs_verification', null],
+      ['CN', 'battery', 'Ministerium für Industrie und Informationstechnologie (MIIT) - Rückverfolgungsplattform nur für NEV-Antriebsbatterien (2026); für sonstige Batterien kein einheitliches Register bestätigt',
+        ['Für Elektrofahrzeug-Antriebsbatterien seit 2026 verpflichtende Rückverfolgungs-/Registrierungspflicht bei MIIT', 'Für Konsumgüter-Batterien (z. B. Haushaltsbatterien) kein einheitliches nationales Pflichtregister gefunden - vermutlich über allgemeines Abfallrecht geregelt'],
+        JSON.stringify([]), 0, 1, 'needs_verification', null],
+
+      ['IN', 'weee', 'Central Pollution Control Board (CPCB) - E-Waste (Management) Rules 2022',
+        ['Registrierung als Manufacturer/Producer/Importer/Brand Owner auf dem CPCB-EPR-Portal vor Verkauf/Import', 'Ausländische Hersteller benötigen einen Authorized Indian Representative (AIR)', 'Jährliche Sammel-Zielvorgaben je nach EPR-Zulassung'],
+        JSON.stringify([]), 1, 1, 'annually', 'https://eprewastecpcb.in'],
+      ['IN', 'battery', 'Central Pollution Control Board (CPCB) - Battery Waste Management Rules 2022',
+        ['Registrierung auf dem zentralen CPCB-Batterie-EPR-Portal', 'Ausländische Hersteller benötigen analog zu WEEE einen Authorized Indian Representative (AIR) - für Batterien nicht separat bestätigt, aber strukturell gleiches System', 'Zulassung ist 5 Jahre gültig'],
+        JSON.stringify([]), 1, 1, 'needs_verification', 'https://eprbattery.cpcb.gov.in/'],
+
+      ['JP', 'weee', 'Home Appliance Recycling Law / Kaden Recycling-Gesetz (家電リサイクル法) - METI/Umweltministerium, NUR 4 Gerätekategorien (Klimaanlagen, Fernseher, Kühl-/Gefriergeräte, Waschmaschinen/Trockner)',
+        ['Nur für 4 gesetzlich definierte Gerätekategorien verpflichtend - kein allgemeines Register für alle Elektrogeräte, andere Kategorien fallen unter ein separates, leichteres Kleingeräte-Recyclinggesetz mit kommunalen Sammelboxen', 'Hersteller/Importeure müssen ein landesweites Rücknahmesystem für die eigenen Marken aufbauen (Recycling-Ticket-System statt klassischem Register)', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus im EU-Sinn'],
+        JSON.stringify([]), 0, 1, 'needs_verification', null],
+      ['JP', 'battery', 'JBRC (Japan Portable Rechargeable Battery Recycling Center) - nur wiederaufladbare Batterien (Ni-Cd, Ni-MH, Li-Ion, kleine Blei-Akkus)',
+        ['Nur für wiederaufladbare Batterien verpflichtend, Einwegbatterien fallen nicht unter diese Pflicht', 'Praktischer Compliance-Weg ist die Mitgliedschaft bei JBRC (eigenes Sammelsystem ist für die meisten Unternehmen unpraktikabel)', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus im EU-Sinn'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://www.jbrc.com/'],
+
+      ['TH', 'weee', 'Noch kein verbindliches Gesetz - Entwurf des WEEE Act (Pollution Control Department) seit rund 20 Jahren in Vorbereitung, durch Parlamentsauflösung im Dezember 2025 erneut verzögert',
+        ['Aktuell KEINE verpflichtende Registrierung für Elektroaltgeräte - dies ist ein recherchiert bestätigter, ehrlicher Befund, keine Recherchelücke', 'Der Gesetzentwurf sieht bei Inkrafttreten eine Herstellerpflicht (direkt oder über eine bei der PCD registrierte Abfallmanagement-Organisation) vor, tritt aber laut Entwurf erst 1 Jahr nach Veröffentlichung in Kraft (Bußgelder erst nach 2 Jahren)'],
+        JSON.stringify([]), 0, 0, 'needs_verification', null],
+      ['TH', 'battery', 'Kein eigenständiges Batteriegesetz - würde voraussichtlich Teil eines künftigen WEEE Act',
+        ['Aktuell KEINE verpflichtende Registrierung für Batterien - bestätigter Befund, keine Recherchelücke', 'Allgemeines Gefahrstoffrecht (Ministry of Industry) regelt nur die Entsorgung, nicht die Herstellerregistrierung'],
+        JSON.stringify([]), 0, 0, 'needs_verification', null],
+
+      ['US', 'weee', 'Kein Bundesgesetz - ca. 25 Bundesstaaten + DC mit eigenen E-Waste-Gesetzen (u. a. Kalifornien: CalRecycle/CDTFA)',
+        ['Verpflichtungen bestehen bundesstaatenabhängig, nicht national - in rund der Hälfte der Bundesstaaten existiert gar keine Regelung', 'Beispiel Kalifornien: gebührenbasiertes Modell über CDTFA (Point-of-Sale-Recyclinggebühr) plus CalRecycle-Programm; andere Staaten (NY, WA, IL) nutzen ein Hersteller-EPR-Modell', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://calrecycle.ca.gov/electronics/'],
+      ['US', 'battery', 'Bundesweit nur MCRBMA (Kennzeichnung/Quecksilber-Grenzwerte, kein Register); EPR-Pflichten bundesstaatenabhängig (u. a. New Jersey, Kalifornien, Washington, New York, Illinois)',
+        ['Kein Bundesregister - der Mercury-Containing and Rechargeable Battery Management Act regelt nur Kennzeichnung/Grenzwerte, keine Herstellerregistrierung', 'Wachsende Zahl von Bundesstaaten mit eigenen Batterie-EPR-Gesetzen, oft über Call2Recycle als zugelassene Organisation abgewickelt (z. B. New Jersey: verpflichtende Meldung für Antriebsbatterien seit 08.01.2026)', 'Kein bestätigter eigenständiger Bevollmächtigten-Mechanismus'],
+        JSON.stringify([]), 0, 1, 'needs_verification', 'https://www.call2recycle.org']
+    ];
+
+    const insertCountryStreamRule = db.prepare(`
+      INSERT OR IGNORE INTO country_stream_rules
+        (country_code, stream, register_body, requirements_json, labeling_json,
+         representative_required, registration_generally_required, reporting_frequency,
+         registration_url, data_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'needs_verification')
+    `);
+    for (const [code, stream, registerBody, requirements, labelingJson, repReq, regReq, freq, url] of countryStreamRulesData) {
+      insertCountryStreamRule.run(code, stream, registerBody, JSON.stringify(requirements), labelingJson, repReq, regReq, freq, url);
+    }
+
+    console.log(`✅ WEEE-/Batterie-Länderregeln recherchiert und eingefügt: ${countryStreamRulesData.length} Zeilen (${countryStreamRulesData.length / 2} Länder × 2 Ströme)`);
+
+
+
+    // ========================================================
     // 5a. GROBE ÖKO-GEBÜHR-SÄTZE JE MATERIAL (EUR/kg)
     //
     // Recherchierte, aber bewusst grobe Näherungswerte aus den jeweils
