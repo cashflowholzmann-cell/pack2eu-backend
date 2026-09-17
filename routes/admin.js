@@ -132,7 +132,17 @@ router.get('/overview', (req, res) => {
         (SELECT COUNT(*) FROM customers) as totalCustomers,
         (SELECT COUNT(*) FROM customers WHERE subscription_status = 'active') as activeCustomers,
         (SELECT COUNT(*) FROM leads WHERE status NOT IN ('converted', 'lost')) as openLeads,
-        (SELECT COUNT(*) FROM admin_tasks WHERE status = 'open') as openTasks,
+        -- Gleiche effective_status-Ableitung wie TASK_SELECT_SQL weiter unten:
+        -- die status-Spalte bleibt bei täglich wiederkehrenden Aufgaben immer
+        -- 'open' (last_completed_date trägt den "heute schon erledigt"-Status),
+        -- ohne diese CASE-Ableitung hätte der Zähler oben eine heute bereits
+        -- erledigte tägliche Aufgabe fälschlich weiter als offen mitgezählt.
+        (SELECT COUNT(*) FROM admin_tasks t WHERE
+          CASE WHEN t.recurrence = 'daily'
+               THEN (CASE WHEN t.last_completed_date = date('now') THEN 'done' ELSE 'open' END)
+               ELSE t.status
+          END = 'open'
+        ) as openTasks,
         (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as views30d
     `).get(since30d);
 
