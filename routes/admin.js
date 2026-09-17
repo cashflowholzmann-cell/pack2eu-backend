@@ -194,6 +194,13 @@ router.get('/traffic-detail', (req, res) => {
 // demo_start-Event existiert), sonst "rechner" (calculator_click), sonst
 // "weder". So lässt sich beantworten "X Leute haben den Rechner geklickt,
 // davon sind Y zahlende Bestseller-Kunden geworden".
+//
+// Zusätzlich calculatorFunnel unten: verfeinert die reine Klick-Stufe
+// (calculator_click = Modal geöffnet, schwaches Signal) um eine echte
+// Abschluss-Stufe (calculator_usage-Zeile = Berechnung mit Ergebnis+CTA
+// gesehen, starkes Signal) - damit sich der konkrete Bruch "geöffnet vs.
+// abgeschlossen vs. registriert vs. zahlend" im Rechner-Funnel getrennt
+// von der Demo-Zuordnung oben auswerten lässt.
 // ============================================================
 router.get('/funnel-attribution', (req, res) => {
   try {
@@ -241,7 +248,44 @@ router.get('/funnel-attribution', (req, res) => {
     const totalDemoClicks = new Set(events.filter(e => e.event_name === 'demo_start').map(e => e.session_id)).size;
     const totalCalculatorClicks = new Set(events.filter(e => e.event_name === 'calculator_click').map(e => e.session_id)).size;
 
-    res.json({ summary, totalDemoClicks, totalCalculatorClicks });
+    // Präziserer Rechner-Funnel: "Modal geöffnet" (calculator_click) ist
+    // nur ein schwaches Signal - erst eine tatsächlich abgeschlossene
+    // Berechnung (calculator_usage-Zeile, mit sichtbarem Ergebnis + CTA
+    // "Jetzt mit {Plan} starten") zeigt echtes Kaufinteresse. Eigene,
+    // zusätzliche Stufe zwischen "geöffnet" und "registriert", um genau
+    // die Frage "Warum registrieren sich Leute nicht nach dem Rechnen?"
+    // beantworten zu können, statt nur zu wissen "X haben den Rechner
+    // angeklickt".
+    const usageRows = db.prepare(`SELECT session_id, created_at FROM calculator_usage`).all();
+    const firstUsageBySession = {};
+    usageRows.forEach(u => {
+      if (!firstUsageBySession[u.session_id] || u.created_at < firstUsageBySession[u.session_id]) {
+        firstUsageBySession[u.session_id] = u.created_at;
+      }
+    });
+    const totalCalculatorCompletions = Object.keys(firstUsageBySession).length;
+
+    let calculatorCompletionsRegistered = 0;
+    let calculatorCompletionsPaying = 0;
+    customers.forEach(c => {
+      const firstUsage = firstUsageBySession[c.acquisition_session_id];
+      if (firstUsage && firstUsage <= c.created_at) {
+        calculatorCompletionsRegistered++;
+        if (c.subscription_status === 'active') calculatorCompletionsPaying++;
+      }
+    });
+
+    res.json({
+      summary,
+      totalDemoClicks,
+      totalCalculatorClicks,
+      calculatorFunnel: {
+        opened: totalCalculatorClicks,
+        completed: totalCalculatorCompletions,
+        registered: calculatorCompletionsRegistered,
+        paying: calculatorCompletionsPaying
+      }
+    });
   } catch (error) {
     console.error('❌ Funnel-Attribution-Fehler:', error);
     res.status(500).json({ error: 'Funnel-Auswertung konnte nicht geladen werden.' });
