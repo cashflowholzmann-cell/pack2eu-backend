@@ -940,6 +940,72 @@ router.get('/customers', (req, res) => {
 });
 
 // ============================================================
+// 14-TAGE-GELD-ZURÜCK-GARANTIE
+//
+// Deckt nur die Pack2EU-Plattformgebühr ab - NICHT bereits an einen
+// Bevollmächtigten weitergereichte Kosten (siehe AGB). Ein Bevollmächtigter
+// handelt nach eigener Vollmacht in eigenem Namen (siehe AGB/Impressum-
+// Popup in index.html) - sobald einer für den Kunden hinterlegt ist, hat
+// Pack2EU diese Vermittlung bereits geleistet bzw. der Kunde hat eine
+// eigene Beauftragung ausgelöst, die sich nicht rückgängig machen lässt.
+// Deshalb blockiert dieser Endpoint die automatische Erstattung in dem
+// Fall bewusst, statt eine Aufteilung zu erraten - stattdessen manuell
+// in Stripe prüfen (Plattformgebühr abzüglich Bevollmächtigten-Kosten).
+router.post('/customers/:id/refund-guarantee', async (req, res) => {
+  try {
+    const customerId = parseInt(req.params.id, 10);
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    const daysSinceSignup = (Date.now() - new Date(customer.created_at).getTime()) / 86400000;
+    if (daysSinceSignup > 14) {
+      return res.status(400).json({
+        error: `Außerhalb der 14-Tage-Frist (Kunde seit ${Math.floor(daysSinceSignup)} Tagen registriert).`
+      });
+    }
+
+    const repEngaged = db.prepare(`
+      SELECT COUNT(*) as count FROM activations
+      WHERE customer_id = ? AND (representative_name IS NOT NULL OR representative_email IS NOT NULL)
+    `).get(customerId).count > 0;
+    if (repEngaged) {
+      return res.status(409).json({
+        error: 'Für diesen Kunden ist bereits ein Bevollmächtigter hinterlegt/beauftragt. Die Garantie deckt bereits an Dritte weitergereichte Kosten nicht ab - Rückerstattung bitte manuell in Stripe prüfen (nur Plattformgebühr abzüglich Bevollmächtigten-Kosten erstatten).'
+      });
+    }
+
+    const paymentRow = db.prepare(`
+      SELECT stripe_session_id FROM checkout_sessions
+      WHERE customer_id = ? AND status = 'completed'
+      ORDER BY completed_at DESC LIMIT 1
+    `).get(customerId);
+    if (!paymentRow) {
+      return res.status(400).json({ error: 'Keine abgeschlossene Zahlung für diesen Kunden gefunden.' });
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const session = await stripe.checkout.sessions.retrieve(paymentRow.stripe_session_id);
+    if (!session.payment_intent) {
+      return res.status(400).json({ error: 'Zu dieser Zahlung liegt kein erstattbarer Payment Intent vor.' });
+    }
+
+    const refund = await stripe.refunds.create({ payment_intent: session.payment_intent });
+
+    if (customer.stripe_subscription_id) {
+      await stripe.subscriptions.cancel(customer.stripe_subscription_id).catch(err => {
+        console.error('⚠️ Abo konnte nach Rückerstattung nicht automatisch gekündigt werden:', err.message);
+      });
+    }
+    db.prepare(`UPDATE customers SET subscription_status = 'inactive', cancelled_at = datetime('now') WHERE id = ?`).run(customerId);
+
+    res.json({ ok: true, refundId: refund.id, amount: refund.amount, currency: refund.currency });
+  } catch (error) {
+    console.error('❌ Rückerstattungs-Fehler:', error.message);
+    res.status(500).json({ error: 'Rückerstattung fehlgeschlagen: ' + error.message });
+  }
+});
+
+// ============================================================
 // UMSATZ (MRR/ARR nach Plan, Land, Zahlweise) + einfache Prognose
 //
 // Preise kommen live aus Stripe (nicht hier hartcodiert) - so bleibt
