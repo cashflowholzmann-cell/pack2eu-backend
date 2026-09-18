@@ -16,6 +16,7 @@ const rateLimit = require('express-rate-limit');
 const { db } = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
 const { sendRepresentativeLoginCodeEmail } = require('../lib/email');
+const { findAnomalousSkus } = require('../lib/sku-anomalies');
 
 const router = express.Router();
 
@@ -309,6 +310,34 @@ router.get('/customers', requireAuth, requireRepRole, (req, res) => {
   } catch (error) {
     console.error('❌ Representative-Customers-Fehler:', error);
     res.status(500).json({ error: 'Kunden konnten nicht geladen werden.' });
+  }
+});
+
+// ============================================================
+// AUFFÄLLIGE MATERIALGEWICHTE EINES ZUGEWIESENEN KUNDEN
+//
+// Siehe lib/sku-anomalies.js. Entstand aus dem Wunsch eines
+// Bevollmächtigten, offensichtliche Tippfehler/Falschangaben bei
+// Materialgewichten (z. B. Versuch, Öko-Gebühren durch zu niedrig
+// angegebene Mengen zu drücken) nicht erst bei der Meldung von Hand
+// zu bemerken, sondern schon vorher markiert zu bekommen.
+//
+// GET /api/representatives/customers/:customerId/sku-anomalies
+// ============================================================
+router.get('/customers/:customerId/sku-anomalies', requireAuth, requireRepRole, (req, res) => {
+  try {
+    const customerId = parseInt(req.params.customerId, 10);
+    const assigned = db.prepare(`
+      SELECT 1 FROM representative_customer_assignments WHERE representative_id = ? AND customer_id = ?
+    `).get(req.auth.userId, customerId);
+    if (!assigned) return res.status(403).json({ error: 'Kein zugewiesener Kunde.' });
+
+    const skus = db.prepare(`SELECT * FROM product_packaging WHERE customer_id = ?`).all(customerId);
+    logAccess(req.auth.userId, customerId, 'view_sku_anomalies', req);
+    res.json(findAnomalousSkus(skus));
+  } catch (error) {
+    console.error('❌ Representative-SKU-Anomalie-Fehler:', error);
+    res.status(500).json({ error: 'Anomalie-Prüfung fehlgeschlagen.' });
   }
 });
 
