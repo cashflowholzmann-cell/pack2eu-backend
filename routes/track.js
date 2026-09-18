@@ -34,12 +34,28 @@ const trackLimiter = rateLimit({
 // Events statt Wiederverwendung von 'demo_start', damit sich dieser
 // Einstiegspunkt getrennt von Hero-Demo/Rechner auswerten lässt (siehe
 // GET /admin/funnel-attribution -> weeeBatterySectionFunnel).
-const ALLOWED_EVENTS = ['demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click', 'weeebat_cta_click', 'weeebat_demo_click'];
+// 'landing_duration' = Verweildauer auf der Landingpage selbst (siehe
+// index.html, sendLandingDuration()) - trägt wie 'demo_duration' einen
+// numerischen Sekundenwert. 'view_*' = IntersectionObserver-Events pro
+// Sektion der Landingpage (siehe initSectionViewTracking() in index.html) -
+// zusammen beantworten beide "was passiert in den paar Sekunden, bevor
+// jemand wieder geht" (siehe GET /admin/landing-engagement).
+const ALLOWED_EVENTS = [
+  'demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click',
+  'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration',
+  'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_pricing', 'view_final_cta'
+];
 
 // Obergrenze für event_value bei 'demo_duration' - 4 Stunden. Verhindert
 // offensichtlich manipulierte/kaputte Werte, ohne echte lange Demo-
 // Sessions abzuschneiden.
 const MAX_DEMO_DURATION_SECONDS = 4 * 60 * 60;
+
+// Obergrenze für 'landing_duration' - 30 Minuten. Ein im Hintergrund
+// offen gelassener Tab würde sonst die Verweildauer-Auswertung völlig
+// verzerren; echtes Lesen/Stöbern auf der Landingpage passt locker
+// darunter.
+const MAX_LANDING_DURATION_SECONDS = 30 * 60;
 
 router.post('/event', trackLimiter, (req, res) => {
   try {
@@ -49,9 +65,10 @@ router.post('/event', trackLimiter, (req, res) => {
     }
 
     let value = null;
-    if (event_name === 'demo_duration') {
+    if (event_name === 'demo_duration' || event_name === 'landing_duration') {
+      const max = event_name === 'demo_duration' ? MAX_DEMO_DURATION_SECONDS : MAX_LANDING_DURATION_SECONDS;
       const parsed = Number(event_value);
-      if (!Number.isFinite(parsed) || parsed < 0 || parsed > MAX_DEMO_DURATION_SECONDS) {
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > max) {
         return res.status(400).json({ error: 'Ungültiger event_value.' });
       }
       value = Math.round(parsed);
