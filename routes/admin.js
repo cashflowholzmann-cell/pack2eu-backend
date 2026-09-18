@@ -2060,4 +2060,48 @@ router.post('/countries/:code/invite-representative', async (req, res) => {
   }
 });
 
+// ============================================================
+// HERKUNFT → ZIELLAND-MUSTER (fürs gezielte Ansprechen im Vertrieb:
+// "Spanische Shops aktivieren meistens DE+IT" statt nur "Kunde kommt
+// aus Spanien"). Zählt reale Aktivierungen je (Herkunftsland,
+// Zielland)-Paar, Herkunft==Ziel ausgeschlossen (kein "Inland"-Rauschen).
+// ============================================================
+router.get('/origin-destination-patterns', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT c.origin_country as origin, a.country_code as destination, COUNT(DISTINCT a.customer_id) as customerCount
+      FROM activations a
+      JOIN customers c ON c.id = a.customer_id
+      WHERE c.origin_country IS NOT NULL AND c.origin_country != a.country_code
+      GROUP BY c.origin_country, a.country_code
+    `).all();
+
+    const originTotals = db.prepare(`
+      SELECT origin_country as origin, COUNT(*) as customerCount
+      FROM customers
+      WHERE origin_country IS NOT NULL
+      GROUP BY origin_country
+    `).all();
+
+    const byOrigin = {};
+    rows.forEach(r => {
+      if (!byOrigin[r.origin]) byOrigin[r.origin] = [];
+      byOrigin[r.origin].push({ destination: r.destination, customerCount: r.customerCount });
+    });
+
+    const totalsByOrigin = Object.fromEntries(originTotals.map(o => [o.origin, o.customerCount]));
+
+    const patterns = Object.entries(byOrigin).map(([origin, destinations]) => ({
+      origin,
+      totalCustomersFromOrigin: totalsByOrigin[origin] || 0,
+      topDestinations: destinations.sort((a, b) => b.customerCount - a.customerCount).slice(0, 5)
+    })).sort((a, b) => b.totalCustomersFromOrigin - a.totalCustomersFromOrigin);
+
+    res.json(patterns);
+  } catch (error) {
+    console.error('❌ Fehler bei Herkunft-Ziel-Auswertung:', error);
+    res.status(500).json({ error: 'Auswertung konnte nicht geladen werden.' });
+  }
+});
+
 module.exports = router;
