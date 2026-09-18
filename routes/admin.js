@@ -494,7 +494,25 @@ router.get('/landing-engagement', (req, res) => {
       return { section: name, sessions, pct: totalSessions > 0 ? sessions / totalSessions : null };
     });
 
-    res.json({ totals, byCountry, sectionReach, totalSessions });
+    // Klickbare Hero-Badges + neue Kopfzeilen-Menüpunkte (Über uns/FAQ) -
+    // eindeutige Sessions pro Klick-Ziel, gleiches Muster wie sectionReach
+    // oben, nur für aktive Klicks statt reinem Sichtbar-Werden.
+    const navClickOrder = ['hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click'];
+    const navPlaceholders = navClickOrder.map(() => '?').join(',');
+    const navClickEvents = db.prepare(`
+      SELECT event_name, session_id FROM click_events WHERE event_name IN (${navPlaceholders})
+    `).all(...navClickOrder);
+    const navClickSessionSets = {};
+    navClickEvents.forEach(e => {
+      if (!navClickSessionSets[e.event_name]) navClickSessionSets[e.event_name] = new Set();
+      navClickSessionSets[e.event_name].add(e.session_id);
+    });
+    const navClicks = navClickOrder.map(name => ({
+      event: name,
+      sessions: navClickSessionSets[name] ? navClickSessionSets[name].size : 0
+    }));
+
+    res.json({ totals, byCountry, sectionReach, navClicks, totalSessions });
   } catch (error) {
     console.error('❌ Landing-Engagement-Fehler:', error);
     res.status(500).json({ error: 'Verweildauer-Auswertung konnte nicht geladen werden.' });
@@ -550,6 +568,8 @@ router.get('/conversion-insights', (req, res) => {
       if (before.some(e => e.event_name === 'demo_start')) return 'demo';
       if (before.some(e => e.event_name === 'calculator_click')) return 'rechner';
       if (before.some(e => e.event_name === 'usp_cta_click')) return 'usp';
+      if (before.some(e => e.event_name === 'hero_price_badge_click')) return 'hero_price_badge';
+      if (before.some(e => e.event_name === 'hero_weeebat_badge_click')) return 'hero_weeebat_badge';
       return 'direkt';
     }
 
