@@ -478,7 +478,7 @@ router.get('/landing-engagement', (req, res) => {
     // Wie viele EINDEUTIGE Sessions haben jede Sektion gesehen, im
     // Verhältnis zu allen getrackten Sessions (= alle mit mind. einem
     // Pageview) - ergibt einen groben "wie weit kommen Besucher"-Funnel.
-    const sectionOrder = ['view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_pricing', 'view_final_cta'];
+    const sectionOrder = ['view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about', 'view_usp', 'view_faq', 'view_pricing', 'view_final_cta'];
     const placeholders = sectionOrder.map(() => '?').join(',');
     const sectionEvents = db.prepare(`
       SELECT event_name, session_id FROM click_events WHERE event_name IN (${placeholders})
@@ -548,6 +548,7 @@ router.get('/conversion-insights', (req, res) => {
       if (before.some(e => e.event_name === 'weeebat_cta_click')) return 'weeebat_cta';
       if (before.some(e => e.event_name === 'demo_start')) return 'demo';
       if (before.some(e => e.event_name === 'calculator_click')) return 'rechner';
+      if (before.some(e => e.event_name === 'usp_cta_click')) return 'usp';
       return 'direkt';
     }
 

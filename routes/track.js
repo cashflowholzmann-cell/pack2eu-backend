@@ -40,10 +40,15 @@ const trackLimiter = rateLimit({
 // Sektion der Landingpage (siehe initSectionViewTracking() in index.html) -
 // zusammen beantworten beide "was passiert in den paar Sekunden, bevor
 // jemand wieder geht" (siehe GET /admin/landing-engagement).
+// 'usp_cta_click' = Klick auf "Jetzt loslegen" INNERHALB der USP-Sektion
+// (siehe index.html) - eigenes Event statt Wiederverwendung, damit sich
+// dieser Einstiegspunkt getrennt auswerten lässt (siehe GET
+// /admin/conversion-insights).
 const ALLOWED_EVENTS = [
   'demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click',
-  'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration',
-  'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_pricing', 'view_final_cta'
+  'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration', 'usp_cta_click',
+  'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about',
+  'view_usp', 'view_faq', 'view_pricing', 'view_final_cta'
 ];
 
 // Obergrenze für event_value bei 'demo_duration' - 4 Stunden. Verhindert
