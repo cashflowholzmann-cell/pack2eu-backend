@@ -143,7 +143,8 @@ router.get('/overview', (req, res) => {
                ELSE t.status
           END = 'open'
         ) as openTasks,
-        (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as views30d
+        (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as views30d,
+        (SELECT COUNT(*) FROM page_views) as viewsTotal
     `).get(since30d);
 
     const everPaying = totals.activeCustomers + churnTotals.churnedTotal;
