@@ -142,6 +142,38 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
+// STRIPE CUSTOMER PORTAL (Abo verwalten / kündigen / Plan wechseln)
+// ============================================================
+// Bisher gab es dafür KEINE Selbstbedienung im Dashboard, obwohl sowohl
+// die Landingpage ("🔄 Monatlich kündbar") als auch der FAQ-Chat
+// (routes/support.js, FAQ-Eintrag 'cancellation'/'plan_comparison')
+// bereits behaupten, das ginge "direkt in den Kontoeinstellungen" -
+// dieser Endpoint macht diese Behauptung erst wahr, statt dass Kunden
+// dafür den Support kontaktieren müssen. Nutzt Stripes gehostetes
+// Customer Portal (muss einmalig im Stripe-Dashboard aktiviert werden,
+// siehe https://dashboard.stripe.com/settings/billing/portal) statt
+// eine eigene Kündigungs-/Plan-Wechsel-UI nachzubauen.
+router.post('/create-portal-session', requireAuth, async (req, res) => {
+  try {
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    if (!customer.stripe_customer_id) {
+      return res.status(400).json({ error: 'Für dieses Konto liegt noch keine Zahlungshistorie bei Stripe vor.' });
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customer.stripe_customer_id,
+      return_url: `${process.env.APP_URL}/dashboard.html`
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('❌ Stripe-Portal-Fehler:', error.message);
+    res.status(500).json({ error: 'Kontoverwaltung konnte nicht geöffnet werden.' });
+  }
+});
+
+// ============================================================
 // PREMIUM-UPGRADE ZAHLUNG (149 € pro Land)
 // ============================================================
 router.post('/create-upgrade-session', requireAuth, async (req, res) => {
