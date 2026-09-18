@@ -3422,6 +3422,31 @@ function init() {
       );
     `);
 
+    // Jede von Stripe erstellte Checkout-Session (siehe POST
+    // /billing/create-checkout-session) - beantwortet "wie viele
+    // registrierte Kunden erreichen die Stripe-Kasse und brechen DORT ab",
+    // statt das nur zu vermuten. origin_country/is_eu werden beim Anlegen
+    // vom Kunden übernommen (kein zusätzlicher Stripe-Aufruf nötig), damit
+    // sich die Abbruchquote pro Land/EU-Nicht-EU auswerten lässt - z. B. um
+    // zu prüfen, ob Besucher aus fernen Ländern (z. B. Japan) an der
+    // Stripe-Kasse überproportional häufig abspringen.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS checkout_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        stripe_session_id TEXT NOT NULL UNIQUE,
+        customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        plan TEXT,
+        interval TEXT,
+        origin_country TEXT,
+        is_eu INTEGER,
+        status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'completed')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT
+      );
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_customer_id ON checkout_sessions(customer_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_created_at ON checkout_sessions(created_at);`);
+
     console.log(
       '=============================================='
     );
