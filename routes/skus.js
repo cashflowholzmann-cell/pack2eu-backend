@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
+const { findAnomalousSkus } = require('../lib/sku-anomalies');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -63,6 +64,27 @@ router.get('/', (req, res) => {
   } catch (error) {
     console.error('❌ Fehler beim Laden der SKUs:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Produkte' });
+  }
+});
+
+// ============================================================
+// AUFFÄLLIGE MATERIALGEWICHTE (mögliche Tippfehler/Falschangaben)
+//
+// Siehe lib/sku-anomalies.js - vergleicht die Materialgewichte gegen den
+// über ALLE Kunden gepoolten Median gleicher Icon/Material-Kombinationen,
+// damit sowohl der Shop-Betreiber selbst als auch (siehe
+// routes/representatives.js) der Bevollmächtigte offensichtliche
+// Ausreißer sofort sehen, statt sie erst bei der Meldung zu bemerken.
+// ============================================================
+router.get('/anomalies', (req, res) => {
+  try {
+    const skus = db.prepare(`
+      SELECT * FROM product_packaging WHERE customer_id = ?
+    `).all(req.customer.sub);
+    res.json(findAnomalousSkus(skus));
+  } catch (error) {
+    console.error('❌ Anomalie-Erkennungs-Fehler:', error);
+    res.status(500).json({ error: 'Anomalie-Prüfung fehlgeschlagen.' });
   }
 });
 
