@@ -500,6 +500,89 @@ router.get('/landing-engagement', (req, res) => {
   }
 });
 
+// ============================================================
+// CONVERSION-INSIGHTS: Warum HAT jemand gekauft?
+//
+// Das Gegenstück zu checkout-funnel/landing-engagement oben (die zeigen,
+// wo Interessenten abspringen) - hier geht's um die, die tatsächlich
+// zahlende Kunden wurden: über welchen Einstiegspunkt (Demo, Rechner,
+// WEEE/Batterie-Sektion oder direkt), über welchen Traffic-Kanal, aus
+// welchem Land, mit welchem Plan - und ob sie vor der Registrierung
+// überhaupt die WEEE/Batterie-Sektion oder die Preise gesehen haben
+// (siehe view_weeebat/view_pricing, GET /admin/landing-engagement).
+// Nutzt ausschließlich bereits vorhandene Tracking-Daten, keine neuen
+// Events nötig.
+// ============================================================
+router.get('/conversion-insights', (req, res) => {
+  try {
+    const payingCustomers = db.prepare(`
+      SELECT id, plan, origin_country, acquisition_source, acquisition_session_id, created_at
+      FROM customers WHERE subscription_status = 'active'
+    `).all();
+
+    const totalPaying = payingCustomers.length;
+    if (totalPaying === 0) {
+      return res.json({ totalPaying: 0, byEntryPoint: {}, byChannel: {}, byCountry: {}, byPlan: {}, sawWeeebatSection: 0, sawPricingSection: 0 });
+    }
+
+    const pageviews = db.prepare(`SELECT session_id, referrer, utm_source, created_at FROM page_views ORDER BY created_at ASC`).all();
+    const firstPageviewBySession = {};
+    pageviews.forEach(v => {
+      if (!firstPageviewBySession[v.session_id]) firstPageviewBySession[v.session_id] = v;
+    });
+
+    const events = db.prepare(`SELECT event_name, session_id, created_at FROM click_events`).all();
+    const eventsBySession = {};
+    events.forEach(e => {
+      if (!eventsBySession[e.session_id]) eventsBySession[e.session_id] = [];
+      eventsBySession[e.session_id].push(e);
+    });
+
+    // Gleiche Zuordnungslogik wie attribute() in /funnel-attribution oben,
+    // zusätzlich um die WEEE/Batterie-CTAs erweitert - erstes passendes
+    // Event VOR der Registrierung gewinnt.
+    function entryPoint(customer) {
+      const sessionEvents = eventsBySession[customer.acquisition_session_id] || [];
+      const before = sessionEvents.filter(e => e.created_at <= customer.created_at);
+      if (before.some(e => e.event_name === 'weeebat_demo_click')) return 'weeebat_demo';
+      if (before.some(e => e.event_name === 'weeebat_cta_click')) return 'weeebat_cta';
+      if (before.some(e => e.event_name === 'demo_start')) return 'demo';
+      if (before.some(e => e.event_name === 'calculator_click')) return 'rechner';
+      return 'direkt';
+    }
+
+    const byEntryPoint = {};
+    const byChannel = {};
+    const byCountry = {};
+    const byPlan = {};
+    let sawWeeebatSection = 0;
+    let sawPricingSection = 0;
+
+    payingCustomers.forEach(c => {
+      const ep = entryPoint(c);
+      byEntryPoint[ep] = (byEntryPoint[ep] || 0) + 1;
+
+      const pv = firstPageviewBySession[c.acquisition_session_id];
+      const channel = pv ? classifyChannel(pv) : 'unbekannt';
+      byChannel[channel] = (byChannel[channel] || 0) + 1;
+
+      const country = c.origin_country || 'unbekannt';
+      byCountry[country] = (byCountry[country] || 0) + 1;
+
+      byPlan[c.plan] = (byPlan[c.plan] || 0) + 1;
+
+      const sessionEvents = eventsBySession[c.acquisition_session_id] || [];
+      if (sessionEvents.some(e => e.event_name === 'view_weeebat')) sawWeeebatSection++;
+      if (sessionEvents.some(e => e.event_name === 'view_pricing')) sawPricingSection++;
+    });
+
+    res.json({ totalPaying, byEntryPoint, byChannel, byCountry, byPlan, sawWeeebatSection, sawPricingSection });
+  } catch (error) {
+    console.error('❌ Conversion-Insights-Fehler:', error);
+    res.status(500).json({ error: 'Conversion-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
 // Wie lange schauen sich Besucher die Sandbox-Demo im Dashboard an
 // (siehe DEMO_MODE in dashboard.html, das 'demo_duration'-Event sendet).
 router.get('/demo-duration-stats', (req, res) => {
