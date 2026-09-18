@@ -261,6 +261,40 @@ CREATE TABLE IF NOT EXISTS battery_categories (
 
 
 -- ================================================================
+-- MATERIAL-LIZENZENTGELTE (für den Material-Spar-Rechner im
+-- SKU-Editor - siehe lib/material-savings.js)
+--
+-- Anders als weee_categories/battery_categories KEINE feste
+-- EU-Taxonomie, sondern geschätzte €/kg-Richtwerte je Material
+-- (und bei Kunststoff je Subtyp) - die echten Lizenzentgelte
+-- unterscheiden sich stark nach dualem System und Vertrag und
+-- ändern sich jährlich. source bleibt deshalb bewusst 'estimate',
+-- nie 'verified' (vgl. data_status-Konvention in country_stream_
+-- rules) - jede Zeile ist über /admin/material-rates editierbar,
+-- damit Kunden ihre echten Vertragssätze eintragen können.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS material_license_rates (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  material TEXT NOT NULL,
+
+  -- NULL für Materialien ohne Subtyp-Unterscheidung (papier, karton, ...)
+  subtype TEXT,
+
+  price_per_kg_eur REAL NOT NULL,
+
+  source TEXT NOT NULL DEFAULT 'estimate',
+
+  updated_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  UNIQUE(material, subtype)
+);
+
+
+-- ================================================================
 -- AKTIVIERUNGEN
 -- ================================================================
 

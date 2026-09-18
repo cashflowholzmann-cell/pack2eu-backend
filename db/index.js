@@ -402,6 +402,11 @@ function init() {
     addColumnIfMissing('product_packaging', 'contains_battery', 'INTEGER NOT NULL DEFAULT 0');
     addColumnIfMissing('product_packaging', 'battery_type', 'TEXT');
 
+    // Optionale Stückzahl-Schätzung für den Material-Spar-Rechner (siehe
+    // lib/material-savings.js) - ohne sie zeigt der Rechner nur die
+    // Ersparnis pro Stück, keine Jahressumme.
+    addColumnIfMissing('product_packaging', 'estimated_annual_units', 'INTEGER');
+
     // Stream-Dimension (siehe country_stream_rules-Kommentar in
     // schema.sql): additiv, default 'packaging' - keine Verhaltensänderung
     // für die bestehenden, ausschließlich Verpackungs-Aktivierungen aller
@@ -1457,6 +1462,47 @@ function init() {
     for (const row of batteryCategories) insertBatteryCategory.run(...row);
 
     console.log('✅ WEEE-/Batterie-Kategorien geprüft');
+
+
+    // ========================================================
+    // 4b-2. MATERIAL-LIZENZENTGELTE (Richtwerte, kein Rechtstext)
+    //
+    // Anders als oben: KEINE feste Taxonomie, sondern grobe
+    // €/kg-Schätzwerte, per WebSearch am 2026-09-18 aus öffentlich
+    // zitierten Branchenangaben zusammengetragen (Lizenzero-Support-
+    // artikel: ø 1,17 €/kg Kunststoff vs. ø 0,10 €/kg PPK-Alternativen;
+    // Reclay-Preisbeispiel Mai 2026 für Papier ~0,43 €/kg). Für die
+    // Kunststoff-Subtypen (PE/PP/PS/EPS/PVC/PET) gab es keine belastbare
+    // öffentliche Einzel-Quelle - diese Werte sind eine plausible
+    // Einordnung relativ zum recherchierten Durchschnitt (schwer
+    // recycelbare Typen wie PVC/EPS teurer, gut recycelbares PET
+    // günstiger), KEINE recherchierten Fakten. source bleibt deshalb
+    // durchgehend 'estimate' - jede Zeile ist über /admin/material-rates
+    // änderbar, Kunden sollten ihre echten Vertragssätze eintragen.
+    // ========================================================
+
+    const materialRates = [
+      ['kunststoff', null, 1.17],
+      ['kunststoff', 'PE', 1.00],
+      ['kunststoff', 'PP', 1.00],
+      ['kunststoff', 'PS', 1.10],
+      ['kunststoff', 'EPS', 1.30],
+      ['kunststoff', 'PVC', 1.50],
+      ['kunststoff', 'PET', 0.90],
+      ['papier', null, 0.25],
+      ['karton', null, 0.20],
+      ['glas', null, 0.15],
+      ['metall', null, 0.30],
+      ['holz', null, 0.10]
+    ];
+
+    const insertMaterialRate = db.prepare(`
+      INSERT OR IGNORE INTO material_license_rates (material, subtype, price_per_kg_eur, source)
+      VALUES (?, ?, ?, 'estimate')
+    `);
+    for (const row of materialRates) insertMaterialRate.run(...row);
+
+    console.log('✅ Material-Lizenzentgelt-Richtwerte geprüft');
 
 
     // ========================================================

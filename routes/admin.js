@@ -1924,4 +1924,48 @@ router.get('/weee-battery-interest', (req, res) => {
   }
 });
 
+// ============================================================
+// MATERIAL-LIZENZSÄTZE (Richtwerte für den Material-Spar-Rechner,
+// siehe lib/material-savings.js und Kommentar in db/schema.sql -
+// KEINE recherchierten/verifizierten Sätze, editierbar, damit Kunden
+// ihre echten Vertragskonditionen eintragen können)
+// ============================================================
+router.get('/material-rates', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, material, subtype, price_per_kg_eur, source, updated_at
+      FROM material_license_rates
+      ORDER BY material, subtype IS NOT NULL, subtype
+    `).all();
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Material-Lizenzsätze:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Lizenzsätze.' });
+  }
+});
+
+router.put('/material-rates/:id', (req, res) => {
+  try {
+    const price = Number(req.body.price_per_kg_eur);
+    if (!Number.isFinite(price) || price < 0) {
+      return res.status(400).json({ error: 'Ungültiger Preis pro kg.' });
+    }
+
+    const existing = db.prepare('SELECT id FROM material_license_rates WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Lizenzsatz nicht gefunden.' });
+
+    db.prepare(`
+      UPDATE material_license_rates
+      SET price_per_kg_eur = ?, source = 'admin', updated_at = datetime('now')
+      WHERE id = ?
+    `).run(price, req.params.id);
+
+    const updated = db.prepare('SELECT id, material, subtype, price_per_kg_eur, source, updated_at FROM material_license_rates WHERE id = ?').get(req.params.id);
+    res.json(updated);
+  } catch (error) {
+    console.error('❌ Fehler beim Aktualisieren des Material-Lizenzsatzes:', error);
+    res.status(500).json({ error: 'Lizenzsatz konnte nicht aktualisiert werden.' });
+  }
+});
+
 module.exports = router;

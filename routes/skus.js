@@ -2,6 +2,7 @@ const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 const { findAnomalousSkus } = require('../lib/sku-anomalies');
+const { getRates, computeSkuCost, simulateAlternative } = require('../lib/material-savings');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -50,6 +51,14 @@ function readClassification(body = {}) {
   };
 }
 
+// Optionale Stückzahl/Jahr für den Material-Spar-Rechner (siehe
+// lib/material-savings.js) - ohne gültigen Wert bleibt sie NULL, der
+// Rechner zeigt dann nur die Ersparnis pro Stück statt pro Jahr.
+function readEstimatedAnnualUnits(body = {}) {
+  const value = Number(body.estimated_annual_units);
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : null;
+}
+
 // ============================================================
 // ALLE SKUS DES KUNDEN
 // ============================================================
@@ -89,6 +98,69 @@ router.get('/anomalies', (req, res) => {
 });
 
 // ============================================================
+// MATERIAL-SPAR-RECHNER
+//
+// Siehe lib/material-savings.js - rein informativ, schlägt keine
+// konkreten Alternativmaterialien vor (physische Eignung kann das
+// System nicht beurteilen), zeigt nur die €-Differenz einer vom
+// Nutzer selbst gewählten Alternative.
+// ============================================================
+router.get('/material-rates', (req, res) => {
+  try {
+    res.json(getRates());
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Material-Lizenzsätze:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Lizenzsätze.' });
+  }
+});
+
+router.get('/material-costs', (req, res) => {
+  try {
+    const skus = db.prepare(`SELECT * FROM product_packaging WHERE customer_id = ?`).all(req.customer.sub);
+    const rates = getRates();
+    res.json(skus.map(sku => computeSkuCost(sku, rates)));
+  } catch (error) {
+    console.error('❌ Fehler bei der Material-Kostenberechnung:', error);
+    res.status(500).json({ error: 'Kostenberechnung fehlgeschlagen.' });
+  }
+});
+
+router.post('/:id/simulate-material', (req, res) => {
+  try {
+    const sku = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?')
+      .get(req.params.id, req.customer.sub);
+    if (!sku) return res.status(404).json({ error: 'Produkt nicht gefunden.' });
+
+    let materials;
+    try { materials = JSON.parse(sku.materials_json); } catch (e) { materials = []; }
+    const line = Array.isArray(materials) ? materials[req.body.materialIndex] : null;
+    if (!line) return res.status(400).json({ error: 'Materialzeile nicht gefunden.' });
+
+    const { altMaterial, altSubtype, altWeightGrams } = req.body;
+    if (!altMaterial || !Number.isFinite(Number(altWeightGrams))) {
+      return res.status(400).json({ error: 'Alternativmaterial und -gewicht sind erforderlich.' });
+    }
+
+    const rates = getRates();
+    const result = simulateAlternative({
+      currentWeightGrams: Number(line.weight_grams),
+      currentMaterial: line.material,
+      currentSubtype: line.material_subtype || null,
+      altWeightGrams: Number(altWeightGrams),
+      altMaterial,
+      altSubtype: altSubtype || null,
+      annualUnits: Number(sku.estimated_annual_units)
+    }, rates);
+
+    if (result.error) return res.status(422).json(result);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Fehler bei der Material-Simulation:', error);
+    res.status(500).json({ error: 'Simulation fehlgeschlagen.' });
+  }
+});
+
+// ============================================================
 // NEUEN SKU ANLEGEN
 // ============================================================
 router.post('/', (req, res) => {
@@ -103,16 +175,17 @@ router.post('/', (req, res) => {
     const total_weight = materials.reduce((sum, m) => sum + (m.weight_grams || 0), 0);
     const materials_json = JSON.stringify(materials);
     const classification = readClassification(req.body);
+    const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
 
     const result = db.prepare(`
       INSERT INTO product_packaging
       (customer_id, sku_name, icon, shopify_product_id, destination, materials_json, total_weight_grams,
-       is_electrical_equipment, weee_category, contains_battery, battery_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       customer_id, sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
-      classification.contains_battery, classification.battery_type
+      classification.contains_battery, classification.battery_type, estimatedAnnualUnits
     );
 
     const newSku = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
@@ -142,17 +215,19 @@ router.put('/:id', (req, res) => {
     const total_weight = materials.reduce((sum, m) => sum + (m.weight_grams || 0), 0);
     const materials_json = JSON.stringify(materials);
     const classification = readClassification(req.body);
+    const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
 
     db.prepare(`
       UPDATE product_packaging
       SET sku_name = ?, icon = ?, shopify_product_id = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-          updated_at = datetime('now')
+          estimated_annual_units = ?, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
       sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
       classification.contains_battery, classification.battery_type,
+      estimatedAnnualUnits,
       id, customer_id
     );
 
