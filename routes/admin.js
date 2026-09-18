@@ -425,6 +425,81 @@ router.get('/checkout-funnel', (req, res) => {
   }
 });
 
+// ============================================================
+// LANDING-ENGAGEMENT: Verweildauer + welche Sektionen sehen Besucher
+// tatsächlich, bevor sie wieder abspringen?
+//
+// 'landing_duration' (Sekunden bis Tab-Wechsel/Schließen) und 'view_*'
+// (IntersectionObserver pro Sektion, je einmal pro Seitenaufruf) kommen
+// beide aus index.html (siehe initLandingDurationTracking()/
+// initSectionViewTracking() dort). Das Herkunftsland pro Session wird
+// aus der ERSTEN page_views-Zeile dieser Session übernommen (dieselbe
+// clientseitige IP-Erkennung, die auch Sprache/Preis vorschlägt) - so
+// lässt sich z. B. prüfen, ob Besucher aus fernen Ländern (z. B. Japan)
+// deutlich kürzer bleiben als aus Deutschland.
+// ============================================================
+router.get('/landing-engagement', (req, res) => {
+  try {
+    const pageviews = db.prepare(`SELECT session_id, country, created_at FROM page_views ORDER BY created_at ASC`).all();
+    const countryBySession = {};
+    pageviews.forEach(v => {
+      if (!countryBySession[v.session_id]) countryBySession[v.session_id] = v.country || 'unbekannt';
+    });
+    const totalSessions = Object.keys(countryBySession).length;
+
+    function stats(values) {
+      if (values.length === 0) return { n: 0, avgSeconds: null, medianSeconds: null };
+      const sorted = [...values].sort((a, b) => a - b);
+      const avgSeconds = Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length);
+      const mid = Math.floor(sorted.length / 2);
+      const medianSeconds = sorted.length % 2 === 0
+        ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+        : sorted[mid];
+      return { n: sorted.length, avgSeconds, medianSeconds };
+    }
+
+    const durationRows = db.prepare(`
+      SELECT session_id, event_value FROM click_events
+      WHERE event_name = 'landing_duration' AND event_value IS NOT NULL
+    `).all();
+
+    const totals = stats(durationRows.map(r => r.event_value));
+
+    const byCountryValues = {};
+    durationRows.forEach(r => {
+      const c = countryBySession[r.session_id] || 'unbekannt';
+      if (!byCountryValues[c]) byCountryValues[c] = [];
+      byCountryValues[c].push(r.event_value);
+    });
+    const byCountry = Object.entries(byCountryValues)
+      .map(([country, values]) => ({ country, ...stats(values) }))
+      .sort((a, b) => b.n - a.n);
+
+    // Wie viele EINDEUTIGE Sessions haben jede Sektion gesehen, im
+    // Verhältnis zu allen getrackten Sessions (= alle mit mind. einem
+    // Pageview) - ergibt einen groben "wie weit kommen Besucher"-Funnel.
+    const sectionOrder = ['view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_pricing', 'view_final_cta'];
+    const placeholders = sectionOrder.map(() => '?').join(',');
+    const sectionEvents = db.prepare(`
+      SELECT event_name, session_id FROM click_events WHERE event_name IN (${placeholders})
+    `).all(...sectionOrder);
+    const sectionSessionSets = {};
+    sectionEvents.forEach(e => {
+      if (!sectionSessionSets[e.event_name]) sectionSessionSets[e.event_name] = new Set();
+      sectionSessionSets[e.event_name].add(e.session_id);
+    });
+    const sectionReach = sectionOrder.map(name => {
+      const sessions = sectionSessionSets[name] ? sectionSessionSets[name].size : 0;
+      return { section: name, sessions, pct: totalSessions > 0 ? sessions / totalSessions : null };
+    });
+
+    res.json({ totals, byCountry, sectionReach, totalSessions });
+  } catch (error) {
+    console.error('❌ Landing-Engagement-Fehler:', error);
+    res.status(500).json({ error: 'Verweildauer-Auswertung konnte nicht geladen werden.' });
+  }
+});
+
 // Wie lange schauen sich Besucher die Sandbox-Demo im Dashboard an
 // (siehe DEMO_MODE in dashboard.html, das 'demo_duration'-Event sendet).
 router.get('/demo-duration-stats', (req, res) => {
