@@ -367,6 +367,64 @@ router.get('/funnel-attribution', (req, res) => {
   }
 });
 
+// ============================================================
+// CHECKOUT-FUNNEL: Wo brechen registrierte Kunden an der Stripe-Kasse ab?
+//
+// Direkt nach der Registrierung wird der Kunde sofort zu Stripe Checkout
+// weitergeleitet (siehe onbSubmit() in index.html) - "registriert" heißt
+// also fast immer auch "hat die Kasse erreicht". Der eigentlich
+// interessante Bruch liegt DANACH: Kasse erreicht, aber nicht bezahlt.
+// checkout_sessions (siehe routes/billing.js) loggt jede erstellte
+// Stripe-Checkout-Session und wird vom Webhook bei erfolgreicher Zahlung
+// als 'completed' markiert - alles, was 'created' bleibt, ist an der
+// Kasse abgebrochen. Aufgeschlüsselt nach Land/EU-Nicht-EU, um z. B. zu
+// prüfen, ob Besucher aus fernen Ländern (z. B. Japan) überproportional
+// häufig abspringen (Stripe-Vertrauen/Zahlungsmethoden-These).
+// ============================================================
+router.get('/checkout-funnel', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT origin_country, is_eu, status FROM checkout_sessions
+    `).all();
+
+    const totals = { created: rows.length, completed: 0 };
+    rows.forEach(r => { if (r.status === 'completed') totals.completed++; });
+    totals.abandoned = totals.created - totals.completed;
+    totals.completionRate = totals.created > 0 ? totals.completed / totals.created : null;
+
+    function bucket(filterFn) {
+      const filtered = rows.filter(filterFn);
+      const completed = filtered.filter(r => r.status === 'completed').length;
+      return {
+        created: filtered.length,
+        completed,
+        completionRate: filtered.length > 0 ? completed / filtered.length : null
+      };
+    }
+
+    const byRegion = {
+      eu: bucket(r => r.is_eu === 1),
+      nonEu: bucket(r => r.is_eu === 0)
+    };
+
+    const byCountryMap = {};
+    rows.forEach(r => {
+      const c = r.origin_country || 'unbekannt';
+      if (!byCountryMap[c]) byCountryMap[c] = { country: c, created: 0, completed: 0 };
+      byCountryMap[c].created++;
+      if (r.status === 'completed') byCountryMap[c].completed++;
+    });
+    const byCountry = Object.values(byCountryMap)
+      .map(c => ({ ...c, completionRate: c.created > 0 ? c.completed / c.created : null }))
+      .sort((a, b) => (a.completionRate ?? 1) - (b.completionRate ?? 1) || b.created - a.created);
+
+    res.json({ totals, byRegion, byCountry });
+  } catch (error) {
+    console.error('❌ Checkout-Funnel-Fehler:', error);
+    res.status(500).json({ error: 'Checkout-Funnel konnte nicht geladen werden.' });
+  }
+});
+
 // Wie lange schauen sich Besucher die Sandbox-Demo im Dashboard an
 // (siehe DEMO_MODE in dashboard.html, das 'demo_duration'-Event sendet).
 router.get('/demo-duration-stats', (req, res) => {

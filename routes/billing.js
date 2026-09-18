@@ -124,6 +124,20 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     }
   });
 
+  // Für den Checkout-Funnel im Admin-Dashboard (siehe GET
+  // /admin/checkout-funnel): beantwortet "wie viele registrierte Kunden
+  // erreichen die Stripe-Kasse und brechen DORT ab" statt das nur zu
+  // vermuten. Der Webhook unten markiert die Zeile bei erfolgreicher
+  // Zahlung als 'completed'.
+  try {
+    db.prepare(`
+      INSERT INTO checkout_sessions (stripe_session_id, customer_id, plan, interval, origin_country, is_eu, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'created')
+    `).run(session.id, customer.id, plan, interval, customer.origin_country, customer.is_eu ? 1 : 0);
+  } catch (err) {
+    console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
+  }
+
   res.json({ url: session.url });
 });
 
@@ -280,6 +294,11 @@ router.post('/webhooks/stripe', async (req, res) => {
           WHERE id = ?
         `).run(plan, interval === 'annual' ? 'annual' : 'monthly', session.subscription || null, parseInt(user_id));
         console.log(`✅ Plan auf ${plan} geupgradet und aktiviert (User ${user_id})`);
+
+        db.prepare(`
+          UPDATE checkout_sessions SET status = 'completed', completed_at = datetime('now')
+          WHERE stripe_session_id = ?
+        `).run(session.id);
       }
 
       // ⭐ Fall 3: Amazon-Zusatzmodul gebucht
