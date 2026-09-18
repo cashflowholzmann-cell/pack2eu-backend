@@ -474,6 +474,17 @@ function init() {
       'TEXT'
     );
 
+    // Abgehakte Punkte der Schweiz→Österreich-Checkliste (siehe
+    // lib/ch-at-checklist.js) - JSON-Objekt {itemId: true}. Nur für
+    // Kunden mit origin_country='CH' im Dashboard sichtbar/relevant,
+    // aber bewusst kein eigenes Flag dafür - die Spalte bleibt für jeden
+    // Kunden einfach ungenutzt (NULL), wenn nicht zutreffend.
+    addColumnIfMissing(
+      'customers',
+      'ch_at_checklist_json',
+      'TEXT'
+    );
+
 
     // ========================================================
     // 3. COUNTRIES
@@ -739,6 +750,7 @@ function init() {
         representative_provider_name = 'get-e-right Austria GmbH',
         representative_provider_url = 'https://www.get-e-right.at/en/authorised-representative-packaging/',
         representative_data_status = 'needs_verification',
+        notary_required = 1,
         reporting_frequency = 'needs_verification',
         data_status = 'verified'
       WHERE code = 'AT'
@@ -746,7 +758,8 @@ function init() {
       JSON.stringify([
         'Einmalige Registrierung im elektronischen Verpackungsregister (EDM), z. B. über das Unternehmensserviceportal (USP).',
         'Systembeteiligung/Lizenzierung über ein genehmigtes Sammel- und Verwertungssystem wie ARA.',
-        'Bevollmächtigter in Österreich bereits vor PPWR für ausländische Erstinverkehrbringer verpflichtend.',
+        'Bevollmächtigter in Österreich bereits vor PPWR für ausländische Erstinverkehrbringer verpflichtend - seit 1.1.2023 auch für Direktversand-/Fernabsatzhändler ohne Sitz/Niederlassung in Österreich, KEINE Bagatellgrenze (gilt schon ab dem ersten Paket).',
+        'Die Vollmacht für den Bevollmächtigten muss notariell beglaubigt werden (Unterschriftsbeglaubigung durch einen Notar, auf Deutsch oder Englisch möglich) - verursacht zusätzliche einmalige Kosten und Vorlaufzeit, die bei der Kostenschätzung eingeplant werden sollten (Quelle: it-recht-kanzlei.de, IHK, deutsche-recycling.de, Stand 09/2026 per KI-Recherche, mehrere unabhängige Quellen übereinstimmend, nicht anwaltlich geprüft).',
         'Meldefrequenz bei ARA gestaffelt nach erwarteter Jahreslizenzgebühr: jährlich unter 1.500 €, ansonsten quartalsweise, ab 20.000 € monatlich – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.'
       ])
     );

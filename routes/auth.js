@@ -17,6 +17,11 @@ const {
   REP_ENTITLEMENT_COUNTRIES
 } = require('../config/plans');
 
+const {
+  CH_AT_CHECKLIST_ITEMS,
+  getChecklistWithState
+} = require('../lib/ch-at-checklist');
+
 const router =
   express.Router();
 
@@ -521,6 +526,161 @@ router.get(
 
       console.error(
         '❌ Auth-Fehler:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Interner Serverfehler.'
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// SCHWEIZ → ÖSTERREICH CHECKLISTE ("Logbuch")
+//
+// Nur für Kunden mit origin_country = 'CH' im Dashboard relevant, aber
+// bewusst ohne serverseitige Sperre auf andere Herkunftsländer - die
+// Items sind rein informativ/organisatorisch und schaden niemandem, das
+// Ausblenden für andere Länder passiert im Frontend.
+//
+// GET  /api/auth/ch-at-checklist
+// PUT  /api/auth/ch-at-checklist   { itemId, checked }
+// ============================================================
+
+router.get(
+  '/ch-at-checklist',
+  requireAuth,
+  (req, res) => {
+
+    try {
+
+      const row =
+        db.prepare(`
+          SELECT ch_at_checklist_json
+          FROM customers
+          WHERE id = ?
+        `).get(
+          req.auth.userId
+        );
+
+      if (!row) {
+        return res.status(404).json({
+          error:
+            'Kunde nicht gefunden.'
+        });
+      }
+
+      return res.json({
+        items:
+          getChecklistWithState(
+            row.ch_at_checklist_json
+          )
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ CH-AT-Checkliste-Fehler:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Interner Serverfehler.'
+      });
+    }
+  }
+);
+
+const chAtChecklistItemSchema = z.object({
+  itemId: z.string(),
+  checked: z.boolean()
+});
+
+router.put(
+  '/ch-at-checklist',
+  requireAuth,
+  (req, res) => {
+
+    try {
+
+      const parsed =
+        chAtChecklistItemSchema.safeParse(
+          req.body || {}
+        );
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error:
+            'Ungültige Eingabe.'
+        });
+      }
+
+      const { itemId, checked } = parsed.data;
+
+      const validIds =
+        CH_AT_CHECKLIST_ITEMS.map(
+          item => item.id
+        );
+
+      if (!validIds.includes(itemId)) {
+        return res.status(400).json({
+          error:
+            'Unbekannter Checklisten-Punkt.'
+        });
+      }
+
+      const row =
+        db.prepare(`
+          SELECT ch_at_checklist_json
+          FROM customers
+          WHERE id = ?
+        `).get(
+          req.auth.userId
+        );
+
+      if (!row) {
+        return res.status(404).json({
+          error:
+            'Kunde nicht gefunden.'
+        });
+      }
+
+      let state = {};
+      try {
+        state =
+          JSON.parse(
+            row.ch_at_checklist_json || '{}'
+          );
+      } catch (e) {
+        state = {};
+      }
+
+      state[itemId] = checked;
+
+      db.prepare(`
+        UPDATE customers
+        SET ch_at_checklist_json = ?
+        WHERE id = ?
+      `).run(
+        JSON.stringify(state),
+        req.auth.userId
+      );
+
+      return res.json({
+        items:
+          getChecklistWithState(
+            JSON.stringify(state)
+          )
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ CH-AT-Checkliste-Fehler:',
         error
       );
 
