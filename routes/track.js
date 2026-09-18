@@ -44,9 +44,18 @@ const trackLimiter = rateLimit({
 // (siehe index.html) - eigenes Event statt Wiederverwendung, damit sich
 // dieser Einstiegspunkt getrennt auswerten lässt (siehe GET
 // /admin/conversion-insights).
+// 'hero_price_badge_click'/'hero_weeebat_badge_click' = Klicks auf die
+// beiden klickbaren Hero-Badges (springen zu #pricing bzw.
+// #section-weeebat, wie ein Menüpunkt) - eigene Events aus demselben
+// Grund wie oben. 'nav_about_click'/'nav_faq_click' = Klicks auf die
+// neuen Kopfzeilen-Menüpunkte "Über uns"/"FAQ" (reine Sprungmarken-
+// Links, aber trotzdem getrackt, damit sichtbar ist, ob die Navigation
+// tatsächlich genutzt wird statt nur natürlich gescrollt - siehe
+// GET /admin/landing-engagement -> navClicks).
 const ALLOWED_EVENTS = [
   'demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click',
   'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration', 'usp_cta_click',
+  'hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click',
   'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about',
   'view_usp', 'view_faq', 'view_pricing', 'view_final_cta'
 ];
