@@ -821,7 +821,8 @@ function init() {
       JSON.stringify([
         'Registrierung im nationalen Produzentenregister über EPRiBEL Pflicht für alle Unternehmen, die Verpackungen auf dem belgischen Markt in Verkehr bringen.',
         'Mitglieder von Fost Plus (Haushaltsverpackungen) bzw. Valipac (Transport-/B2B-Verpackungen) lassen die Registrierung meist kollektiv über ihre PRO abwickeln.',
-        'Ausländische Unternehmen ohne Sitz in Belgien benötigen seit 12.08.2026 einen bei EPRiBEL registrierten Bevollmächtigten (Vertegenwoordiger voor EPR) in Belgien.'
+        'Ausländische Unternehmen ohne Sitz in Belgien benötigen seit 12.08.2026 einen bei EPRiBEL registrierten Bevollmächtigten (Vertegenwoordiger voor EPR) in Belgien.',
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: Fost Plus unterscheidet in seinen Lizenzentgelt-Tarifen u. a. formstabiles PP, formstabiles PE, flexible Verpackung ≥95% PE/PP sowie Verbundkategorien wie PET/PE – keine pauschale "Kunststoff"-Sammelkategorie (Quelle: fostplus.be, Stand 09/2026 per KI-Recherche, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -863,7 +864,9 @@ function init() {
         'Registrierung und Meldung bei der schwedischen Umweltbehörde Naturvårdsverket erforderlich.',
         'Anschluss an eine anerkannte Produzentenverantwortungsorganisation, z. B. Näringslivets Producentansvar (NPA) oder Tailor-Made Responsibility (TMR).',
         'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.',
-        'Meldefrequenz an die PRO gestaffelt nach Jahresgebühr: monatlich über 120.000 SEK, quartalsweise ab ca. 20.000 SEK, jährlich für sehr kleine Vertreiber – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.'
+        'Meldefrequenz an die PRO gestaffelt nach Jahresgebühr: monatlich über 120.000 SEK, quartalsweise ab ca. 20.000 SEK, jährlich für sehr kleine Vertreiber – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
+        'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: NPA-Tarife unterscheiden zwar "formstabiler Kunststoff" von anderem Kunststoff und gewähren Boni für unpigmentierte Monomaterialien (z. B. reines PP/PE), das wirkt aber eher wie eine Recycling-Bonus-Regelung innerhalb einer Kunststoff-Kategorie als eine echte Polymer-Aufschlüsselungspflicht (Quelle: naturvardsverket.se, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).',
+        'Aktuelles schwedisches Recht verlangt Stand 09/2026 noch keinen Bevollmächtigten für Verpackungen – das könnte sich mit der PPWR-Umsetzung ändern; ein pan-europäischer Anbieter (EUROMANDAT) wirbt bereits mit Schweden-Abdeckung, ohne dass dies unabhängig bestätigt werden konnte.'
       ])
     );
 
@@ -883,7 +886,8 @@ function init() {
         'Registrierungspflicht im nationalen Produzentenregister bei Dansk Producentansvar (DPA) für alle Unternehmen, die Verpackungen in Dänemark in Verkehr bringen.',
         'Meldung der erwarteten Verpackungsmengen und -arten sowie Finanzierung der Abfallbewirtschaftung.',
         'Erweiterte Herstellerverantwortung für Verpackungen gilt in Dänemark bereits seit 1.10.2025, ergänzt durch die PPWR-Vorgaben ab 12.08.2026.',
-        'Die gesetzliche Meldung an DPA ist grundsätzlich jährlich; Vertreiber ab ca. 8 Tonnen Verpackung/Jahr melden laut gängiger Systempraxis stattdessen monatlich – Quellen sind hier nicht eindeutig, daher keine pauschale Frequenz.'
+        'Die gesetzliche Meldung an DPA ist grundsätzlich jährlich; Vertreiber ab ca. 8 Tonnen Verpackung/Jahr melden laut gängiger Systempraxis stattdessen monatlich – Quellen sind hier nicht eindeutig, daher keine pauschale Frequenz.',
+        'Materialmeldung teilweise granular: seit 2025 wird Kunststoff bei DPA in 4 Kategorien unterteilt (formstabil, flexibel, formstabiles PET, Schaumstoff) – PET wird also einzeln ausgewiesen, aber keine vollständige CONAI-Aufschlüsselung (PE/PP/PS/PVC getrennt). Volle verpflichtende Materialkategorie-Meldung erst ab 1.1.2027 vorgesehen (Quelle: recyda.com/producentansvar.dk, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -918,6 +922,9 @@ function init() {
         registration_url = 'https://www.pontoverde.pt/clientes-embaladores/adira-ao-sistema-ponto-verde/',
         requirements_json = ?,
         eco_fee = 'Beitrag an die Sociedade Ponto Verde (SPV), material- und mengenabhängig.',
+        representative_provider_name = 'Novo Verde (Landbell Group)',
+        representative_provider_url = 'https://landbell-group.com/products/packaging/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'PT'
@@ -925,7 +932,8 @@ function init() {
       JSON.stringify([
         'Stand 08/2026: Meldung und Registrierung laufen über die bestehende Sociedade Ponto Verde (SPV) und die SILiAmb-Plattform der portugiesischen Umweltagentur (APA).',
         'Ein eigenständiges nationales PPWR-Produzentenregister ist erst für Ende 2027/Anfang 2028 vorgesehen.',
-        'Meldung der in Verkehr gebrachten Verpackungsmengen erforderlich.'
+        'Meldung der in Verkehr gebrachten Verpackungsmengen erforderlich.',
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, wie in Italien/CONAI: seit 1.1.2020 muss in Portugals Verpackungsmeldung der konkrete Kunststofftyp angegeben werden – PET, PEAD (HDPE), PEBD (LDPE), PP, EPS oder "sonstiger Kunststofftyp" –, keine pauschale "Kunststoff"-Kategorie (Quelle: APA SILiAmb-FAQ, Stand 09/2026 per KI-Recherche, hohe Sicherheit unter den recherchierten Ländern, aber nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1173,8 +1181,12 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Nationales Produzentenregister (noch im Aufbau – EU-weiter Durchführungsrechtsakt für das Registrierungsformat war Stand 08/2026 noch in öffentlicher Konsultation)',
+        register_body = 'EMPA (Εθνικό Μητρώο Παραγωγών / Nationales Produzentenregister) über EOAN; Systembeteiligung über HERRCO',
+        registration_url = 'http://empa.eoan.gr',
         requirements_json = ?,
+        representative_provider_name = 'Interzero',
+        representative_provider_url = 'https://licensing.interzero.at/en/eu-authorised-representative-epr/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
         data_status = 'needs_verification'
       WHERE code = 'GR'
@@ -1182,7 +1194,8 @@ function init() {
       JSON.stringify([
         'Jährliche Meldung der Verpackungsmengen an das zuständige nationale Register bis zum 1. Juni des Folgejahres vorgesehen.',
         'Der EU-weite Durchführungsrechtsakt, der das einheitliche Format für Produzentenregister und Meldungen festlegt, befand sich Stand 08/2026 noch in öffentlicher Konsultation (6.8.–10.9.2026).',
-        'Zusätzlich melden Mitglieder des bestehenden Systems HERRCO ihre Mengen je nach Vertrag monatlich oder quartalsweise an den Betreiber – eine einheitliche Frequenz gibt es nicht.'
+        'Zusätzlich melden Mitglieder des bestehenden Systems HERRCO ihre Mengen je nach Vertrag monatlich oder quartalsweise an den Betreiber – eine einheitliche Frequenz gibt es nicht.',
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: HERRCO unterscheidet PET, HDPE, Mischkunststoffe und PE-Folie als eigene Kategorien, mit Zuschlägen für gefärbtes PET, Mehrschicht-Verpackung, PVC und EPS (Quelle: herrco.gr, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1190,15 +1203,19 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Bestehendes tschechisches EPR-System (PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht mit konkreter Stelle bestätigt)',
+        register_body = 'Ministerstvo životního prostředí (MŽP) / "Seznam osob"; Systembeteiligung über EKO-KOM, a.s. (PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht mit konkreter Stelle bestätigt)',
         requirements_json = ?,
+        representative_provider_name = 'AuthoriseMe (Circular Pro)',
+        representative_provider_url = 'https://circular-pro.com/product/authoriseme-for-czech-republic/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'quarterly',
         data_status = 'needs_verification'
       WHERE code = 'CZ'
     `).run(
       JSON.stringify([
         'PPWR-Pflichten gelten zusätzlich zu den bestehenden tschechischen EPR-Registrierungspflichten – keine Ablösung, sondern Kumulierung.',
-        'Ausländische Online-Händler und Plattformen gelten künftig in vielen Fällen selbst als Verpackungs-Inverkehrbringer.'
+        'Ausländische Online-Händler und Plattformen gelten künftig in vielen Fällen selbst als Verpackungs-Inverkehrbringer.',
+        'Materialmeldung vermutlich granular wie in Italien/CONAI: EKO-KOMs Quartalsberichte sollen Kunststoff u. a. nach PET, PE, PP und XPS getrennt ausweisen – konnte nicht an der Primärquelle verifiziert werden (Quelle: ekokom.cz-Berichtsmethodik laut Suchergebnis-Zusammenfassung, Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1206,16 +1223,20 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Bestehendes slowakisches EPR-System (u. a. NATUR-PACK); PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht abschließend bestätigt',
-        registration_url = 'https://www.naturpack.sk',
+        register_body = 'Ministerstvo životného prostredia SR (MŽP SR) – Register výrobcov vyhradených výrobkov (RVVV) über ISOH-Portal; Systembeteiligung u. a. über NATUR-PACK (PPWR-spezifisches Produzentenregister Stand 08/2026 noch nicht abschließend bestätigt)',
+        registration_url = 'https://www.isoh.gov.sk/uvod/registre.html',
         requirements_json = ?,
+        representative_provider_name = 'NATUR-PACK, a.s.',
+        representative_provider_url = 'https://www.naturpack.sk/en/news/authorized-representative-for-extended-producer-responsibility-epr/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'quarterly',
         data_status = 'needs_verification'
       WHERE code = 'SK'
     `).run(
       JSON.stringify([
         'Registrierung bei den zuständigen nationalen Behörden für jedes Unternehmen, das Verpackungen in der Slowakei erstmals in Verkehr bringt.',
-        'Technische Dokumentation je Verpackungseinheit erforderlich (Materialzusammensetzung, Konformitätsbewertung, verantwortliche Person).'
+        'Technische Dokumentation je Verpackungseinheit erforderlich (Materialzusammensetzung, Konformitätsbewertung, verantwortliche Person).',
+        'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: Meldung erfolgt nach Materialart und Gewicht, mit Recyclingfähigkeits-Boni seit 2023, aber keine bestätigte Aufschlüsselung nach einzelnen Polymeren (Quelle: KI-Recherche Stand 09/2026, niedrige bis mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1223,15 +1244,20 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Nationales Produzentenregister (Durchführungsrechtsakt der EU-Kommission laut Zeitplan bis 12.02.2026 vorgesehen; konkrete ungarische Stelle Stand 08/2026 nicht abschließend bestätigt)',
+        register_body = 'OKIR (Országos Környezetvédelmi Információs Rendszer) / MOHU (staatliche EPR-Konzessionärin) (konkrete PPWR-Zuständigkeit Stand 08/2026 nicht abschließend bestätigt, Namen ändern sich in Ungarn häufig)',
+        registration_url = 'https://web.okir.hu/en/',
         requirements_json = ?,
+        representative_provider_name = 'Eldris',
+        representative_provider_url = 'https://epr.eldris.ai/epr-registration-hungary/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'quarterly',
         data_status = 'needs_verification'
       WHERE code = 'HU'
     `).run(
       JSON.stringify([
         'Gyártói nyilvántartásba vétel (Produzentenregistrierung) ist seit 12.08.2026 Pflicht für Unternehmen, die Verpackungen in Ungarn in Verkehr bringen.',
-        'Konformitätsbewertung und Dokumentation der Verpackung erforderlich.'
+        'Konformitätsbewertung und Dokumentation der Verpackung erforderlich.',
+        'Materialklassifizierung wirkt granularer als in den meisten anderen recherchierten Ländern: jede Verpackung muss mit einem 8-stelligen "KF"-Produktcode klassifiziert werden, der Kunststoff u. a. in PET, PP, PS, LDPE, HDPE unterteilt – auch wenn der Gebührensatz selbst laut denselben Quellen aktuell pauschal pro Materialart (nicht pro Polymer) berechnet wird. Für unser Datenmodell relevant: Ungarn braucht vermutlich Polymer-Granularität bei der Klassifizierung, auch wenn (noch) nicht bei der Gebühr (Quelle: eprhungary.com, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1239,7 +1265,8 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Nationales Produzentenregister (Stand 08/2026 laut Fachpresse noch nicht vollständig aufgebaut)',
+        register_body = 'Administrația Fondului pentru Mediu (AFM) – aktuell zuständige Stelle; welche Behörde langfristig das PPWR-Produzentenregister führt, war laut Quellen Stand 09/2026 noch nicht abschließend geklärt',
+        registration_url = 'https://www.afm.ro',
         requirements_json = ?,
         reporting_frequency = 'monthly',
         data_status = 'needs_verification'
@@ -1247,7 +1274,9 @@ function init() {
     `).run(
       JSON.stringify([
         'Ohne Registrierung im nationalen Produzentenregister dürfen Verpackungen ab 12.08.2026 nicht mehr in Verkehr gebracht werden; Vertreiber und Online-Plattformen müssen den Produzentenstatus prüfen.',
-        'Rumänien hatte Stand 08/2026 laut Fachpresse die nationale Registerinfrastruktur noch nicht vollständig aufgebaut.'
+        'Rumänien hatte Stand 08/2026 laut Fachpresse die nationale Registerinfrastruktur noch nicht vollständig aufgebaut.',
+        'Kein Bevollmächtigten-Mechanismus im aktuellen rumänischen Verpackungsrecht dokumentiert; ausländische Anbieter erfüllen ihre Pflichten meist über eine lizenzierte Rückgewinnungsorganisation (OIREP, z. B. Eco-Rom Ambalaje SA) statt über einen klassischen Bevollmächtigten – kein konkreter Anbieter für die Bevollmächtigten-Rolle bestätigt.',
+        'Materialgranularität unklar: AFM-Meldeformular (Anordnung 591/2017, Anhang 2) erwähnt in manchen Zusammenfassungen "PET" explizit, die vollständige Materialcode-Tabelle konnte aber nicht direkt eingesehen werden (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1255,16 +1284,20 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Suomen Pakkauskierrätys RINKI Oy (Rinki)',
+        register_body = 'LVV (Lupa- ja valvontavirasto) – Tuottajarekisteri (seit 1.1.2026 zuständig, vorher Pirkanmaa ELY-Zentrum); Systembeteiligung über Suomen Pakkaustuottajat Oy (SPT) / Rinki',
         registration_url = 'https://rinkiin.fi',
         requirements_json = ?,
+        representative_provider_name = 'ERP Services Finland Oy',
+        representative_provider_url = 'https://erp-recycling.org/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'FI'
     `).run(
       JSON.stringify([
         'Registrierung und Meldung der Verpackungsmengen erfolgt in Finnland meist über Rinki (Suomen Pakkauskierrätys RINKI Oy).',
-        'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.'
+        'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.',
+        'Materialmeldung vermutlich granular: Rinki-Gebühren werden laut mehreren Quellen materialspezifisch bis auf Kilogramm-Ebene berechnet unter Nennung anerkannter Kunststoffarten (PET, HDPE, PVC, LDPE, PP) – konnte nicht direkt an Rinkis offizieller Preisliste verifiziert werden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1272,8 +1305,12 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Registar proizvođača s proširenom odgovornosti (RPPO)',
+        register_body = 'Registar proizvođača s proširenom odgovornosti (RPPO) über FZOEU',
+        registration_url = 'https://rppo.fzoeu.hr',
         requirements_json = ?,
+        representative_provider_name = 'Interzero',
+        representative_provider_url = 'https://epr.interzero.hr/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'monthly',
         data_status = 'verified'
       WHERE code = 'HR'
@@ -1281,7 +1318,8 @@ function init() {
       JSON.stringify([
         'Seit 2025 existiert das kroatische Register für erweiterte Herstellerverantwortung (RPPO), in dem sich Verpackungs-Inverkehrbringer registrieren müssen.',
         'Registrierungs- und EPR-Pflichten gelten für jeden Mitgliedstaat gesondert, in dem Verpackung erstmals in Verkehr gebracht wird.',
-        'Für Kleinstunternehmen mit geringen Verpackungsmengen sind in bestimmten Fällen Erleichterungen vorgesehen.'
+        'Für Kleinstunternehmen mit geringen Verpackungsmengen sind in bestimmten Fällen Erleichterungen vorgesehen.',
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: FZOEU-Tarif führt Kunststoff u. a. als PET, PE, PP sowie zusätzlich PETG, PLA und PS als eigene Kategorien (Quelle: fzoeu.hr, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1289,15 +1327,20 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Nationales Produzentenregister (Stand 08/2026 noch nicht errichtet – EU-Vorgabe sieht Einrichtung binnen 18 Monaten nach dem ersten Durchführungsrechtsakt der Kommission vor)',
+        register_body = 'ARSO (Agencija Republike Slovenije za okolje) – bestehendes Verpackungsregister (eigenständiges PPWR-Produzentenregister Stand 08/2026 noch nicht bestätigt)',
+        registration_url = 'http://okolje.arso.gov.si/embalaza/',
         requirements_json = ?,
+        representative_provider_name = 'Interzero',
+        representative_provider_url = 'https://epr.interzero.si/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'quarterly',
         data_status = 'needs_verification'
       WHERE code = 'SI'
     `).run(
       JSON.stringify([
         'Das slowenische Umweltministerium hat einen Verordnungsentwurf zur Umsetzung des PRO-Systems für Verpackungen vorbereitet; das nationale Register war Stand 08/2026 noch nicht in Betrieb.',
-        'PPWR unterscheidet klar zwischen „Hersteller" (Konformität der Verpackung) und „Produzent" (EPR-Pflichten wie Registrierung und Finanzierung der Entsorgung).'
+        'PPWR unterscheidet klar zwischen „Hersteller" (Konformität der Verpackung) und „Produzent" (EPR-Pflichten wie Registrierung und Finanzierung der Entsorgung).',
+        'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: Gebühr richtet sich primär nach Materialart (Karton, Kunststoff, Metall, Glas, Verbund) und Gewicht, keine Hinweise auf Polymer-Aufschlüsselung gefunden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1315,7 +1358,8 @@ function init() {
       JSON.stringify([
         'Registrierungspflicht bei der litauischen Umweltschutzagentur (Aplinkos apsaugos agentūra) für jedes Unternehmen, das Verpackungen erstmals in Litauen in Verkehr bringt.',
         'Ausländische Unternehmen ohne Sitz in Litauen benötigen einen Bevollmächtigten für die erweiterte Herstellerverantwortung (EPR).',
-        'Quellen widersprechen sich zur Meldefrequenz über GPAIS (nur jährlich vs. zusätzlich quartalsweise) – vor verlässlicher Aussage noch zu klären.'
+        'Quellen widersprechen sich zur Meldefrequenz über GPAIS (nur jährlich vs. zusätzlich quartalsweise) – vor verlässlicher Aussage noch zu klären.',
+        'Wichtige operative Lücke: mindestens eine Quelle besagt, dass GPAIS (das litauische Melde-/Registersystem) Stand 09/2026 noch keine Funktion bietet, mit der ausländische Produzenten sich über einen Bevollmächtigten registrieren können – die Bevollmächtigten-Route könnte also aktuell noch nicht technisch nutzbar sein. Kein konkreter Bevollmächtigten-Anbieter für Litauen bestätigt. Materialgranularität (Polymer-Aufschlüsselung wie CONAI) konnte nicht bestätigt oder ausgeschlossen werden (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1333,7 +1377,9 @@ function init() {
       JSON.stringify([
         'Registrierung und Meldung erfolgt über den Staatlichen Umweltdienst (Valsts vides dienests, VVD).',
         'Bestehende lettische Steuer- und EPR-Pflichten (u. a. Verpackungssteuer) werden durch die PPWR nicht automatisch ersetzt, sondern bestehen zusätzlich fort.',
-        'Meldefrequenz (monatlich/quartalsweise) hängt vom jeweiligen PRO-Vertrag ab, zusätzlich zu einer jährlichen Zusammenfassung – kein einheitlicher Standard.'
+        'Meldefrequenz (monatlich/quartalsweise) hängt vom jeweiligen PRO-Vertrag ab, zusätzlich zu einer jährlichen Zusammenfassung – kein einheitlicher Standard.',
+        'Widersprüchliche Quellenlage zur Bevollmächtigten-Pflicht: manche Quellen nennen eine Pflicht mit lettischer Steuer-ID (VID), andere sagen, ausländische Anbieter könnten eigenständig ohne Bevollmächtigten handeln – vor Aussage an Kunden zu klären. Kein konkreter Anbieter bestätigt.',
+        'Materialgranularität: die lettische Plastiksteuer unterscheidet "recycelbaren" vs. "nicht recycelbaren" Kunststoff (0,80 €/kg bei nicht recycelbar) mit möglichem Aufschlag für Polystyrol/Schaumstoff – aber keine bestätigte vollständige Polymer-Aufschlüsselung wie bei CONAI (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1341,15 +1387,20 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Kliimaministeerium (Klimaministerium) – eigenständiges estnisches Produzentenregister voraussichtlich erst um 2028 fertig',
+        register_body = 'PAKIS (Verpackungsregister) unter dem Kliimaministeerium (Klimaministerium) / Keskkonnaagentuur – eigenständiges vollwertiges Produzentenregister voraussichtlich erst um 2028 fertig',
+        registration_url = 'https://pakis.envir.ee',
         requirements_json = ?,
+        representative_provider_name = '1Aruandlus',
+        representative_provider_url = 'https://1aruandlus.ee/en/authorized-representative/packaging-reporting-with-an-authorized-representative-in-estonia/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'EE'
     `).run(
       JSON.stringify([
         'Unternehmen müssen sich in jedem Mitgliedstaat registrieren, in dem sie Verpackungen erstmals in Verkehr bringen; ohne gültige Registrierung darf in Estland keine verpackte Ware in Verkehr gebracht werden.',
-        'Das eigenständige estnische Produzentenregister wird laut Kliimaministeerium voraussichtlich erst um 2028 fertiggestellt sein.'
+        'Das eigenständige estnische Produzentenregister wird laut Kliimaministeerium voraussichtlich erst um 2028 fertiggestellt sein.',
+        'Materialgranularität unklar: ein Merkblatt zu estnischen Einwegplastik-Vorgaben erwähnt Kunststoffarten wie PET/HDPE/Folien, das bezieht sich aber eher auf Einwegplastik-Kategorien als auf die tatsächliche PAKIS-Meldegranularität für Verpackungsproduzenten (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1357,7 +1408,8 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Ministerium für Umwelt und Wasser – Systembeteiligung z. B. über Ecopak oder andere lizenzierte Organisationen',
+        register_body = 'NISO (National Waste Information System) über ExEA (Executive Environment Agency); Systembeteiligung z. B. über Ecopak oder andere lizenzierte Organisationen',
+        registration_url = 'https://eea.government.bg/bg/nsmos/waste/niso/',
         requirements_json = ?,
         reporting_frequency = 'monthly',
         data_status = 'needs_verification'
@@ -1365,7 +1417,9 @@ function init() {
     `).run(
       JSON.stringify([
         'Registrierung und Meldung bei den vom bulgarischen Umweltministerium lizenzierten Rückgewinnungsorganisationen (z. B. Ecopak) erforderlich.',
-        'Konformitätsbewertung, technische Dokumentation und EU-Konformitätserklärung ab 12.08.2026 vorgeschrieben.'
+        'Konformitätsbewertung, technische Dokumentation und EU-Konformitätserklärung ab 12.08.2026 vorgeschrieben.',
+        'Kein belastbarer Bevollmächtigten-Anbieter für Bulgarien gefunden – Interzeros "alle 27 Mitgliedstaaten"-Werbeaussage nannte Bulgarien in den gefundenen Länderlisten auffällig NICHT namentlich, im Gegensatz zu Kroatien/Italien/Spanien. Vor Kundenaussage direkt prüfen.',
+        'Materialgranularität unklar: Ecopaks Kunststoff-Gebühr scheint eine Sammelposition zu sein (~0,175 BGN/kg), keine bestätigte Polymer-Aufschlüsselung wie bei CONAI (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1384,7 +1438,9 @@ function init() {
       JSON.stringify([
         'Valorlux ist die einzige zugelassene Systembetreiberin (PRO) für Verpackungen in Luxemburg – Mitgliedschaft ist verpflichtend, eine individuelle Erfüllung ist nicht vorgesehen.',
         'Ausländische Unternehmen ohne Sitz in Luxemburg benötigen seit 12.08.2026 einen dort ansässigen Bevollmächtigten.',
-        'Meldung der Verpackungsmengen über das Valorlux-Portal Valbase; für Industrieverpackungen läuft das Meldefenster jährlich von Anfang Januar bis Ende Februar.'
+        'Meldung der Verpackungsmengen über das Valorlux-Portal Valbase; für Industrieverpackungen läuft das Meldefenster jährlich von Anfang Januar bis Ende Februar.',
+        'Kein eigenständiger Bevollmächtigten-Dienstleister für Luxemburg gefunden – mehrere Quellen bestätigen übereinstimmend, dass ausländische Fernabsatzhändler stattdessen direkt Mitglied bei Valorlux werden, statt einen dritten Bevollmächtigten einzuschalten. Ob sich das seit dem PPWR-Stichtag 12.08.2026 geändert hat, war Stand 09/2026 nicht abschließend geklärt.',
+        'Materialgranularität: Valorlux erfasst bei der Industrieverpackungs-Meldung nur vier Kategorien (Papier/Karton, Holz, Metall, Kunststoff) – Kunststoff bleibt EINE Sammelkategorie, KEINE Aufschlüsselung nach Polymer wie bei Italien/CONAI (Quelle: valorlux.lu, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1392,7 +1448,8 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Nationales Produzentenregister (Stand 08/2026 keine konkrete Stelle bestätigt)',
+        register_body = 'Environment and Resources Authority (ERA); Systembeteiligung über GreenPak Coop Society Ltd oder GreenMT Ltd',
+        registration_url = 'https://era.org.mt',
         requirements_json = ?,
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
@@ -1400,7 +1457,8 @@ function init() {
     `).run(
       JSON.stringify([
         'Registrierungspflicht in jedem Mitgliedstaat, in dem Verpackungen erstmals in Verkehr gebracht werden – auch in Malta.',
-        'Eine spezifische maltesische Zuständigkeitsstelle für die PPWR-Registrierung konnte Stand 08/2026 nicht abschließend bestätigt werden.'
+        'ERA verlangt von nicht in Malta ansässigen Produzenten die Bestellung eines dort ansässigen Bevollmächtigten – ein konkreter, namentlich bestätigter Dienstleister für diese Rolle (getrennt von den Systembetreibern GreenPak/GreenMT) konnte nicht gefunden werden.',
+        'Materialgranularität: Maltas Tarif unterscheidet "formstabilen" und "flexiblen" Kunststoff als getrennte Kategorien – gröber als Italiens CONAI-Modell (keine einzelnen Polymere wie PE/PET/PP), aber auch nicht nur eine einzige Sammelkategorie (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -1410,13 +1468,17 @@ function init() {
       SET
         register_body = 'Green Dot Cyprus / Department of Environment',
         requirements_json = ?,
+        representative_provider_name = 'Markou & Co LLC',
+        representative_provider_url = 'https://markoullc.com/authorisedrepresentative-services-cy-batteries/',
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'verified'
       WHERE code = 'CY'
     `).run(
       JSON.stringify([
         'Green Dot Cyprus ist seit 2002 das etablierte System für die erweiterte Herstellerverantwortung bei Verpackungen in Zypern; Registrierung zusätzlich beim Department of Environment.',
-        'Ausländische Unternehmen ohne Sitz in Zypern benötigen einen Bevollmächtigten in Zypern.'
+        'Ausländische Unternehmen ohne Sitz in Zypern benötigen einen Bevollmächtigten in Zypern.',
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: Green Dot Cyprus führt PET und HDPE als getrennte Positionen in der offiziellen Gebührentabelle (Quelle: greendot.com.cy, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit – Tabelle selbst evtl. noch nicht an die PPWR-Öko-Modulation ab 08/2026 angepasst, nicht anwaltlich geprüft).'
       ])
     );
 
