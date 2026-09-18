@@ -538,6 +538,18 @@ function init() {
       "TEXT NOT NULL DEFAULT 'needs_verification'"
     );
 
+    // Kontakt-E-Mail des recherchierten Bevollmächtigten-Kandidaten je
+    // Land - getrennt von representative_provider_name/url, weil sie
+    // manuell im Admin-Dashboard gepflegt wird (siehe routes/admin.js,
+    // POST /countries/:code/invite-representative): erst wenn hier eine
+    // echte E-Mail hinterlegt ist, kann der Kandidat per Klick in einen
+    // echten representatives-Account (mit Login/2FA) eingeladen werden.
+    addColumnIfMissing(
+      'countries',
+      'representative_provider_email',
+      'TEXT'
+    );
+
     // Nur auf 0 gesetzt, wenn recherchiert bestätigt ist, dass das Land
     // aktuell überhaupt keine Verpackungs-Registrierung/Bevollmächtigung
     // verlangt (z. B. Schweiz, China, Thailand) – nicht gleichzusetzen mit

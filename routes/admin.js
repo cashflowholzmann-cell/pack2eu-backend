@@ -1968,4 +1968,96 @@ router.put('/material-rates/:id', (req, res) => {
   }
 });
 
+// ============================================================
+// LÄNDER-BEVOLLMÄCHTIGTE (Kandidaten aus der Recherche in echte
+// representatives-Accounts überführen)
+//
+// countries.representative_provider_name/url/data_status sind reine
+// Referenzdaten (recherchierte Kandidaten, siehe db/index.js-Kommentar
+// zu material_license_rates-Konvention: 'needs_verification', kein
+// Rechtstext). Erst wenn hier zusätzlich eine echte E-Mail hinterlegt
+// und "Einladen" geklickt wird, entsteht daraus ein echter
+// representatives-Account mit Login/2FA (createAndInviteRepresentative(),
+// siehe oben) - die Kunden-Zuordnung läuft danach ganz normal über die
+// bestehende Bevollmächtigte-Verwaltung/Anfragen-Queue.
+// ============================================================
+router.get('/countries', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT code, name, flag, register_body, registration_url,
+             representative_provider_name, representative_provider_url,
+             representative_provider_email, representative_data_status
+      FROM countries
+      ORDER BY name
+    `).all();
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Länder:', error);
+    res.status(500).json({ error: 'Länder konnten nicht geladen werden.' });
+  }
+});
+
+router.put('/countries/:code/representative', (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const existing = db.prepare('SELECT code FROM countries WHERE code = ?').get(code);
+    if (!existing) return res.status(404).json({ error: 'Land nicht gefunden.' });
+
+    const name = req.body.representative_provider_name != null ? String(req.body.representative_provider_name).trim() || null : undefined;
+    const url = req.body.representative_provider_url != null ? String(req.body.representative_provider_url).trim() || null : undefined;
+    const email = req.body.representative_provider_email != null ? String(req.body.representative_provider_email).trim().toLowerCase() || null : undefined;
+
+    const fields = [];
+    const values = [];
+    if (name !== undefined) { fields.push('representative_provider_name = ?'); values.push(name); }
+    if (url !== undefined) { fields.push('representative_provider_url = ?'); values.push(url); }
+    if (email !== undefined) { fields.push('representative_provider_email = ?'); values.push(email); }
+    if (fields.length === 0) return res.status(400).json({ error: 'Keine Änderung übergeben.' });
+
+    db.prepare(`UPDATE countries SET ${fields.join(', ')} WHERE code = ?`).run(...values, code);
+
+    const updated = db.prepare(`
+      SELECT code, name, representative_provider_name, representative_provider_url,
+             representative_provider_email, representative_data_status
+      FROM countries WHERE code = ?
+    `).get(code);
+    res.json(updated);
+  } catch (error) {
+    console.error('❌ Fehler beim Aktualisieren des Länder-Bevollmächtigten:', error);
+    res.status(500).json({ error: 'Konnte nicht gespeichert werden.' });
+  }
+});
+
+router.post('/countries/:code/invite-representative', async (req, res) => {
+  try {
+    const code = req.params.code.toUpperCase();
+    const country = db.prepare('SELECT code, name, representative_provider_name, representative_provider_email FROM countries WHERE code = ?').get(code);
+    if (!country) return res.status(404).json({ error: 'Land nicht gefunden.' });
+
+    if (!country.representative_provider_email) {
+      return res.status(400).json({ error: 'Für dieses Land ist noch keine E-Mail-Adresse hinterlegt.' });
+    }
+    if (!country.representative_provider_name) {
+      return res.status(400).json({ error: 'Für dieses Land ist noch kein Anbieter-Name hinterlegt.' });
+    }
+
+    const existingRep = db.prepare('SELECT id FROM representatives WHERE email = ?').get(country.representative_provider_email);
+    if (existingRep) {
+      return res.status(409).json({ error: 'Diese E-Mail ist bereits als Bevollmächtigter registriert.', representativeId: existingRep.id });
+    }
+
+    const id = await createAndInviteRepresentative({
+      countryCode: code,
+      name: country.representative_provider_name,
+      email: country.representative_provider_email,
+      company: country.representative_provider_name,
+      stream: 'packaging'
+    });
+    res.status(201).json({ success: true, id });
+  } catch (error) {
+    console.error('❌ Fehler beim Einladen des Länder-Bevollmächtigten:', error);
+    res.status(500).json({ error: 'Einladung konnte nicht verschickt werden.' });
+  }
+});
+
 module.exports = router;
