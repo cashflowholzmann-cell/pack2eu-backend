@@ -934,8 +934,8 @@ function init() {
         registration_url = 'https://www.pontoverde.pt/clientes-embaladores/adira-ao-sistema-ponto-verde/',
         requirements_json = ?,
         eco_fee = 'Beitrag an die Sociedade Ponto Verde (SPV), material- und mengenabhängig.',
-        representative_provider_name = 'Novo Verde (Landbell Group)',
-        representative_provider_url = 'https://landbell-group.com/products/packaging/',
+        representative_provider_name = 'Portugal-AR',
+        representative_provider_url = 'https://www.portugal-ar.com/en/company',
         representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
@@ -945,7 +945,8 @@ function init() {
         'Stand 08/2026: Meldung und Registrierung laufen über die bestehende Sociedade Ponto Verde (SPV) und die SILiAmb-Plattform der portugiesischen Umweltagentur (APA).',
         'Ein eigenständiges nationales PPWR-Produzentenregister ist erst für Ende 2027/Anfang 2028 vorgesehen.',
         'Meldung der in Verkehr gebrachten Verpackungsmengen erforderlich.',
-        'Materialmeldung nach Kunststoff-Subtyp erforderlich, wie in Italien/CONAI: seit 1.1.2020 muss in Portugals Verpackungsmeldung der konkrete Kunststofftyp angegeben werden – PET, PEAD (HDPE), PEBD (LDPE), PP, EPS oder "sonstiger Kunststofftyp" –, keine pauschale "Kunststoff"-Kategorie (Quelle: APA SILiAmb-FAQ, Stand 09/2026 per KI-Recherche, hohe Sicherheit unter den recherchierten Ländern, aber nicht anwaltlich geprüft).'
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, wie in Italien/CONAI: seit 1.1.2020 muss in Portugals Verpackungsmeldung der konkrete Kunststofftyp angegeben werden – PET, PEAD (HDPE), PEBD (LDPE), PP, EPS oder "sonstiger Kunststofftyp" –, keine pauschale "Kunststoff"-Kategorie (Quelle: APA SILiAmb-FAQ, Stand 09/2026 per KI-Recherche, hohe Sicherheit unter den recherchierten Ländern, aber nicht anwaltlich geprüft).',
+        'Bewusst KEIN Großanbieter (Interzero/Landbell/ERP) als Bevollmächtigten-Kandidat: Portugal-AR (portugal-ar.com) ist laut Selbstauskunft ein reiner Portugal-Spezialist, unabhängig von Compliance-Systemen/Recyclern, seit 12+ Jahren aktiv (ehem. ANREEE-Register) - passt zur gewünschten Boutique-Strategie. Nicht direkt verifiziert (Seite war per WebFetch nicht abrufbar), vor Kontaktaufnahme selbst prüfen.'
       ])
     );
 
@@ -1196,9 +1197,6 @@ function init() {
         register_body = 'EMPA (Εθνικό Μητρώο Παραγωγών / Nationales Produzentenregister) über EOAN; Systembeteiligung über HERRCO',
         registration_url = 'http://empa.eoan.gr',
         requirements_json = ?,
-        representative_provider_name = 'Interzero',
-        representative_provider_url = 'https://licensing.interzero.at/en/eu-authorised-representative-epr/',
-        representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
         data_status = 'needs_verification'
       WHERE code = 'GR'
@@ -1207,7 +1205,8 @@ function init() {
         'Jährliche Meldung der Verpackungsmengen an das zuständige nationale Register bis zum 1. Juni des Folgejahres vorgesehen.',
         'Der EU-weite Durchführungsrechtsakt, der das einheitliche Format für Produzentenregister und Meldungen festlegt, befand sich Stand 08/2026 noch in öffentlicher Konsultation (6.8.–10.9.2026).',
         'Zusätzlich melden Mitglieder des bestehenden Systems HERRCO ihre Mengen je nach Vertrag monatlich oder quartalsweise an den Betreiber – eine einheitliche Frequenz gibt es nicht.',
-        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: HERRCO unterscheidet PET, HDPE, Mischkunststoffe und PE-Folie als eigene Kategorien, mit Zuschlägen für gefärbtes PET, Mehrschicht-Verpackung, PVC und EPS (Quelle: herrco.gr, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit, nicht anwaltlich geprüft).'
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: HERRCO unterscheidet PET, HDPE, Mischkunststoffe und PE-Folie als eigene Kategorien, mit Zuschlägen für gefärbtes PET, Mehrschicht-Verpackung, PVC und EPS (Quelle: herrco.gr, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit, nicht anwaltlich geprüft).',
+        'Bewusst KEIN Bevollmächtigten-Kandidat hinterlegt: eine gezielte Suche nach kleinen, unabhängigen Alternativen zu Interzero ergab für Griechenland keinen belastbaren Treffer - nur der große Konsolidierer selbst, der nicht als Kandidat gepflegt werden soll, die Marktbeherrscherin HERRCO (kein Bevollmächtigter-Dienstleister, sondern die PRO selbst) und pan-europäische Compliance-Plattformen. Einziger schwacher Hinweis: die Athener Kanzlei Dryllerakis & Associates hat einen Umweltrechts-Fachbereich, bietet aber laut Recherche keine bestätigte Bevollmächtigten-Dienstleistung für Verpackungen an - vor Kontaktaufnahme direkt verifizieren.'
       ])
     );
 
@@ -1299,8 +1298,8 @@ function init() {
         register_body = 'LVV (Lupa- ja valvontavirasto) – Tuottajarekisteri (seit 1.1.2026 zuständig, vorher Pirkanmaa ELY-Zentrum); Systembeteiligung über Suomen Pakkaustuottajat Oy (SPT) / Rinki',
         registration_url = 'https://rinkiin.fi',
         requirements_json = ?,
-        representative_provider_name = 'ERP Services Finland Oy',
-        representative_provider_url = 'https://erp-recycling.org/',
+        representative_provider_name = 'Elker Oy',
+        representative_provider_url = 'https://elker.fi/en/authorized-representative/',
         representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
@@ -1309,7 +1308,8 @@ function init() {
       JSON.stringify([
         'Registrierung und Meldung der Verpackungsmengen erfolgt in Finnland meist über Rinki (Suomen Pakkauskierrätys RINKI Oy).',
         'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.',
-        'Materialmeldung vermutlich granular: Rinki-Gebühren werden laut mehreren Quellen materialspezifisch bis auf Kilogramm-Ebene berechnet unter Nennung anerkannter Kunststoffarten (PET, HDPE, PVC, LDPE, PP) – konnte nicht direkt an Rinkis offizieller Preisliste verifiziert werden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).'
+        'Materialmeldung vermutlich granular: Rinki-Gebühren werden laut mehreren Quellen materialspezifisch bis auf Kilogramm-Ebene berechnet unter Nennung anerkannter Kunststoffarten (PET, HDPE, PVC, LDPE, PP) – konnte nicht direkt an Rinkis offizieller Preisliste verifiziert werden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).',
+        'Bewusst KEIN Großanbieter (ERP/Interzero/Landbell) als Kandidat: Elker Oy gehört laut Recherche drei kleinen finnischen Produzentenverantwortungs-Organisationen (ICT-tuottajaosuuskunta TY, SELT ry, FLIP ry) und ist nur nordisch tätig (über "Nordic PRO Solutions"), kein europaweiter Konzern - passt zur gewünschten Boutique-Strategie. Nicht direkt verifiziert, vor Kontaktaufnahme selbst prüfen.'
       ])
     );
 
@@ -1320,9 +1320,6 @@ function init() {
         register_body = 'Registar proizvođača s proširenom odgovornosti (RPPO) über FZOEU',
         registration_url = 'https://rppo.fzoeu.hr',
         requirements_json = ?,
-        representative_provider_name = 'Interzero',
-        representative_provider_url = 'https://epr.interzero.hr/',
-        representative_data_status = 'needs_verification',
         reporting_frequency = 'monthly',
         data_status = 'verified'
       WHERE code = 'HR'
@@ -1331,7 +1328,8 @@ function init() {
         'Seit 2025 existiert das kroatische Register für erweiterte Herstellerverantwortung (RPPO), in dem sich Verpackungs-Inverkehrbringer registrieren müssen.',
         'Registrierungs- und EPR-Pflichten gelten für jeden Mitgliedstaat gesondert, in dem Verpackung erstmals in Verkehr gebracht wird.',
         'Für Kleinstunternehmen mit geringen Verpackungsmengen sind in bestimmten Fällen Erleichterungen vorgesehen.',
-        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: FZOEU-Tarif führt Kunststoff u. a. als PET, PE, PP sowie zusätzlich PETG, PLA und PS als eigene Kategorien (Quelle: fzoeu.hr, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit, nicht anwaltlich geprüft).'
+        'Materialmeldung nach Kunststoff-Subtyp erforderlich, ähnlich Italien/CONAI: FZOEU-Tarif führt Kunststoff u. a. als PET, PE, PP sowie zusätzlich PETG, PLA und PS als eigene Kategorien (Quelle: fzoeu.hr, Stand 09/2026 per KI-Recherche, mittlere bis hohe Sicherheit, nicht anwaltlich geprüft).',
+        'Bewusst KEIN Bevollmächtigten-Kandidat hinterlegt: gezielte Suche nach kleinen, unabhängigen Alternativen zu Interzero ergab trotz umfangreicher Recherche (auch auf Kroatisch) keinen belastbaren Treffer - nur Interzero selbst sowie kroatische Umweltberater (Oikon, ORO, Eco Code, CIAK Grupa) ohne bestätigtes Bevollmächtigten-Angebot für Verpackungen. Schwacher Hinweis: Go4Recycling (Deutschland) bezeichnet sich als neutraler EPR-Berater mit Kroatien-Abdeckung über ein Partnersystem, ist aber selbst mehrere Länder abdeckend und nicht kroatisch-lokal - vor Kontaktaufnahme direkt verifizieren.'
       ])
     );
 
@@ -1342,9 +1340,6 @@ function init() {
         register_body = 'ARSO (Agencija Republike Slovenije za okolje) – bestehendes Verpackungsregister (eigenständiges PPWR-Produzentenregister Stand 08/2026 noch nicht bestätigt)',
         registration_url = 'http://okolje.arso.gov.si/embalaza/',
         requirements_json = ?,
-        representative_provider_name = 'Interzero',
-        representative_provider_url = 'https://epr.interzero.si/',
-        representative_data_status = 'needs_verification',
         reporting_frequency = 'quarterly',
         data_status = 'needs_verification'
       WHERE code = 'SI'
@@ -1352,7 +1347,8 @@ function init() {
       JSON.stringify([
         'Das slowenische Umweltministerium hat einen Verordnungsentwurf zur Umsetzung des PRO-Systems für Verpackungen vorbereitet; das nationale Register war Stand 08/2026 noch nicht in Betrieb.',
         'PPWR unterscheidet klar zwischen „Hersteller" (Konformität der Verpackung) und „Produzent" (EPR-Pflichten wie Registrierung und Finanzierung der Entsorgung).',
-        'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: Gebühr richtet sich primär nach Materialart (Karton, Kunststoff, Metall, Glas, Verbund) und Gewicht, keine Hinweise auf Polymer-Aufschlüsselung gefunden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).'
+        'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: Gebühr richtet sich primär nach Materialart (Karton, Kunststoff, Metall, Glas, Verbund) und Gewicht, keine Hinweise auf Polymer-Aufschlüsselung gefunden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).',
+        'Bewusst KEIN Bevollmächtigten-Kandidat hinterlegt: gezielte Suche nach kleinen, unabhängigen Alternativen zu Interzero ergab keinen belastbaren Treffer. Schwache Hinweise für Direktansprache: die sechs slowenischen Verpackungs-Systembetreiber (Slopak, Surovina, Dinos, Recikel, Embakom - Interseroh dabei bewusst NICHT, da ALBA-Group-Marke) übernehmen evtl. keine Bevollmächtigten-Rolle, sondern nur die Systembeteiligung; Triomin d.o.o. (Koper) ist eine kleine Steuer-/Unternehmensberatung mit Verpackungsrecht-Inhalten, aber unbestätigt als Bevollmächtigter tätig - beides vor Kontaktaufnahme direkt verifizieren.'
       ])
     );
 
