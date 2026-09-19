@@ -230,6 +230,17 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
     }
   });
 
+  // Siehe Kommentar bei /create-checkout-session: dieselbe Sichtbarkeit
+  // im Checkout-Funnel, die bisher nur der Haupt-Abo-Kasse vorbehalten war.
+  try {
+    db.prepare(`
+      INSERT INTO checkout_sessions (stripe_session_id, customer_id, origin_country, is_eu, type, status)
+      VALUES (?, ?, ?, ?, ?, 'created')
+    `).run(session.id, customer.id, customer.origin_country, customer.is_eu ? 1 : 0, type || 'premium_upgrade');
+  } catch (err) {
+    console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
+  }
+
   res.json({ url: session.url });
 });
 
@@ -275,6 +286,17 @@ router.post('/create-amazon-addon-session', requireAuth, async (req, res) => {
     }
   });
 
+  // Siehe Kommentar bei /create-checkout-session: dieselbe Sichtbarkeit
+  // im Checkout-Funnel, die bisher nur der Haupt-Abo-Kasse vorbehalten war.
+  try {
+    db.prepare(`
+      INSERT INTO checkout_sessions (stripe_session_id, customer_id, origin_country, is_eu, type, status)
+      VALUES (?, ?, ?, ?, 'amazon_addon_purchase', 'created')
+    `).run(session.id, customer.id, customer.origin_country, customer.is_eu ? 1 : 0);
+  } catch (err) {
+    console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
+  }
+
   res.json({ url: session.url });
 });
 
@@ -298,6 +320,20 @@ router.post('/webhooks/stripe', async (req, res) => {
     const { user_id, country, type, plan, interval } = session.metadata || {};
 
     console.log(`✅ Zahlung erfolgreich: User ${user_id}, Land ${country}, Typ ${type}, Plan ${plan}, Intervall ${interval}`);
+
+    // Gilt für JEDE erfolgreich abgeschlossene Checkout-Session, unabhängig
+    // vom Typ (plan_upgrade/premium_upgrade/amazon_addon_purchase) - vorher
+    // stand das nur im plan_upgrade-Zweig, wodurch Premium-Länder- und
+    // Amazon-Add-on-Käufe im Checkout-Funnel für immer als "created"
+    // (=abgebrochen) stehen blieben, obwohl bezahlt wurde.
+    try {
+      db.prepare(`
+        UPDATE checkout_sessions SET status = 'completed', completed_at = datetime('now')
+        WHERE stripe_session_id = ?
+      `).run(session.id);
+    } catch (err) {
+      console.error('❌ Checkout-Session-Tracking-Fehler (completed):', err.message);
+    }
 
     try {
       // ⭐ Fall 1: Premium-Upgrade für ein Land
@@ -326,11 +362,6 @@ router.post('/webhooks/stripe', async (req, res) => {
           WHERE id = ?
         `).run(plan, interval === 'annual' ? 'annual' : 'monthly', session.subscription || null, parseInt(user_id));
         console.log(`✅ Plan auf ${plan} geupgradet und aktiviert (User ${user_id})`);
-
-        db.prepare(`
-          UPDATE checkout_sessions SET status = 'completed', completed_at = datetime('now')
-          WHERE stripe_session_id = ?
-        `).run(session.id);
       }
 
       // ⭐ Fall 3: Amazon-Zusatzmodul gebucht

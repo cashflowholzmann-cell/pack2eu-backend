@@ -3576,6 +3576,17 @@ function init() {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_customer_id ON checkout_sessions(customer_id);`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_created_at ON checkout_sessions(created_at);`);
 
+    // Bisher wurde NUR die Haupt-Abo-Kasse (plan_upgrade) hier geloggt -
+    // Premium-Länder-Upgrade und Amazon-Zusatzmodul erzeugten zwar auch
+    // eine Stripe-Checkout-Session, aber keine Zeile hier, waren also im
+    // Checkout-Funnel unsichtbar. 'plan_upgrade' als Default hält die
+    // Bedeutung bestehender Zeilen unverändert.
+    addColumnIfMissing(
+      'checkout_sessions',
+      'type',
+      "TEXT NOT NULL DEFAULT 'plan_upgrade'"
+    );
+
     console.log(
       '=============================================='
     );

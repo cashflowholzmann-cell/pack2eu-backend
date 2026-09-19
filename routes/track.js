@@ -57,7 +57,14 @@ const ALLOWED_EVENTS = [
   'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration', 'usp_cta_click',
   'hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click',
   'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about',
-  'view_usp', 'view_faq', 'view_pricing', 'view_final_cta'
+  'view_usp', 'view_faq', 'view_pricing', 'view_final_cta',
+  // Feuert direkt beim Klick auf einen Zahlungs-Button, BEVOR der
+  // API-Aufruf zu Stripe überhaupt startet - schließt die Lücke zwischen
+  // "Button geklickt" und "checkout_sessions-Zeile existiert" (siehe
+  // routes/billing.js). Ohne das wäre ein JS-Fehler oder ein 500er beim
+  // Erstellen der Stripe-Session komplett unsichtbar: keine Zeile in
+  // checkout_sessions, aber auch kein Hinweis, dass überhaupt geklickt wurde.
+  'checkout_button_click'
 ];
 
 // Obergrenze für event_value bei 'demo_duration' - 4 Stunden. Verhindert

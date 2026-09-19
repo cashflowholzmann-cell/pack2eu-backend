@@ -385,10 +385,21 @@ router.get('/funnel-attribution', (req, res) => {
 router.get('/checkout-funnel', (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT origin_country, is_eu, status FROM checkout_sessions
+      SELECT origin_country, is_eu, status, type FROM checkout_sessions
     `).all();
 
-    const totals = { created: rows.length, completed: 0 };
+    // Zeigt zusätzlich die Stufe VOR "Kasse erreicht": wie oft wurde
+    // überhaupt auf einen Zahlungs-Button geklickt (siehe
+    // trackCheckoutButtonClick() in dashboard.html/index.html)? Eine
+    // deutliche Lücke zwischen diesem Wert und "created" unten bedeutet,
+    // dass der Klick zwar ankam, aber das Anlegen der Stripe-Session
+    // fehlgeschlagen ist (z. B. JS-Fehler, 500er) - das wäre sonst
+    // komplett unsichtbar gewesen.
+    const buttonClicks = db.prepare(`
+      SELECT COUNT(*) as n FROM click_events WHERE event_name = 'checkout_button_click'
+    `).get().n;
+
+    const totals = { buttonClicks, created: rows.length, completed: 0 };
     rows.forEach(r => { if (r.status === 'completed') totals.completed++; });
     totals.abandoned = totals.created - totals.completed;
     totals.completionRate = totals.created > 0 ? totals.completed / totals.created : null;
@@ -419,7 +430,22 @@ router.get('/checkout-funnel', (req, res) => {
       .map(c => ({ ...c, completionRate: c.created > 0 ? c.completed / c.created : null }))
       .sort((a, b) => (a.completionRate ?? 1) - (b.completionRate ?? 1) || b.created - a.created);
 
-    res.json({ totals, byRegion, byCountry });
+    // Aufgeschlüsselt nach Kassen-Typ (Haupt-Abo vs. Premium-Länder-Upgrade
+    // vs. Amazon-Zusatzmodul) - sonst verwässert z. B. ein abgebrochenes
+    // 149€-Länder-Upgrade dieselbe Quote wie ein abgebrochenes Monats-Abo,
+    // obwohl das zwei komplett unterschiedliche Kaufentscheidungen sind.
+    const byTypeMap = {};
+    rows.forEach(r => {
+      const t = r.type || 'plan_upgrade';
+      if (!byTypeMap[t]) byTypeMap[t] = { type: t, created: 0, completed: 0 };
+      byTypeMap[t].created++;
+      if (r.status === 'completed') byTypeMap[t].completed++;
+    });
+    const byType = Object.values(byTypeMap)
+      .map(t => ({ ...t, completionRate: t.created > 0 ? t.completed / t.created : null }))
+      .sort((a, b) => b.created - a.created);
+
+    res.json({ totals, byRegion, byCountry, byType });
   } catch (error) {
     console.error('❌ Checkout-Funnel-Fehler:', error);
     res.status(500).json({ error: 'Checkout-Funnel konnte nicht geladen werden.' });
