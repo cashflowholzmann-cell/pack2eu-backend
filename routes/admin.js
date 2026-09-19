@@ -97,6 +97,20 @@ router.get('/overview', (req, res) => {
       viewsByCountry[c] = (viewsByCountry[c] || 0) + 1;
     });
 
+    // Dieselbe Aufschlüsselung wie oben, aber ohne 30-Tage-Fenster - läuft
+    // NEBEN der 30-Tage-Ansicht mit (nicht anstelle), damit ältere Quellen/
+    // Länder nicht nach 30 Tagen aus der Statistik verschwinden, sondern
+    // dauerhaft sichtbar bleiben.
+    const viewsAllTime = db.prepare('SELECT referrer, utm_source, country FROM page_views').all();
+    const viewsByChannelAllTime = {};
+    const viewsByCountryAllTime = {};
+    viewsAllTime.forEach(v => {
+      const ch = classifyChannel(v);
+      viewsByChannelAllTime[ch] = (viewsByChannelAllTime[ch] || 0) + 1;
+      const c = v.country || 'unbekannt';
+      viewsByCountryAllTime[c] = (viewsByCountryAllTime[c] || 0) + 1;
+    });
+
     const leadsBySource = db.prepare(`
       SELECT source, COUNT(*) as count FROM leads GROUP BY source
     `).all();
@@ -154,6 +168,8 @@ router.get('/overview', (req, res) => {
       totals: { ...totals, viewsLast7d, ...churnTotals, churnRate },
       viewsByChannel,
       viewsByCountry,
+      viewsByChannelAllTime,
+      viewsByCountryAllTime,
       leadsBySource,
       leadsByStatus,
       customersByAcquisition,
