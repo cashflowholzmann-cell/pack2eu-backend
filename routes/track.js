@@ -160,9 +160,13 @@ router.post('/calculator-usage', trackLimiter, (req, res) => {
   }
 });
 
+// Nur diese drei groben Kategorien - kein vollständiger User-Agent wird
+// je angenommen/gespeichert (siehe device_type-Kommentar in db/index.js).
+const ALLOWED_DEVICE_TYPES = ['mobile', 'tablet', 'desktop'];
+
 router.post('/pageview', trackLimiter, (req, res) => {
   try {
-    const { path, referrer, utm_source, utm_medium, utm_campaign, session_id, country } = req.body || {};
+    const { path, referrer, utm_source, utm_medium, utm_campaign, session_id, country, device_type } = req.body || {};
 
     // Strenges Format statt Freitext (Whitelist-Prinzip wie bei den
     // Events oben) - nur ein zweistelliger ISO-Ländercode wird
@@ -171,9 +175,11 @@ router.post('/pageview', trackLimiter, (req, res) => {
       ? country.toUpperCase()
       : null;
 
+    const cleanDeviceType = ALLOWED_DEVICE_TYPES.includes(device_type) ? device_type : null;
+
     db.prepare(`
-      INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign, session_id, country)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign, session_id, country, device_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       String(path || '/').slice(0, 500),
       referrer ? String(referrer).slice(0, 500) : null,
@@ -181,7 +187,8 @@ router.post('/pageview', trackLimiter, (req, res) => {
       utm_medium ? String(utm_medium).slice(0, 100) : null,
       utm_campaign ? String(utm_campaign).slice(0, 100) : null,
       session_id ? String(session_id).slice(0, 100) : null,
-      cleanCountry
+      cleanCountry,
+      cleanDeviceType
     );
 
     res.json({ ok: true });

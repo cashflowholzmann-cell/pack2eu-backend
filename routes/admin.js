@@ -483,10 +483,14 @@ router.get('/checkout-funnel', (req, res) => {
 // ============================================================
 router.get('/landing-engagement', (req, res) => {
   try {
-    const pageviews = db.prepare(`SELECT session_id, country, created_at FROM page_views ORDER BY created_at ASC`).all();
+    const pageviews = db.prepare(`SELECT session_id, country, referrer, utm_source, device_type, created_at FROM page_views ORDER BY created_at ASC`).all();
     const countryBySession = {};
+    // Erste page_views-Zeile pro Session merken - liefert Quelle/Gerät
+    // für den heroBounce-Breakdown weiter unten.
+    const firstPageviewBySession = {};
     pageviews.forEach(v => {
       if (!countryBySession[v.session_id]) countryBySession[v.session_id] = v.country || 'unbekannt';
+      if (!firstPageviewBySession[v.session_id]) firstPageviewBySession[v.session_id] = v;
     });
     const totalSessions = Object.keys(countryBySession).length;
 
@@ -536,6 +540,50 @@ router.get('/landing-engagement', (req, res) => {
       return { section: name, sessions, pct: totalSessions > 0 ? sessions / totalSessions : null };
     });
 
+    // HERO-BOUNCE-BREAKDOWN: sectionReach oben zeigt nur DASS zwischen
+    // Hero und Pain-Point der größte Sprung passiert - hier steht WARUM
+    // im Verdacht: Sessions, die view_hero aber NICHT view_pain_point
+    // ausgelöst haben, aufgeschlüsselt nach Quelle (utm_source, sonst
+    // Referrer-Hostname, sonst "direkt/unbekannt") und Gerätetyp, plus
+    // ihre Verweildauer (landing_duration) im Vergleich zu allen
+    // Sessions - so lässt sich prüfen, ob z. B. Mobil-Besucher oder eine
+    // bestimmte Traffic-Quelle überproportional sofort wieder abspringen.
+    const heroSessions = sectionSessionSets['view_hero'] || new Set();
+    const painPointSessions = sectionSessionSets['view_pain_point'] || new Set();
+    const heroOnlySessionIds = [...heroSessions].filter(id => !painPointSessions.has(id));
+
+    function simplifyReferrer(referrer) {
+      if (!referrer) return null;
+      try {
+        return new URL(referrer).hostname.replace(/^www\./, '');
+      } catch (e) {
+        return null;
+      }
+    }
+
+    const heroOnlyBySource = {};
+    const heroOnlyByDevice = {};
+    heroOnlySessionIds.forEach(id => {
+      const pv = firstPageviewBySession[id];
+      const source = (pv && (pv.utm_source || simplifyReferrer(pv.referrer))) || 'direkt/unbekannt';
+      const device = (pv && pv.device_type) || 'unbekannt';
+      heroOnlyBySource[source] = (heroOnlyBySource[source] || 0) + 1;
+      heroOnlyByDevice[device] = (heroOnlyByDevice[device] || 0) + 1;
+    });
+
+    const heroOnlyDurations = durationRows
+      .filter(r => heroOnlySessionIds.includes(r.session_id))
+      .map(r => r.event_value);
+
+    const heroBounce = {
+      heroOnlyCount: heroOnlySessionIds.length,
+      heroTotalCount: heroSessions.size,
+      pct: heroSessions.size > 0 ? heroOnlySessionIds.length / heroSessions.size : null,
+      bySource: Object.entries(heroOnlyBySource).map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n),
+      byDevice: Object.entries(heroOnlyByDevice).map(([device, n]) => ({ device, n })).sort((a, b) => b.n - a.n),
+      duration: stats(heroOnlyDurations)
+    };
+
     // Klickbare Hero-Badges + neue Kopfzeilen-Menüpunkte (Über uns/FAQ) -
     // eindeutige Sessions pro Klick-Ziel, gleiches Muster wie sectionReach
     // oben, nur für aktive Klicks statt reinem Sichtbar-Werden.
@@ -554,7 +602,7 @@ router.get('/landing-engagement', (req, res) => {
       sessions: navClickSessionSets[name] ? navClickSessionSets[name].size : 0
     }));
 
-    res.json({ totals, byCountry, sectionReach, navClicks, totalSessions });
+    res.json({ totals, byCountry, sectionReach, heroBounce, navClicks, totalSessions });
   } catch (error) {
     console.error('❌ Landing-Engagement-Fehler:', error);
     res.status(500).json({ error: 'Verweildauer-Auswertung konnte nicht geladen werden.' });

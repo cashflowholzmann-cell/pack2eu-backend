@@ -3382,6 +3382,14 @@ function init() {
     addColumnIfMissing('page_views', 'country', 'TEXT');
     db.exec(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at);`);
 
+    // Gerätetyp (mobile/tablet/desktop), clientseitig per User-Agent-
+    // Heuristik erkannt (siehe index.html detectDeviceType()) - kein
+    // vollständiger User-Agent-String wird gespeichert, nur die grobe
+    // Kategorie. Ermöglicht z. B. zu prüfen, ob Absprünge direkt nach
+    // dem Hero überproportional von einem Gerätetyp kommen (siehe
+    // GET /admin/landing-engagement -> heroBounce).
+    addColumnIfMissing('page_views', 'device_type', 'TEXT');
+
     // Klick-Events fürs Funnel-Tracking (siehe routes/track.js,
     // POST /track/event) - erfasst gezielt "Demo gestartet" und
     // "Rechner geöffnet" pro anonymer Session-ID, damit sich im
