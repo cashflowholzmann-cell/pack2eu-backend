@@ -52,10 +52,14 @@ const trackLimiter = rateLimit({
 // Links, aber trotzdem getrackt, damit sichtbar ist, ob die Navigation
 // tatsächlich genutzt wird statt nur natürlich gescrollt - siehe
 // GET /admin/landing-engagement -> navClicks).
+// 'gpsr_cta_click' = Klick auf den GPSR-Info-Button bei Pricing (öffnet
+// das Info-Popup zur Verantwortlichen Person) - gleiches Muster wie die
+// Nav-Klicks oben, landet ebenfalls in navClicks.
 const ALLOWED_EVENTS = [
   'demo_start', 'calculator_click', 'demo_duration', 'demo_cta_click',
   'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration', 'usp_cta_click',
   'hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click',
+  'gpsr_cta_click',
   'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about',
   'view_usp', 'view_faq', 'view_pricing', 'view_final_cta',
   // Feuert direkt beim Klick auf einen Zahlungs-Button, BEVOR der

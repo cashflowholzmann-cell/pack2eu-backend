@@ -2,6 +2,7 @@ const express = require('express');
 const Stripe = require('stripe');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { hasGpsrAccess } = require('../config/plans');
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -26,6 +27,12 @@ const STRIPE_PRICE_IDS = {
 // Stripe-Preis im Dashboard angelegt, sobald die Kosten bekannt sind, und
 // hier nur als Env-Var referenziert - kein Betrag im Code.
 const STRIPE_PRICE_AMAZON_ADDON = 'STRIPE_PRICE_AMAZON_ADDON';
+
+// GPSR-Verantwortliche Person (Villa Elegance SRL) - 99 €/Jahr, separat
+// zugekauft für Kunden, die sie nicht schon über ihren Plan inklusive
+// haben (Bestseller jährlich, Enterprise - siehe hasGpsrAccess() in
+// config/plans.js).
+const STRIPE_PRICE_GPSR_ADDON = 'STRIPE_PRICE_GPSR_ADDON';
 
 // ============================================================
 // ÖFFENTLICHE PREISE (für die Preisanzeige auf der Landingpage)
@@ -301,6 +308,62 @@ router.post('/create-amazon-addon-session', requireAuth, async (req, res) => {
 });
 
 // ============================================================
+// GPSR-VERANTWORTLICHE PERSON BUCHEN (kostenpflichtiges Abo-Add-on)
+// ============================================================
+router.post('/create-gpsr-addon-session', requireAuth, async (req, res) => {
+  const priceId = process.env[STRIPE_PRICE_GPSR_ADDON];
+
+  if (!priceId) {
+    return res.status(400).json({
+      error: 'Die GPSR-Verantwortliche Person ist noch nicht buchbar - der Preis wird gerade hinterlegt.'
+    });
+  }
+
+  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
+  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+  if (hasGpsrAccess(customer)) {
+    return res.status(400).json({ error: 'Die GPSR-Verantwortliche Person ist bereits gebucht bzw. in deinem Plan inklusive.' });
+  }
+
+  let stripeCustomerId = customer.stripe_customer_id;
+  if (!stripeCustomerId) {
+    const sc = await stripe.customers.create({
+      email: customer.email,
+      name: customer.company_name,
+      metadata: { customer_number: customer.customer_number }
+    });
+    stripeCustomerId = sc.id;
+    db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    customer: stripeCustomerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.APP_URL}/Dashboard.html?gpsr_addon=success`,
+    cancel_url: `${process.env.APP_URL}/Dashboard.html?gpsr_addon=cancel`,
+    metadata: {
+      user_id: customer.id,
+      type: 'gpsr_addon_purchase'
+    }
+  });
+
+  // Siehe Kommentar bei /create-checkout-session: dieselbe Sichtbarkeit
+  // im Checkout-Funnel, die bisher nur der Haupt-Abo-Kasse vorbehalten war.
+  try {
+    db.prepare(`
+      INSERT INTO checkout_sessions (stripe_session_id, customer_id, origin_country, is_eu, type, status)
+      VALUES (?, ?, ?, ?, 'gpsr_addon_purchase', 'created')
+    `).run(session.id, customer.id, customer.origin_country, customer.is_eu ? 1 : 0);
+  } catch (err) {
+    console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
+  }
+
+  res.json({ url: session.url });
+});
+
+// ============================================================
 // ⭐ STRIPE WEBHOOK (MIT LAPPA-PLATZHALTER)
 // ============================================================
 router.post('/webhooks/stripe', async (req, res) => {
@@ -374,6 +437,24 @@ router.post('/webhooks/stripe', async (req, res) => {
         console.log(`✅ Amazon-Zusatzmodul aktiviert (User ${user_id})`);
       }
 
+      // ⭐ Fall 4: GPSR-Verantwortliche Person zugebucht
+      if (type === 'gpsr_addon_purchase' && user_id) {
+        db.prepare(`
+          UPDATE customers
+          SET gpsr_addon_active = 1, gpsr_addon_subscription_id = ?
+          WHERE id = ?
+        `).run(session.subscription || null, parseInt(user_id));
+        console.log(`✅ GPSR-Verantwortliche Person aktiviert (User ${user_id})`);
+        syncGpsrAssignment(parseInt(user_id));
+      }
+
+      // Plan-Upgrade kann GPSR-Zugriff auch planbasiert auslösen (Bestseller
+      // jährlich/Enterprise, siehe hasGpsrAccess()) - unabhängig vom
+      // zugekauften Add-on oben, deshalb hier nach JEDEM Plan-Upgrade prüfen.
+      if (type === 'plan_upgrade' && user_id) {
+        syncGpsrAssignment(parseInt(user_id));
+      }
+
     } catch (err) {
       console.error('❌ Fehler beim DB-Update:', err);
     }
@@ -397,6 +478,16 @@ router.post('/webhooks/stripe', async (req, res) => {
         SET amazon_addon_active = 0
         WHERE amazon_addon_subscription_id = ?
       `).run(subscription.id);
+
+      const gpsrCustomer = db.prepare(`
+        SELECT id FROM customers WHERE gpsr_addon_subscription_id = ?
+      `).get(subscription.id);
+      if (gpsrCustomer) {
+        db.prepare(`
+          UPDATE customers SET gpsr_addon_active = 0 WHERE id = ?
+        `).run(gpsrCustomer.id);
+        syncGpsrAssignment(gpsrCustomer.id);
+      }
     } catch (err) {
       console.error('❌ Fehler beim Deaktivieren des Abos:', err);
     }
@@ -404,6 +495,46 @@ router.post('/webhooks/stripe', async (req, res) => {
 
   res.json({ received: true });
 });
+
+// ============================================================
+// VILLA ELEGANCE (GPSR-Verantwortliche Person) IM PORTAL SICHTBAR HALTEN
+//
+// Reuse der bestehenden representative_customer_assignments-Tabelle statt
+// einer eigenen Struktur - Villa Elegance ist einfach ein weiterer
+// Bevollmächtigter mit stream='gpsr' (siehe routes/representatives.js
+// GET /customers, das funktioniert unverändert). Läuft nach jedem
+// Add-on-Kauf UND nach jedem Plan-Upgrade, weil Zugriff sich sowohl aus
+// dem zugekauften Add-on als auch aus dem Plan ergeben kann (siehe
+// hasGpsrAccess()). assigned_by='gpsr_auto' markiert diese Zeilen als
+// automatisch gesetzt, damit sie sich von admin-gesetzten Zuweisungen
+// unterscheiden lassen und beim Entzug gezielt wieder entfernt werden
+// können, ohne eine manuelle Admin-Zuweisung zu löschen.
+function syncGpsrAssignment(customerId) {
+  try {
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
+    if (!customer) return;
+
+    const villaElegance = db.prepare(`
+      SELECT id FROM representatives WHERE stream = 'gpsr' AND active = 1
+      ORDER BY id LIMIT 1
+    `).get();
+    if (!villaElegance) return;
+
+    if (hasGpsrAccess(customer)) {
+      db.prepare(`
+        INSERT OR IGNORE INTO representative_customer_assignments (representative_id, customer_id, assigned_by)
+        VALUES (?, ?, 'gpsr_auto')
+      `).run(villaElegance.id, customerId);
+    } else {
+      db.prepare(`
+        DELETE FROM representative_customer_assignments
+        WHERE representative_id = ? AND customer_id = ? AND assigned_by = 'gpsr_auto'
+      `).run(villaElegance.id, customerId);
+    }
+  } catch (err) {
+    console.error('❌ GPSR-Zuweisungs-Sync-Fehler:', err.message);
+  }
+}
 
 // ============================================================
 // ⭐ LAPPA-API PLATZHALTER (MORGEN IMPLEMENTIEREN)
