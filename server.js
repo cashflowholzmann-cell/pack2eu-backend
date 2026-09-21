@@ -90,6 +90,14 @@ app.use(
   express.raw({ type: 'application/octet-stream', limit: '100mb' })
 );
 
+// Shopify-Webhooks brauchen ebenfalls den rohen Body, um die
+// X-Shopify-Hmac-Sha256-Signatur zu verifizieren (siehe
+// routes/shopify.js) - exakt dasselbe Muster wie beim Stripe-Webhook.
+app.use(
+  '/api/shopify/webhook',
+  express.raw({ type: 'application/json' })
+);
+
 // ============================================================
 // CORS
 // ============================================================
