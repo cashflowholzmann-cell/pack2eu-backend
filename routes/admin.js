@@ -539,7 +539,7 @@ router.get('/landing-engagement', (req, res) => {
     // Klickbare Hero-Badges + neue Kopfzeilen-Menüpunkte (Über uns/FAQ) -
     // eindeutige Sessions pro Klick-Ziel, gleiches Muster wie sectionReach
     // oben, nur für aktive Klicks statt reinem Sichtbar-Werden.
-    const navClickOrder = ['hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click', 'gpsr_cta_click'];
+    const navClickOrder = ['hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click', 'gpsr_cta_click', 'discovery_call_click'];
     const navPlaceholders = navClickOrder.map(() => '?').join(',');
     const navClickEvents = db.prepare(`
       SELECT event_name, session_id FROM click_events WHERE event_name IN (${navPlaceholders})
