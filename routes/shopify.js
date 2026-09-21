@@ -9,6 +9,42 @@ const router = express.Router();
 const OAUTH_STATE_TTL_MINUTES = 10;
 
 // ============================================================
+// Shopify-Webhook-Signaturprüfung
+//
+// Alle Routen unter /api/shopify/webhook/* bekommen den rohen Body
+// (siehe server.js, express.raw() vor express.json() - exakt das
+// Stripe-Webhook-Muster). Ohne diese Prüfung könnte jeder gefälschte
+// Bestell-/Datenschutz-Anfragen an die Endpunkte schicken - Shopifys
+// App-Review testet das gezielt mit ungültigen Signaturen.
+// ============================================================
+function verifyShopifyWebhook(req, res, next) {
+  const hmacHeader = req.headers['x-shopify-hmac-sha256'];
+  const secret = process.env.SHOPIFY_CLIENT_SECRET;
+
+  if (!secret || !hmacHeader || !Buffer.isBuffer(req.body)) {
+    return res.status(401).send('Unauthorized');
+  }
+
+  const digest = crypto.createHmac('sha256', secret).update(req.body).digest('base64');
+  const digestBuf = Buffer.from(digest);
+  const headerBuf = Buffer.from(hmacHeader);
+  const valid = digestBuf.length === headerBuf.length && crypto.timingSafeEqual(digestBuf, headerBuf);
+
+  if (!valid) {
+    console.error('❌ Shopify-Webhook: ungültige HMAC-Signatur.');
+    return res.status(401).send('Unauthorized');
+  }
+
+  try {
+    req.shopifyPayload = JSON.parse(req.body.toString('utf8'));
+  } catch (err) {
+    return res.status(400).send('Ungültiges JSON.');
+  }
+
+  next();
+}
+
+// ============================================================
 // 1. Shopify OAuth – Händler autorisiert die App
 // ============================================================
 // requireAuth + oauth_states (statt der vorherigen fest verdrahteten
@@ -79,9 +115,9 @@ router.get('/callback', async (req, res) => {
 // ============================================================
 // 3. Shopify Webhook – Neue Bestellung
 // ============================================================
-router.post('/webhook/orders/create', async (req, res) => {
+router.post('/webhook/orders/create', verifyShopifyWebhook, async (req, res) => {
   try {
-    const order = req.body;
+    const order = req.shopifyPayload;
     const shopDomain = req.headers['x-shopify-shop-domain'];
     
     const customer = db.prepare('SELECT * FROM customers WHERE shopify_shop_domain = ?').get(shopDomain);
@@ -126,7 +162,11 @@ router.post('/webhook/orders/create', async (req, res) => {
     
     insert.run(
       customer.id,
-      order.id,
+      // String(): better-sqlite3 bindet JS-Zahlen als REAL, was die
+      // TEXT-Spalte shopify_order_id sonst mit einem "2001.0"-Suffix
+      // statt "2001" befüllt - bricht sonst stillschweigend jeden
+      // späteren Abgleich per shopify_order_id (z. B. customers/redact).
+      String(order.id),
       JSON.stringify(order),
       order.shipping_address?.country_code || 'DE',
       totalWeight,
@@ -137,6 +177,123 @@ router.post('/webhook/orders/create', async (req, res) => {
     res.status(200).send('OK');
   } catch (err) {
     console.error('Webhook Fehler:', err.message);
+    res.status(500).send('Fehler');
+  }
+});
+
+// ============================================================
+// 4-6. Shopify GDPR-Pflicht-Webhooks (App-Store-Voraussetzung)
+//
+// Shopify verlangt für jede öffentliche App genau diese drei Endpunkte,
+// sonst wird die Freigabe verweigert. Alle drei laufen über dieselbe
+// HMAC-Prüfung wie orders/create oben.
+// ============================================================
+
+// Entfernt personenbezogene Daten aus einer gespeicherten Bestellung,
+// behält aber die für uns eigentlich relevanten, nicht-personenbezogenen
+// Daten (Gewicht, Material, Zielland) - genau das, worum es bei einer
+// Verpackungs-Compliance-Auswertung geht.
+function redactOrderPII(orderJson) {
+  const redacted = { ...orderJson };
+  delete redacted.customer;
+  delete redacted.email;
+  delete redacted.contact_email;
+  delete redacted.phone;
+  delete redacted.note;
+  delete redacted.browser_ip;
+  delete redacted.client_details;
+  delete redacted.customer_locale;
+  if (redacted.shipping_address) {
+    redacted.shipping_address = { country_code: redacted.shipping_address.country_code || null };
+  }
+  if (redacted.billing_address) {
+    redacted.billing_address = { country_code: redacted.billing_address.country_code || null };
+  }
+  return redacted;
+}
+
+// Shop-Inhaber:in fordert die über eine:n Endkund:in gespeicherten Daten
+// an. Wir führen kein eigenes Endkunden-Datenprofil - die relevanten
+// Bestelldaten liegen in shopify_orders. Statt eines automatisierten
+// Exports landet die Anfrage als Aufgabe im Admin-Dashboard (30 Tage
+// Frist), damit sie manuell beantwortet werden kann.
+router.post('/webhook/customers/data_request', verifyShopifyWebhook, (req, res) => {
+  try {
+    const { shop_domain, customer, orders_requested } = req.shopifyPayload || {};
+    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    db.prepare(`
+      INSERT INTO admin_tasks (title, due_date, priority)
+      VALUES (?, ?, 'high')
+    `).run(
+      `GPSR/DSGVO: Datenauskunft für ${customer?.email || 'Kunde ohne E-Mail'} (Shop ${shop_domain}, Bestellungen: ${(orders_requested || []).join(', ') || 'keine'}) anfordern und beantworten`,
+      dueDate
+    );
+
+    console.log(`📋 Shopify customers/data_request: Aufgabe angelegt (Shop ${shop_domain}).`);
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('❌ Shopify customers/data_request Fehler:', err.message);
+    res.status(500).send('Fehler');
+  }
+});
+
+// Shop-Inhaber:in verlangt Löschung der Daten einer bestimmten
+// Endkund:in - wir entfernen die PII aus den gespeicherten Bestellungen
+// dieses Shops, behalten aber die anonymisierten Compliance-Daten.
+router.post('/webhook/customers/redact', verifyShopifyWebhook, (req, res) => {
+  try {
+    const { shop_domain, orders_to_redact } = req.shopifyPayload || {};
+
+    const customer = db.prepare('SELECT id FROM customers WHERE shopify_shop_domain = ?').get(shop_domain);
+    if (!customer) {
+      // Shop nicht (mehr) bei uns registriert - nichts zu redigieren.
+      return res.status(200).send('OK');
+    }
+
+    const rows = Array.isArray(orders_to_redact) && orders_to_redact.length > 0
+      ? db.prepare(`
+          SELECT id, order_data_json FROM shopify_orders
+          WHERE customer_id = ? AND shopify_order_id IN (${orders_to_redact.map(() => '?').join(',')})
+        `).all(customer.id, ...orders_to_redact.map(String))
+      : db.prepare('SELECT id, order_data_json FROM shopify_orders WHERE customer_id = ?').all(customer.id);
+
+    const update = db.prepare('UPDATE shopify_orders SET order_data_json = ? WHERE id = ?');
+    rows.forEach(row => {
+      const redacted = redactOrderPII(JSON.parse(row.order_data_json));
+      update.run(JSON.stringify(redacted), row.id);
+    });
+
+    console.log(`🗑️ Shopify customers/redact: ${rows.length} Bestellung(en) für Shop ${shop_domain} anonymisiert.`);
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('❌ Shopify customers/redact Fehler:', err.message);
+    res.status(500).send('Fehler');
+  }
+});
+
+// Shop wurde deinstalliert (Aufruf 48h danach) - komplette Löschung
+// aller Shopify-spezifischen Daten für diesen Shop.
+router.post('/webhook/shop/redact', verifyShopifyWebhook, (req, res) => {
+  try {
+    const { shop_domain } = req.shopifyPayload || {};
+
+    const customer = db.prepare('SELECT id FROM customers WHERE shopify_shop_domain = ?').get(shop_domain);
+    if (!customer) {
+      return res.status(200).send('OK');
+    }
+
+    db.prepare('DELETE FROM shopify_orders WHERE customer_id = ?').run(customer.id);
+    db.prepare(`
+      UPDATE customers
+      SET shopify_shop_domain = NULL, shopify_access_token = NULL
+      WHERE id = ?
+    `).run(customer.id);
+
+    console.log(`🗑️ Shopify shop/redact: alle Shopify-Daten für Shop ${shop_domain} gelöscht.`);
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('❌ Shopify shop/redact Fehler:', err.message);
     res.status(500).send('Fehler');
   }
 });
