@@ -349,6 +349,21 @@ function init() {
     addColumnIfMissing('customers', 'amazon_addon_active', 'INTEGER DEFAULT 0');
     addColumnIfMissing('customers', 'amazon_addon_subscription_id', 'TEXT');
 
+    // GPSR-Verantwortliche Person (Villa Elegance SRL, stream='gpsr' in
+    // representatives) - separat zugekauft für Kunden, die sie nicht
+    // schon über ihren Plan inklusive haben (siehe hasGpsrAccess() in
+    // config/plans.js). Gleiche Struktur wie beim Amazon-Zusatzmodul.
+    addColumnIfMissing('customers', 'gpsr_addon_active', 'INTEGER DEFAULT 0');
+    addColumnIfMissing('customers', 'gpsr_addon_subscription_id', 'TEXT');
+
+    // Postadresse/Telefon der Verantwortlichen Person - Pflichtangabe,
+    // die laut Art. 16 GPSR auf dem Produkt/der Verpackung stehen muss.
+    // Bisher gab es dafür kein Feld (representatives.company reicht für
+    // die Verpackungs-Bevollmächtigten, aber nicht für die vollständige
+    // GPSR-Pflichtangabe).
+    addColumnIfMissing('representatives', 'address', 'TEXT');
+    addColumnIfMissing('representatives', 'phone', 'TEXT');
+
     // Passwort-Reset (siehe routes/auth.js: /forgot-password, /reset-password).
     // Token wird gehasht gespeichert (wie ein Passwort) - der Klartext-Token
     // geht nur per E-Mail raus und steht nie in der Datenbank.

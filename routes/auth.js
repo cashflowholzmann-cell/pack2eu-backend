@@ -14,7 +14,8 @@ const {
 const {
   getPlanLimits,
   getRepEntitlementCount,
-  REP_ENTITLEMENT_COUNTRIES
+  REP_ENTITLEMENT_COUNTRIES,
+  hasGpsrAccess
 } = require('../config/plans');
 
 const {
@@ -681,6 +682,81 @@ router.put(
 
       console.error(
         '❌ CH-AT-Checkliste-Fehler:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Interner Serverfehler.'
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// GPSR-VERANTWORTLICHE PERSON (Villa Elegance SRL)
+//
+// GET /api/auth/gpsr
+//
+// Wichtig: dieselbe Geheimhaltungslogik wie bei Demo/Landingpage für
+// Bevollmächtigten-Namen - die tatsächlichen Kontaktdaten der
+// Verantwortlichen Person (Name/Adresse/E-Mail/Telefon, Pflichtangabe
+// fürs Produkt) werden NUR an Kunden mit echtem Zugriff ausgeliefert
+// (hasGpsrAccess()). Ohne Zugriff kommt nur hasAccess:false zurück -
+// keine (auch keine leeren/genullten) Firmendaten im Response, damit
+// nichts über die Netzwerk-Antwort an nicht-zahlende Besucher/Demo
+// durchsickert.
+// ============================================================
+
+router.get(
+  '/gpsr',
+  requireAuth,
+  (req, res) => {
+
+    try {
+
+      const customer =
+        db.prepare(`
+          SELECT plan, billing_interval, gpsr_addon_active
+          FROM customers
+          WHERE id = ?
+        `).get(
+          req.auth.userId
+        );
+
+      if (!customer) {
+        return res.status(404).json({
+          error:
+            'Kunde nicht gefunden.'
+        });
+      }
+
+      const access = hasGpsrAccess(customer);
+
+      if (!access) {
+        return res.json({
+          hasAccess: false
+        });
+      }
+
+      const villaElegance =
+        db.prepare(`
+          SELECT name, company, email, address, phone
+          FROM representatives
+          WHERE stream = 'gpsr' AND active = 1
+          ORDER BY id LIMIT 1
+        `).get();
+
+      return res.json({
+        hasAccess: true,
+        representative: villaElegance || null
+      });
+
+    } catch (error) {
+
+      console.error(
+        '❌ GPSR-Fehler:',
         error
       );
 

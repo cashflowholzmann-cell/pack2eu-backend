@@ -539,7 +539,7 @@ router.get('/landing-engagement', (req, res) => {
     // Klickbare Hero-Badges + neue Kopfzeilen-Menüpunkte (Über uns/FAQ) -
     // eindeutige Sessions pro Klick-Ziel, gleiches Muster wie sectionReach
     // oben, nur für aktive Klicks statt reinem Sichtbar-Werden.
-    const navClickOrder = ['hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click'];
+    const navClickOrder = ['hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click', 'gpsr_cta_click'];
     const navPlaceholders = navClickOrder.map(() => '?').join(',');
     const navClickEvents = db.prepare(`
       SELECT event_name, session_id FROM click_events WHERE event_name IN (${navPlaceholders})
@@ -1686,7 +1686,12 @@ router.post('/representatives', async (req, res) => {
   const countryCode = String(req.body?.country_code || '').trim().toUpperCase();
   // Rückwärtskompatibel: fehlt stream im Request (alte admin.html-Version
   // vor der Mehrfach-Pflichtenstrom-Erweiterung), gilt weiterhin 'packaging'.
-  const stream = ['packaging', 'weee', 'battery'].includes(req.body?.stream) ? req.body.stream : 'packaging';
+  // 'gpsr' = Villa Elegance SRL (Verantwortliche Person, EU-weit statt
+  // pro Land - country_code trägt hier einfach ihren Sitz, z. B. 'IT').
+  const stream = ['packaging', 'weee', 'battery', 'gpsr'].includes(req.body?.stream) ? req.body.stream : 'packaging';
+  // Nur für 'gpsr' relevant: Pflichtangabe fürs Produkt (Art. 16 GPSR).
+  const address = req.body?.address ? String(req.body.address).trim() : null;
+  const phone = req.body?.phone ? String(req.body.phone).trim() : null;
 
   if (!email || !name || !countryCode) {
     return res.status(400).json({ error: 'E-Mail, Name und Land sind Pflichtfelder.' });
@@ -1697,6 +1702,9 @@ router.post('/representatives', async (req, res) => {
     if (existing) return res.status(409).json({ error: 'E-Mail bereits registriert.' });
 
     const id = await createAndInviteRepresentative({ countryCode, name, email, company, stream });
+    if (address || phone) {
+      db.prepare('UPDATE representatives SET address = ?, phone = ? WHERE id = ?').run(address, phone, id);
+    }
     res.status(201).json({ success: true, id });
   } catch (error) {
     console.error('❌ Admin Representative-Anlegen-Fehler:', error);

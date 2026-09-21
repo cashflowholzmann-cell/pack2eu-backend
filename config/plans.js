@@ -44,9 +44,32 @@ function getRepEntitlementCount(plan, billingInterval) {
   return 0;
 }
 
+// ================================================================
+// GPSR-VERANTWORTLICHE PERSON (Villa Elegance SRL) - 99 €/Jahr
+//
+// EU-weite Pflicht (Art. 16 GPSR) für praktisch jedes physische Produkt,
+// deshalb nicht als isoliertes Kauf-Add-on wie das Amazon-Modul, sondern
+// bei Bestseller im Jahresabo und bei Enterprise automatisch inklusive -
+// dieselbe Zahlweise-Logik wie beim Bevollmächtigten-Bonus oben. Wer sie
+// nicht automatisch bekommt, kann sie trotzdem einzeln dazubuchen (siehe
+// customers.gpsr_addon_active in routes/billing.js) - dieser Flag deckt
+// NUR den zugekauften Fall ab, nicht den planbasierten. Ob ein Kunde
+// tatsächlich Zugriff hat, ergibt sich erst aus der Kombination beider
+// Quellen (siehe hasGpsrAccess) - so muss beim Planwechsel nirgends ein
+// gespeichertes Flag synchron gehalten werden, es wird bei jeder Abfrage
+// live berechnet.
+function hasGpsrAccess(customer) {
+  if (!customer) return false;
+  if (customer.gpsr_addon_active) return true;
+  if (customer.plan === 'L') return true;
+  if (customer.plan === 'M' && customer.billing_interval === 'annual') return true;
+  return false;
+}
+
 module.exports = {
   PLAN_LIMITS,
   getPlanLimits,
   REP_ENTITLEMENT_COUNTRIES,
-  getRepEntitlementCount
+  getRepEntitlementCount,
+  hasGpsrAccess
 };
