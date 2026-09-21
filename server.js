@@ -182,6 +182,20 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================================
+// ÖFFENTLICHE KONFIG: Erstgespräch-Buchung
+// ============================================================
+// Liefert den Google-Calendar-Terminplanungsseiten-Link für den
+// "Termin vereinbaren"-Button auf der Landingpage (senkt die
+// Zahlungsschwelle für Unentschlossene - siehe DISCOVERY_CALL_CALENDAR_URL
+// in .env.example). Kein Secret, daher ohne Auth - der Link kommt aus
+// process.env statt fest im Frontend, damit er ohne Deploy geändert
+// werden kann und der Button ausgeblendet bleibt, solange nichts
+// konfiguriert ist.
+app.get('/api/config/discovery-call', (req, res) => {
+  res.json({ url: process.env.DISCOVERY_CALL_CALENDAR_URL || null });
+});
+
+// ============================================================
 // STATISCHE DATEIEN
 // ============================================================
 
