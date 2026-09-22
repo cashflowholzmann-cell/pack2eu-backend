@@ -63,6 +63,7 @@ const ALLOWED_EVENTS = [
   'weeebat_cta_click', 'weeebat_demo_click', 'landing_duration', 'usp_cta_click',
   'hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click',
   'gpsr_cta_click', 'discovery_call_click',
+  'value_banner_shown', 'value_banner_click', 'value_banner_dismiss',
   'view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about',
   'view_usp', 'view_faq', 'view_pricing', 'view_final_cta',
   // Feuert direkt beim Klick auf einen Zahlungs-Button, BEVOR der
