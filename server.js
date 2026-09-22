@@ -196,6 +196,53 @@ app.get('/api/config/discovery-call', (req, res) => {
 });
 
 // ============================================================
+// SHOPIFY EMBEDDED APP - STARTSEITE
+// ============================================================
+// Die Seite, die Shopify im Admin-Iframe unter "Apps -> Pack2EU" anzeigt
+// (in der Shopify-Partner-Dashboard-App-Einstellung als "App URL"
+// hinterlegt). Bewusst minimal und direkt im Backend statt in einem
+// eigenen Projekt, damit sie dieselbe stabile Render-URL nutzt wie die
+// API selbst - kein Cloudflare-Tunnel/separates Hosting mehr nötig.
+// Braucht Shopify App Bridge (Pflicht für eingebettete Apps), das den
+// öffentlichen Client-ID/API-Key aus SHOPIFY_CLIENT_ID injiziert
+// bekommt - kein Secret, daher unbedenklich serverseitig einzusetzen.
+app.get('/shopify-app', (req, res) => {
+  const apiKey = process.env.SHOPIFY_CLIENT_ID || '';
+  const appUrl = process.env.APP_URL || 'https://www.pack2eu.global';
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pack2EU</title>
+  <meta name="shopify-api-key" content="${apiKey}">
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#F8FAFC; color:#0F172A; margin:0; padding:40px 24px; }
+    .card { max-width: 560px; margin: 0 auto; background:#fff; border-radius:12px; padding:32px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    h1 { font-size: 22px; margin: 0 0 12px; color:#0A2540; }
+    p { line-height: 1.6; color:#334155; }
+    .btn { display:inline-block; margin-top:16px; background:#0066FF; color:#fff; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Willkommen bei Pack2EU für Shopify</h1>
+    <p>Diese App verbindet deinen Shopify-Store mit der Pack2EU-Plattform, damit du EU-Verpackungs-, WEEE- und Batterie-Pflichten automatisiert aus deinen Bestelldaten erfüllen kannst.</p>
+    <a class="btn" href="${appUrl}/dashboard.html" target="_top">Pack2EU Dashboard öffnen</a>
+  </div>
+  <script>
+    // App Bridge initialisiert sich über das obige Meta-Tag automatisch.
+    // Der Dashboard-Link nutzt target="_top", um aus dem Shopify-Iframe
+    // auszubrechen - eine normale Navigation innerhalb des Iframes würde
+    // sonst von Shopifys eigener Content-Security-Policy blockiert.
+  </script>
+</body>
+</html>`);
+});
+
+// ============================================================
 // STATISCHE DATEIEN
 // ============================================================
 
