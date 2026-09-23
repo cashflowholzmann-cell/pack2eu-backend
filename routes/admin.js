@@ -145,7 +145,7 @@ router.get('/overview', (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM customers) as totalCustomers,
         (SELECT COUNT(*) FROM customers WHERE subscription_status = 'active') as activeCustomers,
-        (SELECT COUNT(*) FROM leads WHERE status NOT IN ('converted', 'lost')) as openLeads,
+        (SELECT COUNT(*) FROM leads WHERE status NOT IN ('converted', 'lost', 'bounced')) as openLeads,
         -- Gleiche effective_status-Ableitung wie TASK_SELECT_SQL weiter unten:
         -- die status-Spalte bleibt bei täglich wiederkehrenden Aufgaben immer
         -- 'open' (last_completed_date trägt den "heute schon erledigt"-Status),
@@ -872,14 +872,21 @@ router.put('/leads/:id', (req, res) => {
   const existing = db.prepare('SELECT id FROM leads WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Lead nicht gefunden.' });
 
+  // COALESCE auf allen Feldern, nicht nur name/source/status: ein Aufruf,
+  // der nur { status } schickt (siehe updateLeadStatus() im Frontend -
+  // genau der Status-Dropdown in der Lead-Tabelle), darf contact/notes
+  // NICHT auf NULL zurücksetzen, nur weil sie im Body fehlen. Ein
+  // explizites '' (leerer String, z. B. beim Löschen einer Notiz im
+  // Bearbeiten-Formular) ist von SQL NULL unterschieden und überschreibt
+  // weiterhin wie gewollt - COALESCE greift nur bei echtem NULL/fehlendem Feld.
   const { name, contact, source, status, notes } = req.body || {};
   db.prepare(`
     UPDATE leads
     SET name = COALESCE(?, name),
-        contact = ?,
+        contact = COALESCE(?, contact),
         source = COALESCE(?, source),
         status = COALESCE(?, status),
-        notes = ?,
+        notes = COALESCE(?, notes),
         updated_at = datetime('now')
     WHERE id = ?
   `).run(name || null, contact ?? null, source || null, status || null, notes ?? null, req.params.id);
