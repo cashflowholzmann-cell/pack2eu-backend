@@ -1696,6 +1696,7 @@ router.get('/representatives', (req, res) => {
   try {
     const reps = db.prepare(`
       SELECT r.id, r.country_code, r.stream, r.name, r.email, r.company, r.active,
+             r.address, r.phone,
              r.email_verified_at, r.last_login_at, r.created_at,
              (SELECT COUNT(*) FROM representative_customer_assignments WHERE representative_id = r.id) as assignedCustomers
       FROM representatives r
@@ -1773,18 +1774,91 @@ router.post('/representatives/:id/resend-invite', async (req, res) => {
   }
 });
 
+// Deckt sowohl den einfachen Aktiv/Inaktiv-Toggle (nur "active" im Body)
+// als auch das vollständige Bearbeiten der Stammdaten ab (admin.html
+// "Bearbeiten"-Button) - alle Felder optional, nur mitgeschickte werden
+// aktualisiert.
 router.patch('/representatives/:id', (req, res) => {
-  if (typeof req.body?.active !== 'boolean') {
-    return res.status(400).json({ error: '"active" (true/false) ist erforderlich.' });
+  const fields = [];
+  const values = [];
+
+  if (req.body?.active !== undefined) {
+    if (typeof req.body.active !== 'boolean') {
+      return res.status(400).json({ error: '"active" muss true/false sein.' });
+    }
+    fields.push('active = ?');
+    values.push(req.body.active ? 1 : 0);
   }
+  if (req.body?.name !== undefined) {
+    const name = String(req.body.name).trim();
+    if (!name) return res.status(400).json({ error: 'Name darf nicht leer sein.' });
+    fields.push('name = ?');
+    values.push(name);
+  }
+  if (req.body?.email !== undefined) {
+    const email = String(req.body.email).trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'E-Mail darf nicht leer sein.' });
+    const existing = db.prepare('SELECT id FROM representatives WHERE email = ? AND id != ?').get(email, req.params.id);
+    if (existing) return res.status(409).json({ error: 'E-Mail bereits von einem anderen Bevollmächtigten verwendet.' });
+    fields.push('email = ?');
+    values.push(email);
+  }
+  if (req.body?.company !== undefined) {
+    fields.push('company = ?');
+    values.push(req.body.company ? String(req.body.company).trim() : null);
+  }
+  if (req.body?.country_code !== undefined) {
+    const countryCode = String(req.body.country_code).trim().toUpperCase();
+    if (!countryCode) return res.status(400).json({ error: 'Land darf nicht leer sein.' });
+    fields.push('country_code = ?');
+    values.push(countryCode);
+  }
+  if (req.body?.stream !== undefined) {
+    if (!['packaging', 'weee', 'battery', 'gpsr'].includes(req.body.stream)) {
+      return res.status(400).json({ error: 'Ungültiger Pflichtenstrom.' });
+    }
+    fields.push('stream = ?');
+    values.push(req.body.stream);
+  }
+  if (req.body?.address !== undefined) {
+    fields.push('address = ?');
+    values.push(req.body.address ? String(req.body.address).trim() : null);
+  }
+  if (req.body?.phone !== undefined) {
+    fields.push('phone = ?');
+    values.push(req.body.phone ? String(req.body.phone).trim() : null);
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'Keine Felder zum Aktualisieren übergeben.' });
+  }
+
   try {
-    const result = db.prepare('UPDATE representatives SET active = ? WHERE id = ?')
-      .run(req.body.active ? 1 : 0, req.params.id);
+    const result = db.prepare(`UPDATE representatives SET ${fields.join(', ')} WHERE id = ?`)
+      .run(...values, req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.' });
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Admin Representative-Update-Fehler:', error);
-    res.status(500).json({ error: 'Bevollmächtigter konnte nicht aktualisiert werden.' });
+    res.status(500).json({ error: 'Bevollmächtigter konnte nicht aktualisiert werden: ' + error.message });
+  }
+});
+
+// Löscht den Bevollmächtigten-Account unwiderruflich. Kunden-Zuweisungen
+// (representative_customer_assignments) und das Zugriffs-Protokoll
+// (representative_access_log) hängen per ON DELETE CASCADE daran und
+// werden automatisch mitgelöscht - offene customer_representative_requests
+// werden per ON DELETE SET NULL auf "unverbunden" zurückgesetzt (siehe
+// schema.sql), tauchen danach wieder als offene Anfrage auf. Das Frontend
+// warnt vor dem Löschen, falls noch Kunden zugewiesen sind.
+router.delete('/representatives/:id', (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM representatives WHERE id = ?').run(req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Admin Representative-Löschen-Fehler:', error);
+    res.status(500).json({ error: 'Bevollmächtigter konnte nicht gelöscht werden.' });
   }
 });
 
