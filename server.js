@@ -54,6 +54,7 @@ const kauflandRoutes = require('./routes/kaufland');
 const amazonRoutes = require('./routes/amazon');
 const ebayRoutes = require('./routes/ebay');
 const skroutzRoutes = require('./routes/skroutz');
+const baselinkerRoutes = require('./routes/baselinker');
 
 // Internes Vertriebs-/Marketing-Tool (Traffic, Leads, Aufgaben).
 const adminRoutes = require('./routes/admin');
@@ -298,6 +299,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/etsy', etsyRoutes);
 app.use('/api/kaufland', kauflandRoutes);
 app.use('/api/skroutz', skroutzRoutes);
+app.use('/api/baselinker', baselinkerRoutes);
 app.use('/api/amazon', amazonRoutes);
 app.use('/api/ebay', ebayRoutes);
 

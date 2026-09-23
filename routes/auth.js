@@ -476,6 +476,7 @@ router.get(
             (amazon_selling_partner_id IS NOT NULL) AS amazon_connected,
             (ebay_access_token IS NOT NULL) AS ebay_connected,
             (skroutz_api_token IS NOT NULL) AS skroutz_connected,
+            (baselinker_api_token IS NOT NULL) AS baselinker_connected,
             amazon_addon_active
           FROM customers
           WHERE id = ?
