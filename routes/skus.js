@@ -130,6 +130,33 @@ router.get('/eco-fee-bands/:countryCode', (req, res) => {
   }
 });
 
+// Klassifizierungs-Assistent (aktuell nur Italien) - siehe
+// eco_fee_classification_guide_json in db/index.js. Optionaler
+// ?category=-Filter (z. B. "clothing", "beverage"), damit das Dashboard
+// nur die für den jeweiligen Kunden-Produkttyp relevanten Einträge zeigen
+// kann, ohne die volle Liste clientseitig filtern zu müssen - "category"
+// ist rein informell und nicht abschließend, daher tolerant (kein Fehler
+// bei unbekanntem Wert, einfach leeres Ergebnis).
+router.get('/eco-fee-classification/:countryCode', (req, res) => {
+  try {
+    const code = String(req.params.countryCode || '').trim().toUpperCase();
+    const row = db.prepare('SELECT eco_fee_classification_guide_json FROM countries WHERE code = ?').get(code);
+    const guide = row && row.eco_fee_classification_guide_json ? JSON.parse(row.eco_fee_classification_guide_json) : null;
+    if (!guide) return res.json(null);
+
+    const category = req.query.category ? String(req.query.category).trim().toLowerCase() : null;
+    if (!category) return res.json(guide);
+
+    res.json({
+      ...guide,
+      eintraege: guide.eintraege.filter(e => e.category === category || e.category === 'general')
+    });
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Klassifizierungs-Daten:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Klassifizierungs-Daten.' });
+  }
+});
+
 router.get('/material-costs', (req, res) => {
   try {
     const skus = db.prepare(`SELECT * FROM product_packaging WHERE customer_id = ?`).all(req.customer.sub);
