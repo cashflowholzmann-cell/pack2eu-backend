@@ -131,6 +131,13 @@ function migrateCustomerRepresentativeRequestsStreamUnique() {
 // JEDE Skroutz-Bestellung am INSERT gescheitert. Da marketplace_orders
 // bereits echte Kundendaten enthalten kann, werden alle bestehenden
 // Zeilen 1:1 in die neue Tabelle übernommen, kein Datenverlust.
+//
+// Zweiter Durchlauf (Base.com/BaseLinker-Integration, routes/baselinker.js):
+// WICHTIG - fulfillment_type wurde NACH dem ersten Rebuild per
+// addColumnIfMissing ergänzt und muss hier jetzt explizit in
+// CREATE/INSERT/SELECT mitgeführt werden, sonst würde dieser zweite
+// Rebuild die Spalte samt Inhalt (Skroutz FBS/Direktversand-Daten)
+// stillschweigend wieder verlieren.
 function migrateMarketplaceOrdersPlatformCheck() {
   if (!tableExists('marketplace_orders')) return;
 
@@ -138,25 +145,28 @@ function migrateMarketplaceOrdersPlatformCheck() {
     SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'marketplace_orders'
   `).get()?.sql || '';
 
-  if (currentSql.includes("'skroutz'")) return;
+  if (currentSql.includes("'baselinker'")) return;
+
+  const hasFulfillmentType = columnExists('marketplace_orders', 'fulfillment_type');
 
   db.exec(`
     CREATE TABLE marketplace_orders_new (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      platform TEXT NOT NULL CHECK (platform IN ('etsy', 'kaufland', 'amazon', 'ebay', 'skroutz')),
+      platform TEXT NOT NULL CHECK (platform IN ('etsy', 'kaufland', 'amazon', 'ebay', 'skroutz', 'baselinker')),
       external_order_id TEXT NOT NULL,
       order_data_json TEXT,
       destination_country TEXT,
       total_weight_grams INTEGER NOT NULL DEFAULT 0,
       packaging_data TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      fulfillment_type TEXT,
       UNIQUE(platform, external_order_id)
     );
 
     INSERT INTO marketplace_orders_new
-      (id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at)
-    SELECT id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at
+      (id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at${hasFulfillmentType ? ', fulfillment_type' : ''})
+    SELECT id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at${hasFulfillmentType ? ', fulfillment_type' : ''}
     FROM marketplace_orders;
 
     DROP TABLE marketplace_orders;
@@ -165,7 +175,7 @@ function migrateMarketplaceOrdersPlatformCheck() {
     CREATE INDEX IF NOT EXISTS idx_marketplace_orders_customer ON marketplace_orders(customer_id);
   `);
 
-  console.log("✅ marketplace_orders: CHECK-Constraint um 'skroutz' erweitert");
+  console.log("✅ marketplace_orders: CHECK-Constraint um 'baselinker' erweitert");
 }
 
 
@@ -455,6 +465,13 @@ function init() {
     // getrennt auswerten können.
     addColumnIfMissing('marketplace_orders', 'fulfillment_type', 'TEXT');
 
+    // Base.com (ehemals BaseLinker) - Multi-Channel-Management, das
+    // mehrere Verkaufskanäle (Shopify, Amazon, eBay, Skroutz, eMAG, ...)
+    // bündelt. Kein OAuth, Kunde hinterlegt eigenen API-Token, siehe
+    // routes/baselinker.js. Kein offiziell dokumentiertes Webhook-Format
+    // verfügbar - daher Polling per manuellem Sync statt Webhook.
+    addColumnIfMissing('customers', 'baselinker_api_token', 'TEXT');
+
     // Produkt-Zuordnung für die neuen Marktplätze (gleiches Prinzip wie
     // shopify_product_id/shopify_variant_id): ordnet eine externe
     // Marktplatz-Artikel-ID einem lokal angelegten Produkt zu, damit
@@ -464,6 +481,7 @@ function init() {
     addColumnIfMissing('product_packaging', 'amazon_sku', 'TEXT');
     addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
+    addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
 
     // WEEE-/Batterie-Klassifizierung je Produkt (siehe routes/skus.js) -
     // ohne diese Angaben kann das System nicht wissen, ob eine SKU
