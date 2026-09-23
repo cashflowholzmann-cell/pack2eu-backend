@@ -483,6 +483,17 @@ function init() {
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
 
+    // Rein informative Detailtabelle für Länder mit stark nach
+    // Recyclingfähigkeit gestaffelten Kunststoff-Sätzen (z. B. Italien/
+    // CONAI: 9 Fasce von 40 bis 790 €/t statt eines Einheitssatzes).
+    // BEWUSST getrennt von eco_fee_rates_json: computeCountryEcoFeeEstimate()
+    // im Frontend (dashboard.html) erwartet dort pro Material eine einzelne
+    // Zahl für die automatische Kostenschätzung - ohne SKU-seitige
+    // Recyclingfähigkeits-Angabe (die Pack2EU aktuell nicht erhebt) lässt
+    // sich keine einzelne SKU automatisch einer Fascia zuordnen. Diese
+    // Spalte dient nur der Anzeige der vollen Bandbreite als Referenz.
+    addColumnIfMissing('countries', 'eco_fee_plastic_bands_json', 'TEXT');
+
     // WEEE-/Batterie-Klassifizierung je Produkt (siehe routes/skus.js) -
     // ohne diese Angaben kann das System nicht wissen, ob eine SKU
     // überhaupt WEEE- oder Batteriepflichten auslöst. weee_category/
@@ -866,16 +877,19 @@ function init() {
         eco_fee = 'CONAI-Umweltbeitrag (Contributo Ambientale CONAI, CAC), materialabhängig gestaffelt.',
         representative_provider_name = 'econ Consulting (Dr. Egon Prenn)',
         representative_provider_url = 'https://www.econ.bz.it/dienstleistungen/',
-        representative_data_status = 'needs_verification',
+        representative_provider_email = 'info@econ.bz.it',
+        representative_data_status = 'verified',
         reporting_frequency = 'needs_verification',
-        data_status = 'needs_verification'
+        data_status = 'verified'
       WHERE code = 'IT'
     `).run(
       JSON.stringify([
         'Stand 08/2026: Die EPR-Pflichten für Verpackungen laufen weiterhin über CONAI; ein eigenständiges PPWR-Produzentenregister (RENAP) ist für Verpackungen noch nicht vollständig in Betrieb.',
         'Paralleler Weiterbetrieb von CONAI und PPWR-System voraussichtlich bis 11.08.2028 vorgesehen.',
         'Nationale Durchführungsbestimmungen zu Registrierung und Bevollmächtigten werden im Laufe 2026 erwartet – noch nicht final.',
-        'Meldefrequenz bei CONAI gestaffelt nach der Höhe des im Vorjahr gemeldeten Umweltbeitrags je Material (jährlich/quartalsweise/monatlich) – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.'
+        'Meldefrequenz bei CONAI gestaffelt nach der Höhe des im Vorjahr gemeldeten Umweltbeitrags je Material (jährlich/quartalsweise/monatlich) – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
+        'Verifiziert 09/2026 über ein echtes, personalisiertes Angebot von econ Consulting: CONAI-Eintragung inkl. Domizil (1. Jahr) 350€ einmalig, Domizil (Folgejahre) 160€/Jahr, periodische Meldungen je nach Frequenz 100€ (jährlich) / 280€ (vierteljährlich) / 500€ (monatlich), Selbstanzeige bei versäumten Meldungen (bis 5 Jahre rückwirkend) 150€ einmalig - alle Preise netto zzgl. MwSt.',
+        'CONAI-Kunststoff-Umweltbeitrag ist seit 01/2026 nach Recyclingfähigkeit in 9 Fasce gestaffelt (40-790 €/t) statt eines Einheitssatzes - siehe eco_fee_plastic_bands_json für die volle Tabelle. Der hier hinterlegte eco_fee_rates_json-Wert (0,79 €/kg) entspricht bewusst der teuersten Fascia C als konservative Schätzung.'
       ])
     );
 
@@ -2041,15 +2055,20 @@ function init() {
     //   Verpackungs-EPR-System (eng an die Schweizer Zollunion
     //   angebunden).
     // - SI: trotz mehrerer Versuche keine belastbare Zahl gefunden.
-    // - IT-Kunststoff (CONAI CAC) steigt laut CONAI zum 01.10.2026 von
-    //   0,79 auf 0,922 €/kg - hier bewusst noch der bis dahin gültige
-    //   Satz eingetragen, im Q4 2026 aktualisieren.
+    // - IT: 09/2026 per echtem CONAI-Tarifdokument ("Il Contributo
+    //   Ambientale 2026", Stand 01/2026) korrigiert/verifiziert - die
+    //   zuvor angenommene Erhöhung auf 0,922 €/kg zum 01.10.2026 wird
+    //   von dieser offiziellen, aktuelleren Quelle NICHT bestätigt (alle
+    //   Fasce bleiben zwischen H1 und H2/2026 unverändert, außer
+    //   biologisch abbaubarer/kompostierbarer Kunststoff: 0,130 auf
+    //   0,246 €/kg). Glas und Holz auf die im selben Dokument bestätigten
+    //   aktuellen Werte angepasst.
     // ========================================================
 
     const ecoFeeRates = {
       DE: { papier: 0.26, karton: 0.26 },
       FR: { papier: 0.2143, karton: 0.2143, glas: 0.0164, metall: 0.0535 },
-      IT: { papier: 0.045, karton: 0.045, kunststoff: 0.790, glas: 0.035, metall: 0.005, holz: 0.009 },
+      IT: { papier: 0.045, karton: 0.045, kunststoff: 0.790, glas: 0.040, metall: 0.005, holz: 0.010 },
       ES: { papier: 0.115, karton: 0.115, kunststoff: 0.285, glas: 0.035 },
       AT: { papier: 0.190, karton: 0.190, kunststoff: 0.990, glas: 0.102, metall: 0.450, holz: 0.020, sonstige: 1.080 },
       NL: { kunststoff: 0.1972, glas: 0.0303, papier: 0.0154, karton: 0.0154, metall: 0.0663 },
@@ -2088,6 +2107,25 @@ function init() {
 
     console.log(
       `✅ Öko-Gebühr-Sätze gesetzt: ${Object.keys(ecoFeeRates).length} Länder`
+    );
+
+
+    // Italien/CONAI: volle Kunststoff-Fasce-Tabelle ("Il Contributo
+    // Ambientale 2026", Stand 01/2026) als Referenzdaten - siehe Kommentar
+    // bei addColumnIfMissing('countries', 'eco_fee_plastic_bands_json', ...).
+    db.prepare(`UPDATE countries SET eco_fee_plastic_bands_json = ? WHERE code = 'IT'`).run(
+      JSON.stringify({
+        einheit: 'EUR/Tonne',
+        stand: '2026-01',
+        kunststoff_fasce: {
+          'A1.1': 40, 'A1.2': 87, 'A2': 258,
+          'B1.1': 219, 'B1.2': 228,
+          'B2.1': 611, 'B2.2': 724, 'B2.3': 785,
+          'C': 790
+        },
+        kunststoff_biologisch_abbaubar_kompostierbar: 246,
+        metall_differenziert: { acciaio_stahl: 5, alluminio_aluminium: 12 }
+      })
     );
 
 
