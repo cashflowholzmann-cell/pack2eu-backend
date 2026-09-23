@@ -397,6 +397,10 @@ function init() {
     addColumnIfMissing('customers', 'ebay_refresh_token', 'TEXT');
     addColumnIfMissing('customers', 'ebay_token_expires_at', 'TEXT');
 
+    // Skroutz Marketplace (kein OAuth - Kunde generiert eigenen API-Token
+    // im Skroutz-Händler-Panel, siehe routes/skroutz.js).
+    addColumnIfMissing('customers', 'skroutz_api_token', 'TEXT');
+
     // Produkt-Zuordnung für die neuen Marktplätze (gleiches Prinzip wie
     // shopify_product_id/shopify_variant_id): ordnet eine externe
     // Marktplatz-Artikel-ID einem lokal angelegten Produkt zu, damit
@@ -405,6 +409,7 @@ function init() {
     addColumnIfMissing('product_packaging', 'kaufland_product_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'amazon_sku', 'TEXT');
     addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
+    addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
 
     // WEEE-/Batterie-Klassifizierung je Produkt (siehe routes/skus.js) -
     // ohne diese Angaben kann das System nicht wissen, ob eine SKU
