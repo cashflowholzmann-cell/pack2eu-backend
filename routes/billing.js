@@ -121,6 +121,11 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     mode: 'subscription',
     customer: stripeCustomerId,
     line_items: [{ price: priceId, quantity: 1 }],
+    // Zeigt an der Kasse ein Gutschein-/Rabattcode-Feld an - ohne das gibt
+    // es aktuell KEINEN Weg, einen Code (z.B. für eine Reel-Aktion)
+    // einzulösen. Der Code selbst wird als Promotion Code im Stripe-
+    // Dashboard angelegt, nicht im Code hinterlegt.
+    allow_promotion_codes: true,
     success_url: `${process.env.APP_URL}/Dashboard.html?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.APP_URL}/index.html`,
     metadata: {
