@@ -475,6 +475,7 @@ router.get(
             (kaufland_client_key IS NOT NULL) AS kaufland_connected,
             (amazon_selling_partner_id IS NOT NULL) AS amazon_connected,
             (ebay_access_token IS NOT NULL) AS ebay_connected,
+            (skroutz_api_token IS NOT NULL) AS skroutz_connected,
             amazon_addon_active
           FROM customers
           WHERE id = ?
