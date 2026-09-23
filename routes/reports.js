@@ -1,10 +1,48 @@
 // routes/reports.js
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const { db } = require('../db');
 const PDFDocument = require('pdfkit');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 
 const router = express.Router();
+
+// LOGO_PATH: lokaler Dateipfad (nicht URL, anders als bei E-Mails) - pdfkit
+// bettet die Datei direkt ein statt sie zu laden. Fehlt die Datei/Env-Var,
+// wird der Header ohne Logo gerendert statt den Export crashen zu lassen.
+const BRAND_COLOR = '#0A2540';
+const LOGO_PATH = process.env.PDF_LOGO_PATH || path.join(__dirname, '..', 'assets', 'logo.png');
+
+function drawPdfHeader(doc, title, subtitle) {
+  doc.rect(0, 0, doc.page.width, 90).fill(BRAND_COLOR);
+
+  if (fs.existsSync(LOGO_PATH)) {
+    doc.image(LOGO_PATH, 50, 20, { height: 40 });
+  } else {
+    doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('Pack2EU', 50, 34);
+  }
+
+  doc.y = 110;
+  doc.fillColor('#1a1a1a').font('Helvetica-Bold').fontSize(18).text(title, { align: 'left' });
+  if (subtitle) {
+    doc.font('Helvetica').fontSize(11).fillColor('#555555').text(subtitle);
+  }
+  doc.moveDown();
+  doc.strokeColor('#dddddd').moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
+  doc.moveDown();
+  doc.fillColor('#1a1a1a').font('Helvetica');
+}
+
+function drawPdfFooter(doc) {
+  // Bewusst deutlich über der unteren Seitenmarge (nicht genau auf ihr) -
+  // sonst zählt pdfkit die Zeilenhöhe der Fußzeile selbst schon als
+  // Überlauf und hängt automatisch eine (leere) Folgeseite an.
+  const bottom = doc.page.height - 70;
+  doc.fontSize(8).fillColor('#999999').font('Helvetica')
+    .text('Pack2EU · pack2eu.global', 50, bottom, { align: 'left', width: doc.page.width - 100, lineBreak: false });
+  doc.text(`Erstellt am ${new Date().toLocaleDateString('de-DE')}`, 50, bottom, { align: 'right', width: doc.page.width - 100, lineBreak: false });
+}
 
 router.use(requireAuth);
 router.use(requireActiveSubscription);
@@ -175,26 +213,24 @@ router.get('/export/pdf/:year', async (req, res) => {
 
         doc.pipe(res);
 
-        doc.fontSize(20).text('Pack2EU - Jahresreport', { align: 'center' });
-        doc.fontSize(12).text(`Berichtsjahr: ${year}`, { align: 'center' });
-        doc.moveDown();
+        drawPdfHeader(doc, 'Jahresreport', `Berichtsjahr ${year}`);
 
         if (Object.keys(reportData).length === 0) {
             doc.fontSize(12).text('Keine Verpackungsdaten für dieses Jahr vorhanden.');
         } else {
             Object.entries(reportData).forEach(([country, data]) => {
-                doc.fontSize(14).text(`📦 ${country}`, { underline: true });
-                doc.fontSize(10).text(`Gesamt: ${data.total_kg.toFixed(2)} kg`);
-                
+                doc.font('Helvetica-Bold').fontSize(13).fillColor(BRAND_COLOR).text(country);
+                doc.font('Helvetica').fontSize(10).fillColor('#1a1a1a').text(`Gesamt: ${data.total_kg.toFixed(2)} kg`);
+
                 Object.entries(data.materials).forEach(([material, kg]) => {
-                    doc.text(`  • ${material}: ${kg.toFixed(2)} kg`);
+                    doc.text(`  •  ${material}: ${kg.toFixed(2)} kg`);
                 });
-                
+
                 doc.moveDown();
             });
         }
 
-        doc.fontSize(10).text(`Erstellt am: ${new Date().toLocaleDateString()}`, { align: 'center' });
+        drawPdfFooter(doc);
         doc.end();
 
     } catch (error) {
