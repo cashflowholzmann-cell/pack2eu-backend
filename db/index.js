@@ -501,6 +501,18 @@ function init() {
     }
     addColumnIfMissing('countries', 'eco_fee_material_bands_json', 'TEXT');
 
+    // Strukturierte, übersetzte Klassifizierungs-Hilfe: welcher
+    // Verpackungstyp fällt in welche Fascia (siehe CONAIs offizielle
+    // "Liste degli imballaggi in plastica nelle fasce contributive",
+    // gültig ab 01/2026). Kuratierte Auswahl der praxisrelevantesten
+    // Fälle, NICHT die vollständigen ~60 Originalpositionen - Zweck ist
+    // ein brauchbarer Klassifizierungs-Assistent im Dashboard, keine
+    // juristische Volltext-Wiedergabe. Bewusst mit übersetzten label/
+    // criteria (aktuell de/en) statt nur Italienisch - vor
+    // Frontend-Anbindung ggf. um fr/it/es ergänzen (gleiches Muster wie
+    // die übrigen i18n-Strings in dashboard.html).
+    addColumnIfMissing('countries', 'eco_fee_classification_guide_json', 'TEXT');
+
     // WEEE-/Batterie-Klassifizierung je Produkt (siehe routes/skus.js) -
     // ohne diese Angaben kann das System nicht wissen, ob eine SKU
     // überhaupt WEEE- oder Batteriepflichten auslöst. weee_category/
@@ -2171,6 +2183,50 @@ function init() {
           'Fascia 5.2 (Compositi tipo C2, nicht zertifiziert)': 155,
           'Fascia 6 (Compositi tipo D)': 285
         }
+      })
+    );
+
+
+    // Klassifizierungs-Assistent: kuratierte Auswahl aus CONAIs offizieller
+    // "Liste degli imballaggi in plastica nelle fasce contributive" (gültig
+    // ab 01/2026) - welcher Verpackungstyp fällt in welche Fascia. category
+    // dient der spaeteren Filterung im Dashboard nach Kundenprodukttyp
+    // (z. B. "clothing", "beverage") - siehe Kommentar bei
+    // addColumnIfMissing('countries', 'eco_fee_classification_guide_json', ...).
+    db.prepare(`UPDATE countries SET eco_fee_classification_guide_json = ? WHERE code = 'IT'`).run(
+      JSON.stringify({
+        stand: '2026-01',
+        quelle: 'CONAI - Liste degli imballaggi in plastica nelle fasce contributive',
+        eintraege: [
+          { fascia: 'A1.1', category: 'industrial', label: { de: 'Big Bags / Gewebesäcke für Industriezwecke', en: 'Big bags / industrial woven sacks' }, criteria: { de: 'Inkl. bereits integrierter Innenauskleidung (Liner).', en: 'Including any already-integrated liner.' } },
+          { fascia: 'A1.1', category: 'beverage', label: { de: 'Wasserspender-Kanister (Bag-in-Box-Alternative)', en: 'Water dispenser bottles' }, criteria: { de: 'Inkl. zugehöriger Verschlüsse.', en: 'Including caps.' } },
+          { fascia: 'A1.1', category: 'general', label: { de: 'Industrie-/Agrar-Kisten und -Kästen (nicht geschäumt)', en: 'Industrial/agricultural crates (non-foam)' }, criteria: { de: 'Inkl. Deckel und Verschlusselemente.', en: 'Including lids and closure elements.' } },
+          { fascia: 'A1.1', category: 'general', label: { de: 'Paletten', en: 'Pallets' }, criteria: { de: '', en: '' } },
+          { fascia: 'A1.1', category: 'general', label: { de: 'Kanister über 5 Liter Fassungsvermögen', en: 'Canisters over 5 litres capacity' }, criteria: { de: 'Inkl. zugehöriger Verschlüsse.', en: 'Including caps.' } },
+          { fascia: 'A1.2', category: 'industrial', label: { de: 'Fässer und IBC-Container ab 30 Liter (HDPE)', en: 'Drums and IBC containers from 30 litres (HDPE)' }, criteria: { de: 'Inkl. bereits integrierter Verschlüsse/Deckel.', en: 'Including already-integrated caps/lids.' } },
+          { fascia: 'A2', category: 'industrial', label: { de: 'Palettenfolie/-hauben, Schrumpffolie (Monopolymer PE)', en: 'Pallet wrap film/hoods, shrink film (mono-PE)' }, criteria: { de: 'Nicht metallisiert/lackiert.', en: 'Not metallised/coated.' } },
+          { fascia: 'B1.1', category: 'household', label: { de: 'HDPE-Flaschen/-Kanister bis 5L OHNE deckendes Etikett', en: 'HDPE bottles/canisters up to 5L WITHOUT covering label' }, criteria: { de: 'Ohne mineralische Füllstoffe/"Carbon Black" (z. B. Reinigungsmittel, Waschmittel).', en: 'Without mineral fillers/"carbon black" (e.g. cleaning products, detergents).' } },
+          { fascia: 'B1.1', category: 'beverage', label: { de: 'Fest verbundene Verschlüsse ("Tethered Caps") für Getränkeflaschen', en: 'Tethered caps for beverage bottles' }, criteria: { de: 'Für Getränkeverpackungen und Getränkekartons (CPL) jeder Fascia.', en: 'For beverage packaging and beverage cartons of any fascia.' } },
+          { fascia: 'B1.2', category: 'beverage', label: { de: 'Klare PET-Flaschen/-Gläser OHNE deckendes Etikett', en: 'Clear PET bottles/jars WITHOUT covering label' }, criteria: { de: 'Transparent oder transparent eingefärbt, keine direkte Bedruckung statt Etikett.', en: 'Transparent or transparent-tinted, no direct printing instead of a label.' } },
+          { fascia: 'B2.1', category: 'household', label: { de: 'Starre PP-Behälter (Eimer, Becher, Schalen)', en: 'Rigid PP containers (buckets, cups, trays)' }, criteria: { de: 'Ohne mineralische Füllstoffe/"Carbon Black".', en: 'Without mineral fillers/"carbon black".' } },
+          { fascia: 'B2.2', category: 'household', label: { de: 'Starre PE-Behälter mit deckendem Etikett erlaubt', en: 'Rigid PE containers, covering label allowed' }, criteria: { de: 'z. B. Eimer, Becher, Schalen.', en: 'E.g. buckets, cups, trays.' } },
+          { fascia: 'B2.2', category: 'beverage', label: { de: 'PET-Flaschen mit perforiertem, abnehmbarem Etikett', en: 'PET bottles with perforated, removable label' }, criteria: { de: 'Etikett muss laut Anleitung entfernbar sein.', en: 'Label must be designed to be removed per instructions.' } },
+          { fascia: 'B2.2', category: 'general', label: { de: 'Schutzelemente aus EPS (Styropor)', en: 'EPS (foam) protective elements' }, criteria: { de: '', en: '' } },
+          { fascia: 'B2.2', category: 'general', label: { de: 'Mechanische Spender (Sprühpumpen, Trigger)', en: 'Mechanical dispensers (spray pumps, triggers)' }, criteria: { de: '', en: '' } },
+          { fascia: 'B2.2', category: 'clothing', label: { de: 'Flexible PE-Folie für Kleidung (z. B. Kleiderhüllen)', en: 'Flexible PE film for clothing (e.g. garment film wrap)' }, criteria: { de: 'Nicht metallisiert/lackiert, ohne mineralische Füllstoffe.', en: 'Not metallised/coated, without mineral fillers.' } },
+          { fascia: 'B2.2', category: 'general', label: { de: 'Flexible PP-Beutel (z. B. für Nudeln, Süßwaren)', en: 'Flexible PP bags (e.g. for pasta, sweets)' }, criteria: { de: '', en: '' } },
+          { fascia: 'B2.3', category: 'general', label: { de: 'PET-Tiefziehverpackungen (Schalen, Blister)', en: 'PET thermoformed packaging (trays, blister packs)' }, criteria: { de: 'Transparent, nicht metallisiert.', en: 'Transparent, not metallised.' } },
+          { fascia: 'B2.3', category: 'household', label: { de: 'Starre PS-Behälter (nicht geschäumt, z. B. Joghurtbecher)', en: 'Rigid PS containers (non-foam, e.g. yoghurt cups)' }, criteria: { de: '', en: '' } },
+          { fascia: 'B2.3', category: 'general', label: { de: 'Netzbeutel (z. B. für Obst/Gemüse)', en: 'Net bags (e.g. for fruit/vegetables)' }, criteria: { de: 'Inkl. Zubehör (Banderolen/Etiketten), sofern ebenfalls PE/PP.', en: 'Including accessories (bands/labels), if also PE/PP.' } },
+          { fascia: 'B2.3', category: 'clothing', label: { de: 'Kleiderbügel OHNE Metallteile', en: 'Coat hangers WITHOUT metal parts' }, criteria: { de: 'Für Kleidung, Wäsche und andere Waren.', en: 'For clothing, linen and other goods.' } },
+          { fascia: 'C', category: 'clothing', label: { de: 'Kleiderbügel MIT Metallteilen', en: 'Coat hangers WITH metal parts' }, criteria: { de: '', en: '' } },
+          { fascia: 'C', category: 'clothing', label: { de: 'Kleidersäcke/-hüllen (Textil/Vlies)', en: 'Garment covers/dust covers (textile/non-woven)' }, criteria: { de: 'Abweichende Merkmale von den günstigeren Fasce.', en: 'With characteristics differing from the cheaper fasce.' } },
+          { fascia: 'C', category: 'general', label: { de: 'Jegliche PVC-Anteile (auch nur teilweise)', en: 'Any PVC content (even partial)' }, criteria: { de: 'Ausnahme: Fasce A1.1/A1.2.', en: 'Exception: fasce A1.1/A1.2.' } },
+          { fascia: 'C', category: 'general', label: { de: 'Verpackungen mit "Carbon Black"-Pigment', en: 'Packaging containing "carbon black" pigment' }, criteria: { de: 'Ausnahme: bestimmte Fälle in A1.1/A1.2/A2.', en: 'Exception: specific cases in A1.1/A1.2/A2.' } },
+          { fascia: 'C', category: 'general', label: { de: 'Mehrschicht-Verpackungen aus verschiedenen Polymeren', en: 'Multi-layer packaging made of different polymers' }, criteria: { de: 'Nicht manuell trennbar.', en: 'Not manually separable.' } },
+          { fascia: 'C', category: 'beverage', label: { de: 'Flaschen mit Direktbedruckung statt Etikett', en: 'Bottles with direct printing instead of a label' }, criteria: { de: '', en: '' } },
+          { fascia: 'C', category: 'beverage', label: { de: 'Fässer/Behälter des KEG-Typs (Bier, Wein)', en: 'KEG-type containers/drums (beer, wine)' }, criteria: { de: '', en: '' } }
+        ]
       })
     );
 
