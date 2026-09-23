@@ -1685,11 +1685,35 @@ function init() {
       ['holz', null, 0.10]
     ];
 
+    // "INSERT OR IGNORE" allein reicht hier NICHT: SQLite behandelt NULL
+    // in einem UNIQUE(material, subtype) als paarweise ungleich zu sich
+    // selbst, daher greift die Uniqueness bei subtype-losen Materialien
+    // (glas, holz, karton, kunststoff ohne Subtyp, metall, papier) nicht -
+    // ohne den Existenz-Check unten würde bei jedem Serverstart eine neue
+    // Dublette entstehen. Explizit auf COALESCE(subtype, '') prüfen.
+    const materialRateExists = db.prepare(`
+      SELECT 1 FROM material_license_rates
+      WHERE material = ? AND COALESCE(subtype, '') = COALESCE(?, '')
+    `);
     const insertMaterialRate = db.prepare(`
-      INSERT OR IGNORE INTO material_license_rates (material, subtype, price_per_kg_eur, source)
+      INSERT INTO material_license_rates (material, subtype, price_per_kg_eur, source)
       VALUES (?, ?, ?, 'estimate')
     `);
-    for (const row of materialRates) insertMaterialRate.run(...row);
+    for (const row of materialRates) {
+      if (!materialRateExists.get(row[0], row[1])) insertMaterialRate.run(...row);
+    }
+
+    // Einmalige Bereinigung bereits entstandener Dubletten (siehe
+    // Kommentar oben) - behält pro (material, subtype) die älteste Zeile,
+    // löscht den Rest. Idempotent: sobald bereinigt, findet die Abfrage
+    // nichts mehr zu löschen.
+    db.exec(`
+      DELETE FROM material_license_rates
+      WHERE id NOT IN (
+        SELECT MIN(id) FROM material_license_rates
+        GROUP BY material, COALESCE(subtype, '')
+      )
+    `);
 
     console.log('✅ Material-Lizenzentgelt-Richtwerte geprüft');
 
