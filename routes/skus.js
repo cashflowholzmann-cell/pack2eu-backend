@@ -114,6 +114,22 @@ router.get('/material-rates', (req, res) => {
   }
 });
 
+// Länder mit stark nach Material-Unterklasse gestaffelten Öko-Beiträgen
+// (aktuell nur Italien/CONAI) - siehe eco_fee_material_bands_json in
+// db/index.js. Bewusst hinter demselben Login/Abo wie die restliche
+// Spar-Rechner-Logik, NICHT über den öffentlichen /public-eco-fees-
+// Endpoint erreichbar (siehe Kommentar dort zum recherchierten USP).
+router.get('/eco-fee-bands/:countryCode', (req, res) => {
+  try {
+    const code = String(req.params.countryCode || '').trim().toUpperCase();
+    const row = db.prepare('SELECT eco_fee_material_bands_json FROM countries WHERE code = ?').get(code);
+    res.json(row && row.eco_fee_material_bands_json ? JSON.parse(row.eco_fee_material_bands_json) : null);
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Material-Fasce-Daten:', error);
+    res.status(500).json({ error: 'Fehler beim Laden der Fasce-Daten.' });
+  }
+});
+
 router.get('/material-costs', (req, res) => {
   try {
     const skus = db.prepare(`SELECT * FROM product_packaging WHERE customer_id = ?`).all(req.customer.sub);
