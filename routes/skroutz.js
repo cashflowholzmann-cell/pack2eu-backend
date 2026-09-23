@@ -145,15 +145,19 @@ router.post('/webhook/:customerId', async (req, res) => {
 
     db.prepare(`
       INSERT OR IGNORE INTO marketplace_orders
-      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data)
-      VALUES (?, 'skroutz', ?, ?, ?, ?, ?)
+      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type)
+      VALUES (?, 'skroutz', ?, ?, ?, ?, ?, ?)
     `).run(
       customer.id,
       String(fullOrder.code),
       JSON.stringify(fullOrder),
       fullOrder.customer?.address?.country_code || 'GR',
       totalWeight,
-      JSON.stringify(packagingMaterials)
+      JSON.stringify(packagingMaterials),
+      // order.fulfilled_by_skroutz laut offiziellem Order-Objekt-Schema
+      // (developer.skroutz.gr/smart_cart/_order_object) - FBS: Skroutz
+      // übernimmt Lagerung/Versand, sonst versendet der Händler selbst.
+      fullOrder.fulfilled_by_skroutz ? 'fbs' : 'direct'
     );
 
     res.status(200).json({ ok: true });
@@ -171,7 +175,7 @@ router.post('/webhook/:customerId', async (req, res) => {
 router.get('/orders', requireAuth, (req, res) => {
   try {
     const orders = db.prepare(`
-      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, created_at
+      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, fulfillment_type, created_at
       FROM marketplace_orders
       WHERE customer_id = ? AND platform = 'skroutz'
       ORDER BY created_at DESC
