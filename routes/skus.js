@@ -59,6 +59,15 @@ function readEstimatedAnnualUnits(body = {}) {
   return Number.isFinite(value) && value > 0 ? Math.round(value) : null;
 }
 
+// Produkt-Nische aus dem Konfigurator (siehe PRODUCT_PRESETS/
+// ONBOARDING_NICHES in dashboard.html) - rein informell, keine feste
+// Liste im Backend (die Nischen-Definition lebt im Frontend), daher nur
+// getrimmt und auf Länge begrenzt statt gegen eine Tabelle validiert.
+function readProductNiche(body = {}) {
+  const value = body.product_niche ? String(body.product_niche).trim().slice(0, 40) : null;
+  return value || null;
+}
+
 // ============================================================
 // ALLE SKUS DES KUNDEN
 // ============================================================
@@ -219,16 +228,17 @@ router.post('/', (req, res) => {
     const materials_json = JSON.stringify(materials);
     const classification = readClassification(req.body);
     const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
+    const productNiche = readProductNiche(req.body);
 
     const result = db.prepare(`
       INSERT INTO product_packaging
       (customer_id, sku_name, icon, shopify_product_id, destination, materials_json, total_weight_grams,
-       is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       customer_id, sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
-      classification.contains_battery, classification.battery_type, estimatedAnnualUnits
+      classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche
     );
 
     const newSku = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
@@ -259,18 +269,19 @@ router.put('/:id', (req, res) => {
     const materials_json = JSON.stringify(materials);
     const classification = readClassification(req.body);
     const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
+    const productNiche = readProductNiche(req.body);
 
     db.prepare(`
       UPDATE product_packaging
       SET sku_name = ?, icon = ?, shopify_product_id = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-          estimated_annual_units = ?, updated_at = datetime('now')
+          estimated_annual_units = ?, product_niche = ?, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
       sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
       classification.contains_battery, classification.battery_type,
-      estimatedAnnualUnits,
+      estimatedAnnualUnits, productNiche,
       id, customer_id
     );
 
