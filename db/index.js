@@ -483,16 +483,23 @@ function init() {
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
 
-    // Rein informative Detailtabelle für Länder mit stark nach
-    // Recyclingfähigkeit gestaffelten Kunststoff-Sätzen (z. B. Italien/
-    // CONAI: 9 Fasce von 40 bis 790 €/t statt eines Einheitssatzes).
-    // BEWUSST getrennt von eco_fee_rates_json: computeCountryEcoFeeEstimate()
-    // im Frontend (dashboard.html) erwartet dort pro Material eine einzelne
-    // Zahl für die automatische Kostenschätzung - ohne SKU-seitige
-    // Recyclingfähigkeits-Angabe (die Pack2EU aktuell nicht erhebt) lässt
-    // sich keine einzelne SKU automatisch einer Fascia zuordnen. Diese
-    // Spalte dient nur der Anzeige der vollen Bandbreite als Referenz.
-    addColumnIfMissing('countries', 'eco_fee_plastic_bands_json', 'TEXT');
+    // Rein informative Detailtabelle für Länder, deren Öko-Beitrag
+    // innerhalb eines Materials stark gestaffelt ist (z. B. Italien/CONAI:
+    // Kunststoff 9 Fasce von 40 bis 790 €/t, Papier 8 Fasce von 45 bis
+    // 285 €/t, statt je eines Einheitssatzes). BEWUSST getrennt von
+    // eco_fee_rates_json: computeCountryEcoFeeEstimate() im Frontend
+    // (dashboard.html) erwartet dort pro Material eine einzelne Zahl für
+    // die automatische Kostenschätzung - ohne SKU-seitige
+    // Recyclingfähigkeits-/Verbund-Angabe (die Pack2EU aktuell nicht
+    // erhebt) lässt sich keine einzelne SKU automatisch einer Fascia
+    // zuordnen. Diese Spalte dient nur der Anzeige der vollen Bandbreite
+    // als Referenz. Hieß ursprünglich eco_fee_plastic_bands_json, bevor
+    // auch Papier-Fasce dazukamen - umbenannt, solange noch kein
+    // Frontend-Code darauf zugreift.
+    if (columnExists('countries', 'eco_fee_plastic_bands_json') && !columnExists('countries', 'eco_fee_material_bands_json')) {
+      db.exec(`ALTER TABLE countries RENAME COLUMN eco_fee_plastic_bands_json TO eco_fee_material_bands_json`);
+    }
+    addColumnIfMissing('countries', 'eco_fee_material_bands_json', 'TEXT');
 
     // WEEE-/Batterie-Klassifizierung je Produkt (siehe routes/skus.js) -
     // ohne diese Angaben kann das System nicht wissen, ob eine SKU
@@ -889,7 +896,7 @@ function init() {
         'Nationale Durchführungsbestimmungen zu Registrierung und Bevollmächtigten werden im Laufe 2026 erwartet – noch nicht final.',
         'Meldefrequenz bei CONAI gestaffelt nach der Höhe des im Vorjahr gemeldeten Umweltbeitrags je Material (jährlich/quartalsweise/monatlich) – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
         'Verifiziert 09/2026 über ein echtes, personalisiertes Angebot von econ Consulting: CONAI-Eintragung inkl. Domizil (1. Jahr) 350€ einmalig, Domizil (Folgejahre) 160€/Jahr, periodische Meldungen je nach Frequenz 100€ (jährlich) / 280€ (vierteljährlich) / 500€ (monatlich), Selbstanzeige bei versäumten Meldungen (bis 5 Jahre rückwirkend) 150€ einmalig - alle Preise netto zzgl. MwSt.',
-        'CONAI-Kunststoff-Umweltbeitrag ist seit 01/2026 nach Recyclingfähigkeit in 9 Fasce gestaffelt (40-790 €/t) statt eines Einheitssatzes - siehe eco_fee_plastic_bands_json für die volle Tabelle. Der hier hinterlegte eco_fee_rates_json-Wert (0,79 €/kg) entspricht bewusst der teuersten Fascia C als konservative Schätzung.'
+        'CONAI-Kunststoff-Umweltbeitrag ist seit 01/2026 nach Recyclingfähigkeit in 9 Fasce gestaffelt (40-790 €/t) statt eines Einheitssatzes, Papier in 8 Fasce (45-285 €/t) - siehe eco_fee_material_bands_json für die vollen Tabellen. Die hier hinterlegten eco_fee_rates_json-Werte (Kunststoff 0,79 €/kg, Papier/Karton 0,045 €/kg) entsprechen bewusst der teuersten Kunststoff- bzw. der günstigsten Papier-Fascia als jeweils konservative Schätzung für Kunststoff und Best-Case-Annahme für Papier - laut Econ Consultings Angebot verursacht die konkrete Fascia-Zuordnung pro Kunde ohne saubere Vorab-Klassifizierung zusätzliche Beratungskosten.'
       ])
     );
 
@@ -2134,10 +2141,11 @@ function init() {
     );
 
 
-    // Italien/CONAI: volle Kunststoff-Fasce-Tabelle ("Il Contributo
-    // Ambientale 2026", Stand 01/2026) als Referenzdaten - siehe Kommentar
-    // bei addColumnIfMissing('countries', 'eco_fee_plastic_bands_json', ...).
-    db.prepare(`UPDATE countries SET eco_fee_plastic_bands_json = ? WHERE code = 'IT'`).run(
+    // Italien/CONAI: volle Kunststoff- UND Papier-Fasce-Tabelle ("Il
+    // Contributo Ambientale 2026", Stand 01/2026) als Referenzdaten -
+    // siehe Kommentar bei addColumnIfMissing('countries',
+    // 'eco_fee_material_bands_json', ...).
+    db.prepare(`UPDATE countries SET eco_fee_material_bands_json = ? WHERE code = 'IT'`).run(
       JSON.stringify({
         einheit: 'EUR/Tonne',
         stand: '2026-01',
@@ -2148,7 +2156,21 @@ function init() {
           'C': 790
         },
         kunststoff_biologisch_abbaubar_kompostierbar: 246,
-        metall_differenziert: { acciaio_stahl: 5, alluminio_aluminium: 12 }
+        metall_differenziert: { acciaio_stahl: 5, alluminio_aluminium: 12 },
+        // "papier"-Materialzeile in eco_fee_rates_json (0,045 €/kg)
+        // entspricht Fascia 1/2 - der günstigsten Stufe. Composite-/nicht
+        // zertifizierte Papierverpackungen können laut dieser Tabelle bis
+        // zu 285 €/t (Fascia 6) kosten, mehr als das 6-fache.
+        papier_fasce: {
+          'Fascia 1 (Monomateriale)': 45,
+          'Fascia 2 (Compositi tipo A)': 45,
+          'Fascia 3.1 (Compositi tipo B1, zertifiziert)': 55,
+          'Fascia 3.2 (Compositi tipo B2, nicht zertifiziert)': 70,
+          'Fascia 4 (CPL)': 115,
+          'Fascia 5.1 (Compositi tipo C1, zertifiziert)': 110,
+          'Fascia 5.2 (Compositi tipo C2, nicht zertifiziert)': 155,
+          'Fascia 6 (Compositi tipo D)': 285
+        }
       })
     );
 
