@@ -18,7 +18,7 @@ function drawPdfHeader(doc, title, subtitle) {
   doc.rect(0, 0, doc.page.width, 90).fill(BRAND_COLOR);
 
   if (fs.existsSync(LOGO_PATH)) {
-    doc.image(LOGO_PATH, 50, 20, { height: 40 });
+    doc.image(LOGO_PATH, 50, 15, { height: 60 });
   } else {
     doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('Pack2EU', 50, 34);
   }
