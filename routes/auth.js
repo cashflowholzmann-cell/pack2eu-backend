@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { z } = require('zod');
 
 const { db } = require('../db');
-const { sendPasswordResetEmail } = require('../lib/email');
+const { sendPasswordResetEmail, sendWelcomeEmail } = require('../lib/email');
 
 const {
   signToken,
@@ -280,6 +280,12 @@ router.post(
           WHERE id = ?
         `).run(result.lastInsertRowid);
       }
+
+      // Läuft bewusst nicht blockierend - ein SMTP-Fehler soll die
+      // Registrierung selbst nicht scheitern lassen (siehe lib/email.js).
+      sendWelcomeEmail(email, contactName).catch(err =>
+        console.error('❌ Willkommensmail fehlgeschlagen:', err.message)
+      );
 
 
       const customer =
