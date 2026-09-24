@@ -23,7 +23,11 @@ const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 const { z } = require('zod/v4');
 const { db, DB_PATH } = require('../db');
 const { signToken, requireAuth, requireAdmin } = require('../middleware/auth');
-const { sendRepresentativeInviteEmail } = require('../lib/email');
+const {
+  sendRepresentativeInviteEmail,
+  sendCompAccessNewAccountEmail,
+  sendCompAccessActivatedEmail
+} = require('../lib/email');
 
 const router = express.Router();
 
@@ -1049,12 +1053,112 @@ router.delete('/tasks/:id', (req, res) => {
 router.get('/customers', (req, res) => {
   const customers = db.prepare(`
     SELECT id, customer_number, company_name, email, plan, subscription_status,
-           acquisition_source, created_at
+           acquisition_source, created_at, comp_account_note, comp_account_granted_at
     FROM customers
     ORDER BY created_at DESC
     LIMIT 200
   `).all();
   res.json(customers);
+});
+
+// ============================================================
+// KOSTENLOSEN ZUGANG GEWÄHREN ("als hätte bezahlt")
+//
+// Für Demo-/Sales-Interessenten vor einem Call, ohne Stripe/echte
+// Zahlung. Ersetzt das frühere manuelle TEST_ACCESS_EMAILS-Env-Var-
+// Verfahren (siehe routes/auth.js) durch einen Self-Service-Weg direkt
+// im Dashboard - kein Hosting-Panel-Zugriff mehr nötig. Existiert die
+// E-Mail schon als Kunde, wird nur subscription_status aktiviert; sonst
+// wird ein neues Konto angelegt und der Kunde setzt sein Passwort über
+// denselben Reset-Token-Mechanismus wie bei "Passwort vergessen".
+//
+// POST /admin/customers/grant-access
+// Body: { email, company_name, contact_name?, origin_country, plan?, note? }
+// ============================================================
+router.post('/customers/grant-access', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const companyName = String(req.body?.company_name || '').trim();
+  const contactName = req.body?.contact_name ? String(req.body.contact_name).trim() : null;
+  const originCountry = String(req.body?.origin_country || '').trim().toUpperCase();
+  const plan = ['S', 'M', 'L'].includes(req.body?.plan) ? req.body.plan : 'L';
+  const note = req.body?.note ? String(req.body.note).trim().slice(0, 300) : null;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Gültige E-Mail-Adresse erforderlich.' });
+  }
+  if (!companyName) {
+    return res.status(400).json({ error: 'Firmenname erforderlich.' });
+  }
+  if (originCountry.length !== 2) {
+    return res.status(400).json({ error: 'Herkunftsland als 2-Buchstaben-Code erforderlich (z.B. GR).' });
+  }
+
+  try {
+    const existing = db.prepare(`
+      SELECT id, contact_name FROM customers WHERE email = ?
+    `).get(email);
+
+    if (existing) {
+      db.prepare(`
+        UPDATE customers
+        SET subscription_status = 'active',
+            plan = ?,
+            comp_account_note = ?,
+            comp_account_granted_at = datetime('now')
+        WHERE id = ?
+      `).run(plan, note, existing.id);
+
+      sendCompAccessActivatedEmail(email, existing.contact_name || contactName).catch(err =>
+        console.error('❌ Comp-Access-Mail (bestehender Kunde) fehlgeschlagen:', err.message)
+      );
+
+      return res.json({ ok: true, isNewAccount: false, customerId: existing.id });
+    }
+
+    // Platzhalter-Passwort - wird nie mitgeteilt, der Kunde setzt sein
+    // eigenes über den unten verschickten Reset-Link.
+    const placeholderHash = bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 12);
+
+    let customerNumber;
+    do {
+      customerNumber = 'FC-' + Math.floor(100000 + Math.random() * 900000);
+    } while (
+      db.prepare('SELECT id FROM customers WHERE customer_number = ?').get(customerNumber)
+    );
+
+    const insert = db.prepare(`
+      INSERT INTO customers (
+        customer_number, company_name, origin_country, contact_name, email,
+        password_hash, plan, subscription_status, comp_account_note, comp_account_granted_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, datetime('now'))
+    `);
+
+    const result = insert.run(
+      customerNumber, companyName, originCountry, contactName, email,
+      placeholderHash, plan, note
+    );
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    // 7 Tage statt der üblichen 60 Minuten beim normalen Passwort-Reset -
+    // ein Demo-Interessent klickt oft nicht sofort auf den Link.
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    db.prepare(`
+      UPDATE customers
+      SET password_reset_token_hash = ?, password_reset_expires_at = ?
+      WHERE id = ?
+    `).run(tokenHash, expiresAt, result.lastInsertRowid);
+
+    const setPasswordUrl = `${process.env.APP_URL || ''}/index.html?resetToken=${rawToken}`;
+    await sendCompAccessNewAccountEmail(email, contactName, setPasswordUrl, companyName);
+
+    res.json({ ok: true, isNewAccount: true, customerId: result.lastInsertRowid, customerNumber });
+  } catch (error) {
+    console.error('❌ Grant-Access-Fehler:', error.message);
+    res.status(500).json({ error: 'Zugang konnte nicht eingerichtet werden: ' + error.message });
+  }
 });
 
 // ============================================================
