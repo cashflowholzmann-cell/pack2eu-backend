@@ -3756,6 +3756,7 @@ function init() {
     // ist und nicht mit echtem Umsatz verwechselt wird.
     addColumnIfMissing('customers', 'comp_account_note', 'TEXT');
     addColumnIfMissing('customers', 'comp_account_granted_at', 'TEXT');
+    addColumnIfMissing('customers', 'comp_account_revoked_at', 'TEXT');
 
     // Zwischengespeichertes Ergebnis der KI-Themenanalyse (siehe
     // routes/admin.js, POST /topics/analyze) - läuft nicht bei jedem

@@ -1053,12 +1053,58 @@ router.delete('/tasks/:id', (req, res) => {
 router.get('/customers', (req, res) => {
   const customers = db.prepare(`
     SELECT id, customer_number, company_name, email, plan, subscription_status,
-           acquisition_source, created_at, comp_account_note, comp_account_granted_at
+           acquisition_source, created_at, comp_account_note, comp_account_granted_at,
+           comp_account_revoked_at,
+           CASE WHEN stripe_subscription_id IS NOT NULL THEN 1 ELSE 0 END as has_real_payment
     FROM customers
     ORDER BY created_at DESC
     LIMIT 200
   `).all();
   res.json(customers);
+});
+
+// ============================================================
+// KOSTENLOSEN ZUGANG ENTZIEHEN
+//
+// Gegenstück zu POST /customers/grant-access - wichtig, weil der Zugang
+// dem Kunden bewusst nur als "steht dir zur Verfügung" präsentiert wird,
+// nicht als dauerhaftes Geschenk. Blockiert bewusst, sobald eine echte
+// Stripe-Zahlung vorliegt (stripe_subscription_id gesetzt) - dann ist es
+// kein Test-Zugang mehr, sondern echter Umsatz, und ein versehentliches
+// Entziehen darf hier nicht möglich sein (Kündigung dann ganz normal
+// über Stripe/den Kunden selbst, nicht über diesen Endpoint).
+// ============================================================
+router.post('/customers/:id/revoke-access', (req, res) => {
+  try {
+    const customerId = parseInt(req.params.id, 10);
+    const customer = db.prepare(`
+      SELECT id, comp_account_note, stripe_subscription_id
+      FROM customers WHERE id = ?
+    `).get(customerId);
+
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    if (!customer.comp_account_note) {
+      return res.status(400).json({ error: 'Dieser Account ist nicht als kostenloser Test-Zugang markiert.' });
+    }
+
+    if (customer.stripe_subscription_id) {
+      return res.status(409).json({
+        error: 'Für diesen Kunden liegt eine echte Stripe-Zahlung vor - das ist jetzt zahlender Umsatz, kein Test-Zugang mehr. Kündigung bitte regulär über Stripe/den Kunden, nicht über diesen Button.'
+      });
+    }
+
+    db.prepare(`
+      UPDATE customers
+      SET subscription_status = 'inactive', comp_account_revoked_at = datetime('now')
+      WHERE id = ?
+    `).run(customerId);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Revoke-Access-Fehler:', error.message);
+    res.status(500).json({ error: 'Zugang konnte nicht entzogen werden: ' + error.message });
+  }
 });
 
 // ============================================================
@@ -1104,7 +1150,8 @@ router.post('/customers/grant-access', async (req, res) => {
         SET subscription_status = 'active',
             plan = ?,
             comp_account_note = ?,
-            comp_account_granted_at = datetime('now')
+            comp_account_granted_at = datetime('now'),
+            comp_account_revoked_at = NULL
         WHERE id = ?
       `).run(plan, note, existing.id);
 
