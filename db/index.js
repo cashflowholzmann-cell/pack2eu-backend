@@ -3748,6 +3748,15 @@ function init() {
     // Kunden, die die neue Sparte noch nicht genutzt haben.
     addColumnIfMissing('customers', 'weee_battery_interest_declared', 'INTEGER NOT NULL DEFAULT 0');
 
+    // Admin-gewährter kostenloser Zugang ("als hätte bezahlt", z.B. für
+    // Demo-Interessenten vor einem Sales-Call, siehe POST
+    // /admin/customers/grant-access) - comp_account_note ist NULL für
+    // alle normal zahlenden/registrierten Kunden und enthält sonst eine
+    // kurze Notiz (wer/warum), damit das im Kunden-Tab sofort sichtbar
+    // ist und nicht mit echtem Umsatz verwechselt wird.
+    addColumnIfMissing('customers', 'comp_account_note', 'TEXT');
+    addColumnIfMissing('customers', 'comp_account_granted_at', 'TEXT');
+
     // Zwischengespeichertes Ergebnis der KI-Themenanalyse (siehe
     // routes/admin.js, POST /topics/analyze) - läuft nicht bei jedem
     // Seitenaufruf automatisch, sondern nur auf Knopfdruck im internen
