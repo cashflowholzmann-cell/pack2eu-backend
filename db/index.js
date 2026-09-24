@@ -1700,6 +1700,17 @@ function init() {
     // günstiger), KEINE recherchierten Fakten. source bleibt deshalb
     // durchgehend 'estimate' - jede Zeile ist über /admin/material-rates
     // änderbar, Kunden sollten ihre echten Vertragssätze eintragen.
+    //
+    // Dieselbe Logik jetzt auch für Papier/Karton/Glas/Metall/Holz -
+    // vorher gab's dort nur EINEN Pauschalwert je Material, während
+    // Kunststoff schon 6 Sorten hatte. Kunden sollen beim Artikel-Anlegen
+    // (nicht nur im Rechner) genauso präzise auswählen können, z.B.
+    // "Butterbrotpapier" statt nur "Papier" - das ist der eigentliche
+    // Sinn des Features (echtes Material beim SKU angeben), der
+    // Spar-Rechner nutzt dieselben Zeilen nur zusätzlich mit.
+    // Relative Einordnung analog zu Kunststoff (schwerer recycelbare/
+    // beschichtete Verbundstoffe teurer, sortenreine Stoffe günstiger) -
+    // ebenfalls Schätzwerte, kein recherchierter Einzelpreis pro Sorte.
     // ========================================================
 
     const materialRates = [
@@ -1711,10 +1722,26 @@ function init() {
       ['kunststoff', 'PVC', 1.50],
       ['kunststoff', 'PET', 0.90],
       ['papier', null, 0.25],
+      ['papier', 'schreibpapier', 0.20],
+      ['papier', 'kraftpapier', 0.22],
+      ['papier', 'seidenpapier', 0.30],
+      ['papier', 'backpapier', 0.35],
+      ['papier', 'wachspapier', 0.35],
+      ['papier', 'zellophan', 0.45],
       ['karton', null, 0.20],
+      ['karton', 'recyclingkarton', 0.12],
+      ['karton', 'wellpappe', 0.15],
+      ['karton', 'vollpappe', 0.22],
+      ['karton', 'beschichtet', 0.40],
       ['glas', null, 0.15],
+      ['glas', 'weissglas', 0.12],
+      ['glas', 'buntglas', 0.10],
       ['metall', null, 0.30],
-      ['holz', null, 0.10]
+      ['metall', 'stahl', 0.25],
+      ['metall', 'aluminium', 0.55],
+      ['holz', null, 0.10],
+      ['holz', 'massivholz', 0.08],
+      ['holz', 'sperrholz', 0.12]
     ];
 
     // "INSERT OR IGNORE" allein reicht hier NICHT: SQLite behandelt NULL
