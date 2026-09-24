@@ -1055,7 +1055,14 @@ router.get('/customers', (req, res) => {
     SELECT id, customer_number, company_name, email, plan, subscription_status,
            acquisition_source, created_at, comp_account_note, comp_account_granted_at,
            comp_account_revoked_at,
-           CASE WHEN stripe_subscription_id IS NOT NULL THEN 1 ELSE 0 END as has_real_payment
+           CASE WHEN stripe_subscription_id IS NOT NULL THEN 1 ELSE 0 END as has_real_payment,
+           password_reset_expires_at,
+           CASE
+             WHEN password_reset_token_hash IS NOT NULL
+                  AND password_reset_expires_at IS NOT NULL
+                  AND password_reset_expires_at > datetime('now')
+             THEN 1 ELSE 0
+           END as invite_pending
     FROM customers
     ORDER BY created_at DESC
     LIMIT 200
