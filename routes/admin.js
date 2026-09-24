@@ -1064,6 +1064,41 @@ router.get('/customers', (req, res) => {
 });
 
 // ============================================================
+// KUNDE LÖSCHEN (echtes Entfernen, nicht nur deaktivieren)
+//
+// Alle Fremdschlüssel auf customers(id) sind ON DELETE CASCADE (siehe
+// db/schema.sql und db/index.js) - bis auf leads.customer_id, das
+// bewusst kein Pflichtfeld ist und hier vorab auf NULL gesetzt wird
+// (der Lead selbst bleibt erhalten, verliert nur die Verknüpfung).
+// Blockiert wie bei revoke-access, sobald eine echte Stripe-Zahlung
+// vorliegt - Löschen ersetzt keine ordentliche Kündigung.
+// ============================================================
+router.delete('/customers/:id', (req, res) => {
+  try {
+    const customerId = parseInt(req.params.id, 10);
+    const customer = db.prepare(`
+      SELECT id, stripe_subscription_id FROM customers WHERE id = ?
+    `).get(customerId);
+
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    if (customer.stripe_subscription_id) {
+      return res.status(409).json({
+        error: 'Für diesen Kunden liegt eine echte Stripe-Zahlung vor - bitte zuerst regulär in Stripe kündigen, dann hier löschen.'
+      });
+    }
+
+    db.prepare('UPDATE leads SET customer_id = NULL WHERE customer_id = ?').run(customerId);
+    db.prepare('DELETE FROM customers WHERE id = ?').run(customerId);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Kunde-Löschen-Fehler:', error.message);
+    res.status(500).json({ error: 'Kunde konnte nicht gelöscht werden: ' + error.message });
+  }
+});
+
+// ============================================================
 // KOSTENLOSEN ZUGANG ENTZIEHEN
 //
 // Gegenstück zu POST /customers/grant-access - wichtig, weil der Zugang
@@ -1188,9 +1223,10 @@ router.post('/customers/grant-access', async (req, res) => {
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    // 7 Tage statt der üblichen 60 Minuten beim normalen Passwort-Reset -
-    // ein Demo-Interessent klickt oft nicht sofort auf den Link.
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // 24 Stunden statt der üblichen 60 Minuten beim normalen Passwort-
+    // Reset - etwas mehr Luft für einen Demo-Interessenten, aber bewusst
+    // kein tagelanges Zeitfenster.
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     db.prepare(`
       UPDATE customers
