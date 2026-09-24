@@ -3850,6 +3850,37 @@ function init() {
       "TEXT NOT NULL DEFAULT 'plan_upgrade'"
     );
 
+    // Backfill: Accounts, die über TEST_ACCESS_EMAILS (siehe routes/auth.js)
+    // schon VOR dem grant-access-Feature (comp_account_note) aktiv wurden,
+    // hatten diese Kennzeichnung nie gesetzt - erschienen im Admin-Dashboard
+    // also fälschlich als echter zahlender Kunde inkl. 14-Tage-Widerrufs-
+    // Countdown statt als 🎁 Test-Zugang. Läuft bei jedem Start erneut
+    // (idempotent dank comp_account_note IS NULL), damit auch später zur
+    // Env-Var hinzugefügte Adressen rückwirkend korrekt markiert werden.
+    try {
+      const testAccessEmails = (process.env.TEST_ACCESS_EMAILS || '')
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(Boolean);
+
+      if (testAccessEmails.length) {
+        const placeholders = testAccessEmails.map(() => '?').join(',');
+        const updated = db.prepare(`
+          UPDATE customers
+          SET comp_account_note = 'Eigener Test-Account (TEST_ACCESS_EMAILS)',
+              comp_account_granted_at = COALESCE(comp_account_granted_at, created_at)
+          WHERE comp_account_note IS NULL
+            AND lower(email) IN (${placeholders})
+        `).run(...testAccessEmails);
+
+        if (updated.changes > 0) {
+          console.log(`✅ ${updated.changes} bestehende(r) TEST_ACCESS_EMAILS-Account(s) rückwirkend als Test-Zugang markiert`);
+        }
+      }
+    } catch (err) {
+      console.error('❌ TEST_ACCESS_EMAILS-Backfill fehlgeschlagen:', err.message);
+    }
+
     console.log(
       '=============================================='
     );

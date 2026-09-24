@@ -276,7 +276,9 @@ router.post(
       if (isTestAccessEmail(email)) {
         db.prepare(`
           UPDATE customers
-          SET subscription_status = 'active'
+          SET subscription_status = 'active',
+              comp_account_note = 'Eigener Test-Account (TEST_ACCESS_EMAILS)',
+              comp_account_granted_at = datetime('now')
           WHERE id = ?
         `).run(result.lastInsertRowid);
       }
@@ -391,7 +393,13 @@ router.post(
       // TEST_ACCESS_EMAILS hinzugefügt wurde, wird das Konto beim
       // nächsten Login automatisch freigeschaltet.
       if (customer.subscription_status !== 'active' && isTestAccessEmail(customer.email)) {
-        db.prepare(`UPDATE customers SET subscription_status = 'active' WHERE id = ?`).run(customer.id);
+        db.prepare(`
+          UPDATE customers
+          SET subscription_status = 'active',
+              comp_account_note = COALESCE(comp_account_note, 'Eigener Test-Account (TEST_ACCESS_EMAILS)'),
+              comp_account_granted_at = COALESCE(comp_account_granted_at, datetime('now'))
+          WHERE id = ?
+        `).run(customer.id);
         customer.subscription_status = 'active';
       }
 
