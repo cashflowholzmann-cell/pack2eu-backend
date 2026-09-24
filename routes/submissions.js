@@ -11,6 +11,7 @@ const router = express.Router();
 // verwenden.
 const materialSchema = z.object({
   material: z.enum(['karton', 'kunststoff', 'papier', 'glas', 'metall', 'holz', 'sonstige']),
+  material_subtype: z.string().nullable().optional(),
   weight_kg: z.number().positive(),
   qty: z.number().int().positive(),
 });
