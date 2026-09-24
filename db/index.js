@@ -2222,7 +2222,26 @@ function init() {
           'Fascia 5.1 (Compositi tipo C1, zertifiziert)': 110,
           'Fascia 5.2 (Compositi tipo C2, nicht zertifiziert)': 155,
           'Fascia 6 (Compositi tipo D)': 285
-        }
+        },
+        // Anders als bei Kunststoff gibt es bei CONAI/COMIECO KEINE
+        // kuratierte Liste "welcher Verpackungstyp = welche Fascia" -
+        // die Einstufung läuft rein über den GEWICHTSANTEIL Papier an der
+        // Gesamtverpackung plus (ab Fascia 3) eine Aticelca-501-
+        // Rezyklierbarkeits-Zertifizierung, nicht über den Objekttyp.
+        // Deshalb hier Kriterien statt Bild-Beispielen wie bei Kunststoff -
+        // Quelle: COMIECO "Nuove fasce contributive imballaggi in carta"
+        // (ab 01.07.2025), per WebSearch verifiziert (conai.org selbst per
+        // WebFetch nicht erreichbar).
+        papier_kriterien: [
+          { fascia: 'Fascia 1 (Monomateriale)', papieranteil_min: 100, papieranteil_max: 100, zertifizierung_erforderlich: false, hinweis: '100% Papier/Karton, keine weiteren Materialien.' },
+          { fascia: 'Fascia 2 (Compositi tipo A)', papieranteil_min: 90, papieranteil_max: 95, zertifizierung_erforderlich: false, hinweis: 'Verbundstoff, 90-95% Papieranteil am Gewicht.' },
+          { fascia: 'Fascia 3.1 (Compositi tipo B1, zertifiziert)', papieranteil_min: 80, papieranteil_max: 90, zertifizierung_erforderlich: true, hinweis: 'Verbundstoff, 80-90% Papieranteil, mit Aticelca-501-Zertifizierung.' },
+          { fascia: 'Fascia 3.2 (Compositi tipo B2, nicht zertifiziert)', papieranteil_min: 80, papieranteil_max: 90, zertifizierung_erforderlich: false, hinweis: 'Verbundstoff, 80-90% Papieranteil, OHNE Zertifizierung.' },
+          { fascia: 'Fascia 4 (CPL)', papieranteil_min: null, papieranteil_max: null, zertifizierung_erforderlich: false, hinweis: 'Eigene Fascia für Flüssigkeitskartons (Cartone Per Liquidi, z.B. Tetra-Pak-artige Verpackungen), unabhängig vom Papieranteil.' },
+          { fascia: 'Fascia 5.1 (Compositi tipo C1, zertifiziert)', papieranteil_min: 60, papieranteil_max: 80, zertifizierung_erforderlich: true, hinweis: 'Verbundstoff, 60-80% Papieranteil, mit Aticelca-501-Zertifizierung.' },
+          { fascia: 'Fascia 5.2 (Compositi tipo C2, nicht zertifiziert)', papieranteil_min: 60, papieranteil_max: 80, zertifizierung_erforderlich: false, hinweis: 'Verbundstoff, 60-80% Papieranteil, OHNE Zertifizierung.' },
+          { fascia: 'Fascia 6 (Compositi tipo D)', papieranteil_min: 0, papieranteil_max: 60, zertifizierung_erforderlich: false, hinweis: 'Weniger als 60% Papieranteil, oder Zusammensetzung nicht spezifiziert/bekannt.' }
+        ]
       })
     );
 
