@@ -26,6 +26,7 @@ const express = require('express');
 const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
 
 const router = express.Router();
 
@@ -139,6 +140,14 @@ router.post('/webhook/:customerId', async (req, res) => {
             weight_grams: m.weight_grams * qty,
             is_recyclable: m.is_recyclable
           });
+        });
+      } else {
+        // Noch kein Pack2EU-Artikel für diese Skroutz-shop_uid - einen
+        // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
+        ensureUnclassifiedProduct(db, customer.id, {
+          field: 'skroutz_shop_uid',
+          externalId: item.shop_uid,
+          name: item.title || item.name
         });
       }
     });

@@ -15,6 +15,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
 
 const router = express.Router();
 
@@ -174,6 +175,16 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
               weight_grams: m.weight_grams * qty,
               is_recyclable: m.is_recyclable
             });
+          });
+        } else {
+          // Noch kein Pack2EU-Artikel für diese Amazon-SKU - einen
+          // leeren Artikel anlegen, damit er im SKU-Editor auftaucht und
+          // nur einmal mit einem Material befüllt werden muss (siehe
+          // lib/marketplace-auto-sku.js).
+          ensureUnclassifiedProduct(db, customer.id, {
+            field: 'amazon_sku',
+            externalId: item.SellerSKU,
+            name: item.Title
           });
         }
       });

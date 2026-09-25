@@ -11,6 +11,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
 
 const router = express.Router();
 
@@ -182,6 +183,14 @@ router.post('/sync', requireAuth, async (req, res) => {
               weight_grams: m.weight_grams * (tx.quantity || 1),
               is_recyclable: m.is_recyclable
             });
+          });
+        } else {
+          // Noch kein Pack2EU-Artikel für dieses Etsy-Listing - einen
+          // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
+          ensureUnclassifiedProduct(db, customer.id, {
+            field: 'etsy_listing_id',
+            externalId: tx.listing_id,
+            name: tx.title
           });
         }
       });
