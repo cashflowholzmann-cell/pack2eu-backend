@@ -254,6 +254,57 @@ function backfillBaselinkerFallbackMaterials() {
   }
 }
 
+// Vorübersetzte Länder-/Stream-Rechtstexte (EN/FR/IT/ES) aus einer fest
+// eingecheckten Datei einspielen, statt bei jedem Serverstart die
+// kostenpflichtige Anthropic-API zu bemühen (scripts/translate-country-
+// legal-text.js). Die Datei enthält das Ergebnis eines einmaligen echten
+// API-Laufs (39/39 Länder) plus von mir (dem LLM) direkt manuell
+// übersetzter restlicher country_stream_rules-Zeilen (61/61) - beides ohne
+// weitere laufende API-Kosten, wie vom Kunden ausdrücklich gewünscht
+// ("kein API-Geld ausgeben, aktuell muss erstmal der erste zahlende Kunde
+// kommen"). Schreibt NUR Zeilen, die noch kein translations_json haben -
+// idempotent und lässt spätere echte Neu-Übersetzungen (z. B. nach
+// inhaltlichen Änderungen, die translations_json wieder auf NULL setzen)
+// unangetastet.
+function applyBundledCountryTranslationSeed() {
+  const seedPath = path.join(__dirname, 'data', 'country-translations-seed.json');
+  if (!fs.existsSync(seedPath)) return;
+
+  let seed;
+  try {
+    seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+  } catch (e) {
+    console.error('❌ Übersetzungs-Seed konnte nicht gelesen werden:', e.message);
+    return;
+  }
+
+  let countriesFixed = 0;
+  const updateCountry = db.prepare(`
+    UPDATE countries SET translations_json = ? WHERE code = ? AND translations_json IS NULL
+  `);
+  Object.entries(seed.countries || {}).forEach(([code, translations]) => {
+    const result = updateCountry.run(JSON.stringify(translations), code);
+    if (result.changes > 0) countriesFixed++;
+  });
+
+  let streamRulesFixed = 0;
+  if (tableExists('country_stream_rules')) {
+    const updateStreamRule = db.prepare(`
+      UPDATE country_stream_rules SET translations_json = ?
+      WHERE country_code = ? AND stream = ? AND translations_json IS NULL
+    `);
+    Object.entries(seed.country_stream_rules || {}).forEach(([key, translations]) => {
+      const [code, stream] = key.split(':');
+      const result = updateStreamRule.run(JSON.stringify(translations), code, stream);
+      if (result.changes > 0) streamRulesFixed++;
+    });
+  }
+
+  if (countriesFixed > 0 || streamRulesFixed > 0) {
+    console.log(`✅ Übersetzungs-Seed eingespielt: ${countriesFixed} Land/Länder, ${streamRulesFixed} WEEE-/Batterie-Regel(n) (EN/FR/IT/ES, ohne API-Kosten)`);
+  }
+}
+
 
 // ============================================================
 // LÄNDER
@@ -4035,6 +4086,7 @@ function init() {
     // einmalig über scripts/translate-country-legal-text.js.
     addColumnIfMissing('countries', 'translations_json', 'TEXT');
     addColumnIfMissing('country_stream_rules', 'translations_json', 'TEXT');
+    applyBundledCountryTranslationSeed();
 
     console.log(
       '=============================================='
