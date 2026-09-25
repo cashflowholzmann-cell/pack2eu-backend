@@ -140,7 +140,20 @@ router.post('/sync', requireAuth, async (req, res) => {
 
       (order.products || []).forEach((item) => {
         const itemSku = String(item.sku || '').trim();
-        const sku = skuMap[itemSku];
+        // Audit-Fund: viele über Base/BaseLinker aggregierte Bestellungen
+        // (z.B. aus Shops ohne eigene SKU-Pflege) liefern GAR KEIN item.sku
+        // - itemSku war dann immer '', ensureUnclassifiedProduct() bricht
+        // bei leerem externalId sofort ab (kein Dedupe-Schlüssel möglich),
+        // und für diese Bestellungen wurde NIE ein Pack2EU-Artikel angelegt.
+        // Ergebnis: sie blieben dauerhaft nur als anonymer "sonstige"-Posten
+        // hängen, ganz ohne Möglichkeit, sie im SKU-Editor zu klassifizieren
+        // (siehe Kundenwunsch weiter oben: "dann muss man doch einfach den
+        // Namen bei uns hinterlegen können"). Fallback auf den Artikelnamen
+        // als Schlüssel, wenn keine SKU vorhanden ist - matcht künftige
+        // Bestellungen desselben Artikelnamens genauso automatisch wie eine
+        // echte SKU (siehe skuMap-Lookup unten).
+        const matchKey = itemSku || String(item.name || '').trim();
+        const sku = skuMap[matchKey];
         const quantity = Number(item.quantity) > 0
           ? Number(item.quantity)
           : 1;
@@ -185,7 +198,7 @@ router.post('/sync', requireAuth, async (req, res) => {
           // automatisch die echten Materialien zu (siehe skuMap oben).
           ensureUnclassifiedProduct(db, customer.id, {
             field: 'baselinker_sku',
-            externalId: itemSku,
+            externalId: matchKey,
             name: item.name,
             // Pro-Stück-Gewicht (nicht mit quantity multipliziert) - der
             // SKU-Editor bildet ein einzelnes Stück ab, nicht die ganze
