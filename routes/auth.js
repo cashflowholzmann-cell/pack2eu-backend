@@ -118,7 +118,18 @@ const registerSchema =
     sessionId:
       z.string()
         .max(100)
+        .optional(),
+
+    // Auf der Landingpage per Sprachauswahl (data-i18n/currentLang)
+    // gewählte Sprache - steuert Willkommensmail + spätere Vertriebs-
+    // Follow-up-Mail (siehe customers.preferred_lang). Default 'en' statt
+    // 'de', da die meisten Interessenten nicht deutschsprachig sind
+    // (Nutzerentscheidung 25.09.2026, gleiche Begründung wie bei den
+    // Gratis-Zugang-Einladungen).
+    lang:
+      z.enum(['de', 'en', 'fr', 'it', 'es'])
         .optional()
+        .default('en')
 
   });
 
@@ -169,7 +180,8 @@ router.post(
       plan,
       isEU,
       acquisitionSource,
-      sessionId
+      sessionId,
+      lang
     } =
       parsed.data;
 
@@ -232,9 +244,10 @@ router.post(
             plan,
             is_eu,
             acquisition_source,
-            acquisition_session_id
+            acquisition_session_id,
+            preferred_lang
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
 
@@ -268,7 +281,9 @@ router.post(
             null,
 
           sessionId ||
-            null
+            null,
+
+          lang
 
         );
 
@@ -285,7 +300,7 @@ router.post(
 
       // Läuft bewusst nicht blockierend - ein SMTP-Fehler soll die
       // Registrierung selbst nicht scheitern lassen (siehe lib/email.js).
-      sendWelcomeEmail(email, contactName).catch(err =>
+      sendWelcomeEmail(email, contactName, lang).catch(err =>
         console.error('❌ Willkommensmail fehlgeschlagen:', err.message)
       );
 
