@@ -27,6 +27,7 @@ const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -160,7 +161,7 @@ router.post('/webhook/:customerId', async (req, res) => {
       customer.id,
       String(fullOrder.code),
       JSON.stringify(fullOrder),
-      fullOrder.customer?.address?.country_code || 'GR',
+      normalizeCountryCode(fullOrder.customer?.address?.country_code) || 'GR',
       totalWeight,
       JSON.stringify(packagingMaterials),
       // order.fulfilled_by_skroutz laut offiziellem Order-Objekt-Schema

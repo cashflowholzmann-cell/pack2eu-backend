@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -203,7 +204,7 @@ router.post('/sync', requireAuth, async (req, res) => {
         customer.id,
         String(receipt.receipt_id),
         JSON.stringify(receipt),
-        receipt.country_iso || 'DE',
+        normalizeCountryCode(receipt.country_iso) || 'DE',
         totalWeight,
         JSON.stringify(packagingMaterials)
       );
