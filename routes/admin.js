@@ -1161,7 +1161,7 @@ router.post('/customers/:id/revoke-access', (req, res) => {
 // denselben Reset-Token-Mechanismus wie bei "Passwort vergessen".
 //
 // POST /admin/customers/grant-access
-// Body: { email, company_name, contact_name?, origin_country, plan?, note? }
+// Body: { email, company_name, contact_name?, origin_country, plan?, note?, lang? }
 // ============================================================
 router.post('/customers/grant-access', async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
@@ -1170,6 +1170,10 @@ router.post('/customers/grant-access', async (req, res) => {
   const originCountry = String(req.body?.origin_country || '').trim().toUpperCase();
   const plan = ['S', 'M', 'L'].includes(req.body?.plan) ? req.body.plan : 'L';
   const note = req.body?.note ? String(req.body.note).trim().slice(0, 300) : null;
+  // Standard Englisch statt Deutsch (Nutzerentscheidung 25.09.2026) - die
+  // meisten Gratis-Einladungen gehen an nicht-deutschsprachige Interessenten
+  // (siehe lib/email.js COMP_ACCESS_*_TEXT).
+  const lang = ['de', 'en', 'fr', 'it', 'es'].includes(req.body?.lang) ? req.body.lang : 'en';
 
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Gültige E-Mail-Adresse erforderlich.' });
@@ -1197,7 +1201,7 @@ router.post('/customers/grant-access', async (req, res) => {
         WHERE id = ?
       `).run(plan, note, existing.id);
 
-      sendCompAccessActivatedEmail(email, existing.contact_name || contactName).catch(err =>
+      sendCompAccessActivatedEmail(email, existing.contact_name || contactName, lang).catch(err =>
         console.error('❌ Comp-Access-Mail (bestehender Kunde) fehlgeschlagen:', err.message)
       );
 
@@ -1242,7 +1246,7 @@ router.post('/customers/grant-access', async (req, res) => {
     `).run(tokenHash, expiresAt, result.lastInsertRowid);
 
     const setPasswordUrl = `${process.env.APP_URL || ''}/index.html?resetToken=${rawToken}`;
-    await sendCompAccessNewAccountEmail(email, contactName, setPasswordUrl, companyName);
+    await sendCompAccessNewAccountEmail(email, contactName, setPasswordUrl, companyName, lang);
 
     res.json({ ok: true, isNewAccount: true, customerId: result.lastInsertRowid, customerNumber });
   } catch (error) {
