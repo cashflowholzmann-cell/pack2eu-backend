@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -197,7 +198,7 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
         customer.id,
         order.AmazonOrderId,
         JSON.stringify(order),
-        order.ShippingAddress?.CountryCode || 'DE',
+        normalizeCountryCode(order.ShippingAddress?.CountryCode) || 'DE',
         totalWeight,
         JSON.stringify(packagingMaterials)
       );

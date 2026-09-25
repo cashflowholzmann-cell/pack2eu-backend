@@ -3,6 +3,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -168,7 +169,7 @@ router.post('/webhook/orders/create', verifyShopifyWebhook, async (req, res) => 
       // späteren Abgleich per shopify_order_id (z. B. customers/redact).
       String(order.id),
       JSON.stringify(order),
-      order.shipping_address?.country_code || 'DE',
+      normalizeCountryCode(order.shipping_address?.country_code) || 'DE',
       totalWeight,
       JSON.stringify(packagingMaterials)
     );

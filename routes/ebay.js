@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -190,7 +191,7 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
         customer.id,
         order.orderId,
         JSON.stringify(order),
-        order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode || 'DE',
+        normalizeCountryCode(order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode) || 'DE',
         totalWeight,
         JSON.stringify(packagingMaterials)
       );
