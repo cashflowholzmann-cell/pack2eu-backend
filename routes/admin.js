@@ -1234,10 +1234,11 @@ router.post('/customers/grant-access', async (req, res) => {
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    // 24 Stunden statt der üblichen 60 Minuten beim normalen Passwort-
-    // Reset - etwas mehr Luft für einen Demo-Interessenten, aber bewusst
-    // kein tagelanges Zeitfenster.
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    // 48 Stunden statt der üblichen 60 Minuten beim normalen Passwort-
+    // Reset (bis 25.09.2026: 24h) - Interessenten testen oft mehrere
+    // Verkaufskanäle/Integrationen und brauchen dafür mehr als einen
+    // Tag, aber bewusst kein tagelanges Zeitfenster.
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     db.prepare(`
       UPDATE customers
