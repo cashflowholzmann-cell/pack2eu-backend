@@ -186,7 +186,11 @@ router.post('/sync', requireAuth, async (req, res) => {
           ensureUnclassifiedProduct(db, customer.id, {
             field: 'baselinker_sku',
             externalId: itemSku,
-            name: item.name
+            name: item.name,
+            // Pro-Stück-Gewicht (nicht mit quantity multipliziert) - der
+            // SKU-Editor bildet ein einzelnes Stück ab, nicht die ganze
+            // Bestellposition.
+            totalWeightGrams: baseWeightToGrams(item.weight)
           });
 
           const fallbackWeight = baseWeightToGrams(item.weight) * quantity;
