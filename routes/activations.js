@@ -16,6 +16,7 @@ const {
 
 const { getPlanLimits } = require('../config/plans');
 const { syncCustomerRepresentativeRequest } = require('./representatives');
+const { parseLang, applyTranslation } = require('../lib/country-translation');
 
 
 const router =
@@ -425,6 +426,8 @@ router.get(
 
     try {
 
+      const lang = parseLang(req.query.lang);
+
       const rows =
         db.prepare(`
           SELECT
@@ -436,7 +439,8 @@ router.get(
             c.notary_required,
             c.notary_cost,
             c.registration_url,
-            c.data_status
+            c.data_status,
+            c.translations_json
           FROM activations a
           JOIN countries c
             ON c.code = a.country_code
@@ -450,22 +454,31 @@ router.get(
 
       return res.json(
         rows.map(
-          row => ({
+          row => {
+            const translated = applyTranslation(
+              { register_body: row.register_body, notary_cost: row.notary_cost },
+              row.translations_json,
+              lang
+            );
+            return {
+              ...row,
+              register_body: translated.register_body,
+              notary_cost: translated.notary_cost,
+              translations_json: undefined,
 
-            ...row,
+              has_existing_number:
+                Boolean(
+                  row.existing_number
+                ),
 
-            has_existing_number:
-              Boolean(
-                row.existing_number
-              ),
+              has_representative:
+                Boolean(
+                  row.representative_name &&
+                  row.representative_email
+                )
 
-            has_representative:
-              Boolean(
-                row.representative_name &&
-                row.representative_email
-              )
-
-          })
+            };
+          }
         )
       );
 

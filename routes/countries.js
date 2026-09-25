@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { parseLang, applyTranslation } = require('../lib/country-translation');
 
 const router = express.Router();
 
@@ -39,6 +40,7 @@ router.use(requireAuth);
 // ⭐ ALLE LÄNDER MIT ALLEN DETAILS
 router.get('/', (req, res) => {
   try {
+    const lang = parseLang(req.query.lang);
     const rows = db.prepare(`
       SELECT
         code,
@@ -60,7 +62,8 @@ router.get('/', (req, res) => {
         registration_generally_required,
         reporting_frequency,
         eco_fee_rates_json,
-        flag
+        flag,
+        translations_json
       FROM countries
       ORDER BY name
     `).all();
@@ -75,18 +78,25 @@ router.get('/', (req, res) => {
 
     const countries = rows.map((r) => {
       const isActivated = activatedCodes.has(r.code);
+      const translated = applyTranslation({
+        register_body: r.register_body,
+        eco_fee: r.eco_fee || '',
+        requirements: JSON.parse(r.requirements_json || '[]'),
+        labeling: JSON.parse(r.labeling_json || '[]'),
+        notary_cost: r.notary_cost || ''
+      }, r.translations_json, lang);
       return {
         code: r.code,
         name: r.name,
-        register_body: r.register_body,
+        register_body: translated.register_body,
         labeling_reqs: JSON.parse(r.labeling_reqs || '[]'),
-        requirements: JSON.parse(r.requirements_json || '[]'),
-        labeling: JSON.parse(r.labeling_json || '[]'),
-        eco_fee: r.eco_fee || '',
+        requirements: translated.requirements,
+        labeling: translated.labeling,
+        eco_fee: translated.eco_fee,
         steps: JSON.parse(r.steps_json || '[]'),
         representative_required: r.representative_required === 1,
         notary_required: r.notary_required === 1,
-        notary_cost: r.notary_cost || '',
+        notary_cost: translated.notary_cost,
         // Kontakt-/Registrierungslink: nur für bereits aktivierte Länder -
         // siehe Kommentar oben.
         registration_url: isActivated ? (r.registration_url || '') : '',
@@ -121,6 +131,7 @@ router.get('/stream/:stream', (req, res) => {
   }
 
   try {
+    const lang = parseLang(req.query.lang);
     const rows = db.prepare(`
       SELECT
         c.code,
@@ -139,7 +150,8 @@ router.get('/stream/:stream', (req, res) => {
         csr.representative_data_status,
         csr.data_status,
         csr.registration_generally_required,
-        csr.reporting_frequency
+        csr.reporting_frequency,
+        csr.translations_json
       FROM countries c
       LEFT JOIN country_stream_rules csr ON csr.country_code = c.code AND csr.stream = ?
       ORDER BY c.name
@@ -155,17 +167,24 @@ router.get('/stream/:stream', (req, res) => {
 
     const countries = rows.map((r) => {
       const isActivated = activatedCodes.has(r.code);
+      const translated = applyTranslation({
+        register_body: r.register_body,
+        eco_fee: '',
+        requirements: JSON.parse(r.requirements_json || '[]'),
+        labeling: JSON.parse(r.labeling_json || '[]'),
+        notary_cost: r.notary_cost || ''
+      }, r.translations_json, lang);
       return {
         code: r.code,
         name: r.name,
         flag: r.flag || '🇪🇺',
-        register_body: r.register_body,
-        requirements: JSON.parse(r.requirements_json || '[]'),
-        labeling: JSON.parse(r.labeling_json || '[]'),
+        register_body: translated.register_body,
+        requirements: translated.requirements,
+        labeling: translated.labeling,
         steps: JSON.parse(r.steps_json || '[]'),
         representative_required: r.representative_required === 1,
         notary_required: r.notary_required === 1,
-        notary_cost: r.notary_cost || '',
+        notary_cost: translated.notary_cost,
         registration_url: isActivated ? (r.registration_url || '') : '',
         representative_provider_name: isActivated ? (r.representative_provider_name || '') : '',
         representative_provider_url: isActivated ? (r.representative_provider_url || '') : '',
