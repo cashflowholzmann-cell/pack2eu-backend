@@ -12,6 +12,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
 
 const router = express.Router();
 
@@ -98,7 +99,8 @@ router.post('/sync', requireAuth, async (req, res) => {
       const packagingMaterials = [];
 
       (order.units || order.order_units || []).forEach(unit => {
-        const sku = skuMap[String(unit.storefront_product_id || unit.product_id)];
+        const externalId = String(unit.storefront_product_id || unit.product_id);
+        const sku = skuMap[externalId];
         if (sku) {
           const qty = unit.quantity || 1;
           const weight = sku.total_weight_grams * qty;
@@ -110,6 +112,14 @@ router.post('/sync', requireAuth, async (req, res) => {
               weight_grams: m.weight_grams * qty,
               is_recyclable: m.is_recyclable
             });
+          });
+        } else {
+          // Noch kein Pack2EU-Artikel für dieses Kaufland-Produkt - einen
+          // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
+          ensureUnclassifiedProduct(db, customer.id, {
+            field: 'kaufland_product_id',
+            externalId,
+            name: unit.title || unit.name
           });
         }
       });

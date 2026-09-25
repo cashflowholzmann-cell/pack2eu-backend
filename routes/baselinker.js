@@ -14,6 +14,7 @@ const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
 
 const router = express.Router();
 
@@ -175,6 +176,19 @@ router.post('/sync', requireAuth, async (req, res) => {
           // als 0 kg, weil hier bisher NUR totalWeight erhöht wurde).
           // is_recyclable: false als konservative Annahme, solange die
           // tatsächliche Materialzusammensetzung unbekannt ist.
+          //
+          // Zusätzlich einen echten (noch leeren) Pack2EU-Artikel für
+          // diese Base-SKU anlegen, statt den Artikel nur anonym als
+          // "sonstige" zu verbuchen - Kundenwunsch: der Artikel soll im
+          // SKU-Editor auftauchen und nur EINMAL mit einem Material
+          // befüllt werden müssen. Der nächste Sync ordnet ihm dann
+          // automatisch die echten Materialien zu (siehe skuMap oben).
+          ensureUnclassifiedProduct(db, customer.id, {
+            field: 'baselinker_sku',
+            externalId: itemSku,
+            name: item.name
+          });
+
           const fallbackWeight = baseWeightToGrams(item.weight) * quantity;
           totalWeight += fallbackWeight;
           if (fallbackWeight > 0) {
