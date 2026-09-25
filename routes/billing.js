@@ -523,7 +523,16 @@ function syncGpsrAssignment(customerId) {
       SELECT id FROM representatives WHERE stream = 'gpsr' AND active = 1
       ORDER BY id LIMIT 1
     `).get();
-    if (!villaElegance) return;
+    if (!villaElegance) {
+      // Kunde hat GPSR-Zugriff (bezahlt oder planbasiert inklusive), aber es
+      // ist noch kein Bevollmächtigter mit stream='gpsr' angelegt - ohne
+      // diesen Log-Hinweis bliebe das bisher komplett unbemerkt, bis ein
+      // Kunde sich meldet, weil er nie Kontaktdaten bekommt.
+      if (hasGpsrAccess(customer)) {
+        console.error(`❌ GPSR: Kunde ${customerId} hat Zugriff, aber es ist noch keine "Villa Elegance SRL" (Bevollmächtigter mit stream='gpsr') im Admin-Bereich angelegt - Kunde bekommt keine Kontaktdaten!`);
+      }
+      return;
+    }
 
     if (hasGpsrAccess(customer)) {
       db.prepare(`
