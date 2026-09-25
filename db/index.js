@@ -415,6 +415,15 @@ function init() {
     // verhindert einen doppelten Versand, NULL = noch nicht verschickt.
     addColumnIfMissing('customers', 'sales_followup_sent_at', 'TEXT');
 
+    // Bei der Registrierung auf der Landingpage gewählte Sprache (aus
+    // currentLang, siehe POST /auth/register) - steuert Willkommensmail
+    // und Vertriebs-Follow-up-Mail (lib/sales-followup.js), damit z.B. ein
+    // griechischer Interessent, der die Seite auf Englisch besucht hat,
+    // auch seine System-Mails auf Englisch bekommt statt auf Deutsch.
+    // NULL bei Alt-Accounts vor diesem Feature - lib/email.js fällt dann
+    // auf Englisch zurück (Standard seit 25.09.2026).
+    addColumnIfMissing('customers', 'preferred_lang', 'TEXT');
+
     // Postadresse/Telefon der Verantwortlichen Person - Pflichtangabe,
     // die laut Art. 16 GPSR auf dem Produkt/der Verpackung stehen muss.
     // Bisher gab es dafür kein Feld (representatives.company reicht für
