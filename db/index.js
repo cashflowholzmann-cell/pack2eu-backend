@@ -410,6 +410,11 @@ function init() {
     addColumnIfMissing('customers', 'gpsr_addon_active', 'INTEGER DEFAULT 0');
     addColumnIfMissing('customers', 'gpsr_addon_subscription_id', 'TEXT');
 
+    // Vertriebs-Follow-up-Mail an Registrierte, die 24h später immer noch
+    // nicht bezahlt haben (siehe lib/sales-followup.js) - Zeitstempel
+    // verhindert einen doppelten Versand, NULL = noch nicht verschickt.
+    addColumnIfMissing('customers', 'sales_followup_sent_at', 'TEXT');
+
     // Postadresse/Telefon der Verantwortlichen Person - Pflichtangabe,
     // die laut Art. 16 GPSR auf dem Produkt/der Verpackung stehen muss.
     // Bisher gab es dafür kein Feld (representatives.company reicht für

@@ -363,6 +363,17 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ============================================================
+// VERTRIEBS-FOLLOW-UP-MAIL (24H NACH REGISTRIERUNG OHNE ZAHLUNG)
+//
+// Anders als der Rechtsänderungs-Radar unten: kein Kostenrisiko (nur ein
+// SMTP-Versand, kein API-Aufruf), maximal einmal pro Kunde (siehe
+// sales_followup_sent_at in lib/sales-followup.js) - deshalb bewusst als
+// einfacher stündlicher In-Prozess-Check statt manuellem Button.
+// ============================================================
+const { startSalesFollowupScheduler } = require('./lib/sales-followup');
+startSalesFollowupScheduler();
+
+// ============================================================
 // RECHTSÄNDERUNGS-RADAR: KEIN AUTOMATISCHER LAUF MEHR
 //
 // Bis 03.09.2026 lief hier automatisch dienstags/donnerstags ein Check
