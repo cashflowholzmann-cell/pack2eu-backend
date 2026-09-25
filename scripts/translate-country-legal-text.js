@@ -62,7 +62,7 @@ ${JSON.stringify(source, null, 2)}`;
 async function translateRow(client, source) {
   const result = await client.messages.parse({
     model: 'claude-sonnet-5',
-    max_tokens: 4000,
+    max_tokens: 8192,
     messages: [{ role: 'user', content: buildPrompt(source) }],
     output_config: { format: zodOutputFormat(TranslationSchema) }
   });
