@@ -13,6 +13,7 @@ const express = require('express');
 const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -169,9 +170,16 @@ router.post('/sync', requireAuth, async (req, res) => {
         }
       });
 
-      const destinationCountry = String(
-        order.delivery_country || order.delivery_country_code || ''
-      ).trim().toUpperCase() || null;
+      // delivery_country_code ist bei Base i.d.R. schon ein ISO-Code,
+      // delivery_country dagegen Klartext (oft in der Sprache des
+      // Marktplatzes) - Code zuerst versuchen, Klartext nur als Fallback
+      // über die Namenszuordnung normalisieren. Vorher stand delivery_country
+      // zuerst und wurde nur uppercase(), wodurch z.B. "Italy" als eigener
+      // Report-Bucket "ITALY" neben "IT" landete statt normalisiert zu werden.
+      const destinationCountry = normalizeCountryCode(
+        order.delivery_country_code,
+        order.delivery_country
+      );
 
       const externalOrderId = String(order.order_id);
 

@@ -178,6 +178,36 @@ function migrateMarketplaceOrdersPlatformCheck() {
   console.log("✅ marketplace_orders: CHECK-Constraint um 'baselinker' erweitert");
 }
 
+// Zielland-Freitext (z.B. Base/BaseLinker delivery_country = "Italy" statt
+// des ISO-Codes "IT") normalisieren - Ursache dafür, dass im Jahresreport
+// z.B. "IT" und "ITALY" als getrennte Zeilen auftauchten. routes/baselinker.js
+// normalisiert seit diesem Fix neue Bestellungen direkt beim Sync; dieser
+// Backfill korrigiert einmalig bereits gespeicherte Alt-Bestellungen in allen
+// drei Bestell-Tabellen. Läuft bei jedem Start, ist aber idempotent (ein schon
+// normalisierter Code bleibt unverändert) und günstig (kleine Tabellen).
+function normalizeStoredDestinationCountries() {
+  const { normalizeCountryCode } = require('../lib/country-normalize');
+  const tables = ['orders', 'shopify_orders', 'marketplace_orders'];
+  let fixed = 0;
+
+  tables.forEach(table => {
+    if (!tableExists(table)) return;
+    const rows = db.prepare(`SELECT id, destination_country FROM ${table} WHERE destination_country IS NOT NULL`).all();
+    const update = db.prepare(`UPDATE ${table} SET destination_country = ? WHERE id = ?`);
+    rows.forEach(row => {
+      const normalized = normalizeCountryCode(row.destination_country);
+      if (normalized && normalized !== row.destination_country) {
+        update.run(normalized, row.id);
+        fixed++;
+      }
+    });
+  });
+
+  if (fixed > 0) {
+    console.log(`✅ Zielland-Normalisierung: ${fixed} Alt-Bestellung(en) korrigiert (z.B. "ITALY" → "IT")`);
+  }
+}
+
 
 // ============================================================
 // LÄNDER
@@ -496,6 +526,7 @@ function init() {
     addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
+    normalizeStoredDestinationCountries();
 
     // Rein informative Detailtabelle für Länder, deren Öko-Beitrag
     // innerhalb eines Materials stark gestaffelt ist (z. B. Italien/CONAI:
