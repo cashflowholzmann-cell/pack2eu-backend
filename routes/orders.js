@@ -2,6 +2,7 @@
 const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
+const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
 
@@ -160,6 +161,49 @@ router.get('/', (req, res) => {
     } catch (error) {
         console.error('❌ Orders Fehler:', error);
         res.status(500).json({ error: 'Bestellungen konnten nicht geladen werden' });
+    }
+});
+
+// ============================================================
+// ZIELLAND EINER MARKTPLATZ-BESTELLUNG KORRIGIEREN
+//
+// Marktplatz-Bestellungen (marketplace_orders - Base/BaseLinker, Etsy,
+// Kaufland, Amazon, eBay, Skroutz) kommen per Sync/Webhook rein und
+// hatten bisher KEINE Korrekturmöglichkeit, falls die Quelle ein
+// falsches/unbekanntes Zielland liefert (z.B. Base/BaseLinker lieferte
+// vor der Normalisierung in routes/baselinker.js teils Klartext wie
+// "Italy" statt "IT" - Audit-Fund aus dem Jahresreport). Shopify- und
+// manuelle Bestellungen haben ihre eigene Korrektur bereits (siehe
+// PUT /manual/:id oben bzw. Shopify-Design-Entscheidung, dort bewusst
+// keine Korrektur anzubieten).
+// ============================================================
+router.put('/marketplace/:id/destination', (req, res) => {
+    try {
+        const userId = req.customer.sub;
+        const { id } = req.params;
+        const { destination_country } = req.body;
+
+        const normalized = normalizeCountryCode(destination_country);
+        if (!normalized) {
+            return res.status(400).json({ error: 'Ungültiger Ländercode.' });
+        }
+
+        const existing = db.prepare(
+            'SELECT id FROM marketplace_orders WHERE id = ? AND customer_id = ?'
+        ).get(id, userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'Bestellung nicht gefunden.' });
+        }
+
+        db.prepare(
+            'UPDATE marketplace_orders SET destination_country = ? WHERE id = ? AND customer_id = ?'
+        ).run(normalized, id, userId);
+
+        res.json({ success: true, destination_country: normalized });
+
+    } catch (error) {
+        console.error('❌ Zielland korrigieren Fehler:', error);
+        res.status(500).json({ error: 'Zielland konnte nicht korrigiert werden.' });
     }
 });
 
