@@ -764,6 +764,10 @@ router.get(
           ORDER BY id LIMIT 1
         `).get();
 
+      if (!villaElegance) {
+        console.error(`❌ GPSR: Kunde ${req.auth.userId} hat Zugriff, aber es ist noch keine "Villa Elegance SRL" (Bevollmächtigter mit stream='gpsr') im Admin-Bereich angelegt - Kunde bekommt keine Kontaktdaten!`);
+      }
+
       return res.json({
         hasAccess: true,
         representative: villaElegance || null
