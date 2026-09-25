@@ -208,6 +208,52 @@ function normalizeStoredDestinationCountries() {
   }
 }
 
+// Audit-Fund: Base/BaseLinker-Bestellungen ohne passende Pack2EU-SKU
+// erhielten ihr Artikelgewicht bisher NUR in total_weight_grams, nicht in
+// packaging_data - Verpackungsstatistik, Öko-Gebühr-Schätzung und Jahres-
+// report lesen aber ausschließlich packaging_data. Ergebnis: Bestellungen
+// mit Gewicht > 0 erschienen dort trotzdem als 0 kg. routes/baselinker.js
+// schreibt seit diesem Fix zusätzlich einen "sonstige"-Materialeintrag für
+// das Fallback-Gewicht; dieser Backfill ergänzt das für bereits importierte
+// Alt-Bestellungen. Ergänzt nur die fehlende Differenz (falls ein Teil der
+// Bestellung schon über eine passende SKU echte Materialien hat), läuft bei
+// jedem Start und ist idempotent (die Differenz ist nach der ersten
+// Korrektur 0).
+function backfillBaselinkerFallbackMaterials() {
+  if (!tableExists('marketplace_orders')) return;
+
+  const rows = db.prepare(`
+    SELECT id, total_weight_grams, packaging_data
+    FROM marketplace_orders
+    WHERE platform = 'baselinker' AND total_weight_grams > 0
+  `).all();
+  const update = db.prepare(`UPDATE marketplace_orders SET packaging_data = ? WHERE id = ?`);
+  let fixed = 0;
+
+  rows.forEach(row => {
+    let materials;
+    try {
+      materials = JSON.parse(row.packaging_data || '[]');
+    } catch (e) {
+      materials = [];
+    }
+    if (!Array.isArray(materials)) materials = [];
+
+    const sumGrams = materials.reduce((sum, m) => sum + (Number(m.weight_grams) || 0), 0);
+    const missing = row.total_weight_grams - sumGrams;
+
+    if (missing > 0.5) {
+      materials.push({ material: 'sonstige', weight_grams: missing, is_recyclable: false });
+      update.run(JSON.stringify(materials), row.id);
+      fixed++;
+    }
+  });
+
+  if (fixed > 0) {
+    console.log(`✅ Base/BaseLinker: ${fixed} Bestellung(en) um fehlende "sonstige"-Materialzeile ergänzt (Fallback-Gewicht ohne SKU-Zuordnung)`);
+  }
+}
+
 
 // ============================================================
 // LÄNDER
@@ -527,6 +573,7 @@ function init() {
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
     normalizeStoredDestinationCountries();
+    backfillBaselinkerFallbackMaterials();
 
     // Rein informative Detailtabelle für Länder, deren Öko-Beitrag
     // innerhalb eines Materials stark gestaffelt ist (z. B. Italien/CONAI:
