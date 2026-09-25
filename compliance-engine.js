@@ -89,13 +89,102 @@ const STREAM_FALLBACK = {
   }
 };
 
+// Übersetzungen (EN/FR/IT/ES) der Fallback-/Status-Texte oben - direkt von
+// mir (dem LLM) manuell übersetzt, keine Anthropic-API-Kosten (gleiche
+// Vorgabe wie bei den Länder-/Stream-Rechtstexten, siehe db/index.js-
+// Kommentar bei applyBundledCountryTranslationSeed()). Bug: die komplette
+// Compliance-Weltkarte im Dashboard zeigte diese Texte bisher IMMER auf
+// Deutsch, unabhängig von der gewählten Sprache, weil decide() bislang gar
+// keinen lang-Parameter kannte. legalBasis bleibt unübersetzt (Gesetzes-
+// zitate). Gilt nur für den Fallback-Zweig (rule === null) - eine echte,
+// recherchierte compliance_rules-Zeile bringt ihren Text weiterhin auf
+// Deutsch mit, da diese Tabelle aktuell noch keine translations_json-Spalte
+// hat (bislang keine Zeilen befüllt, siehe Kommentar in routes/compliance.js).
+const FALLBACK_TRANSLATIONS = {
+  en: {
+    unsupportedLegalLabel: 'Destination country not supported',
+    unsupportedExplanation: 'This destination country was not found in the Pack2EU country database.',
+    needsReviewLegalLabel: 'National rule under review',
+    packaging: {
+      explanationRepRequired: 'As a trader established outside the EU, you need an authorised representative for extended producer responsibility for this EU destination country. The further national requirements are still being reviewed.',
+      explanationDefault: 'Pack2EU does not yet have a verified national rule for this country pair. Therefore, no blanket authorised representative obligation is assumed.'
+    },
+    weee: {
+      explanationRepRequired: 'As a trader established outside the EU, you need an authorised representative for electrical/electronic equipment producer responsibility (WEEE) for this EU destination country. The further national requirements are still being reviewed.',
+      explanationDefault: 'Pack2EU does not yet have a verified national WEEE rule for this country pair. Therefore, no blanket authorised representative obligation is assumed.'
+    },
+    battery: {
+      explanationRepRequired: 'As a trader established outside the EU, you need an authorised representative for battery producer responsibility for this EU destination country. The further national requirements are still being reviewed.',
+      explanationDefault: 'Pack2EU does not yet have a verified national battery rule for this country pair. Therefore, no blanket authorised representative obligation is assumed.'
+    }
+  },
+  fr: {
+    unsupportedLegalLabel: 'Pays de destination non pris en charge',
+    unsupportedExplanation: "Ce pays de destination n'a pas été trouvé dans la base de données pays de Pack2EU.",
+    needsReviewLegalLabel: 'Règle nationale en cours de vérification',
+    packaging: {
+      explanationRepRequired: "En tant que commerçant établi en dehors de l'UE, vous avez besoin d'un mandataire pour la responsabilité élargie des producteurs pour ce pays de destination de l'UE. Les autres exigences nationales sont encore en cours de vérification.",
+      explanationDefault: "Pack2EU ne dispose pas encore d'une règle nationale vérifiée pour cette paire de pays. Aucune obligation générale de mandataire n'est donc supposée."
+    },
+    weee: {
+      explanationRepRequired: "En tant que commerçant établi en dehors de l'UE, vous avez besoin d'un mandataire pour la responsabilité des producteurs d'équipements électriques et électroniques (DEEE) pour ce pays de destination de l'UE. Les autres exigences nationales sont encore en cours de vérification.",
+      explanationDefault: "Pack2EU ne dispose pas encore d'une règle nationale DEEE vérifiée pour cette paire de pays. Aucune obligation générale de mandataire n'est donc supposée."
+    },
+    battery: {
+      explanationRepRequired: "En tant que commerçant établi en dehors de l'UE, vous avez besoin d'un mandataire pour la responsabilité des producteurs de piles et batteries pour ce pays de destination de l'UE. Les autres exigences nationales sont encore en cours de vérification.",
+      explanationDefault: "Pack2EU ne dispose pas encore d'une règle nationale sur les piles et batteries vérifiée pour cette paire de pays. Aucune obligation générale de mandataire n'est donc supposée."
+    }
+  },
+  it: {
+    unsupportedLegalLabel: 'Paese di destinazione non supportato',
+    unsupportedExplanation: 'Questo paese di destinazione non è stato trovato nel database paesi di Pack2EU.',
+    needsReviewLegalLabel: 'Regola nazionale in fase di verifica',
+    packaging: {
+      explanationRepRequired: "In quanto commerciante stabilito al di fuori dell'UE, per questo paese di destinazione UE è necessario un rappresentante autorizzato per la responsabilità estesa del produttore. Gli ulteriori requisiti nazionali sono ancora in fase di verifica.",
+      explanationDefault: "Per questa coppia di paesi, Pack2EU non dispone ancora di una regola nazionale verificata. Pertanto non si presume alcun obbligo generale di rappresentante autorizzato."
+    },
+    weee: {
+      explanationRepRequired: "In quanto commerciante stabilito al di fuori dell'UE, per questo paese di destinazione UE è necessario un rappresentante autorizzato per la responsabilità del produttore di apparecchiature elettriche ed elettroniche (RAEE). Gli ulteriori requisiti nazionali sono ancora in fase di verifica.",
+      explanationDefault: "Per questa coppia di paesi, Pack2EU non dispone ancora di una regola nazionale RAEE verificata. Pertanto non si presume alcun obbligo generale di rappresentante autorizzato."
+    },
+    battery: {
+      explanationRepRequired: "In quanto commerciante stabilito al di fuori dell'UE, per questo paese di destinazione UE è necessario un rappresentante autorizzato per la responsabilità del produttore di pile e accumulatori. Gli ulteriori requisiti nazionali sono ancora in fase di verifica.",
+      explanationDefault: "Per questa coppia di paesi, Pack2EU non dispone ancora di una regola nazionale sulle pile verificata. Pertanto non si presume alcun obbligo generale di rappresentante autorizzato."
+    }
+  },
+  es: {
+    unsupportedLegalLabel: 'País de destino no compatible',
+    unsupportedExplanation: 'Este país de destino no se encontró en la base de datos de países de Pack2EU.',
+    needsReviewLegalLabel: 'Norma nacional en revisión',
+    packaging: {
+      explanationRepRequired: 'Como comerciante establecido fuera de la UE, necesita un representante autorizado para la responsabilidad ampliada del productor en este país de destino de la UE. Los demás requisitos nacionales todavía se están revisando.',
+      explanationDefault: 'Pack2EU todavía no dispone de una norma nacional verificada para este par de países. Por lo tanto, no se asume ninguna obligación general de representante autorizado.'
+    },
+    weee: {
+      explanationRepRequired: 'Como comerciante establecido fuera de la UE, necesita un representante autorizado para la responsabilidad del productor de aparatos eléctricos y electrónicos (RAEE) en este país de destino de la UE. Los demás requisitos nacionales todavía se están revisando.',
+      explanationDefault: 'Pack2EU todavía no dispone de una norma nacional RAEE verificada para este par de países. Por lo tanto, no se asume ninguna obligación general de representante autorizado.'
+    },
+    battery: {
+      explanationRepRequired: 'Como comerciante establecido fuera de la UE, necesita un representante autorizado para la responsabilidad del productor de pilas y baterías en este país de destino de la UE. Los demás requisitos todavía se están revisando.',
+      explanationDefault: 'Pack2EU todavía no dispone de una norma nacional sobre pilas verificada para este par de países. Por lo tanto, no se asume ninguna obligación general de representante autorizado.'
+    }
+  }
+};
+
+const SUPPORTED_DECISION_LANGS = ['en', 'fr', 'it', 'es'];
+
 function decide({
   originCountry,
   destinationCountry,
   rule,
   destinationMeta,
-  stream = 'packaging'
+  stream = 'packaging',
+  lang
 }) {
+
+  const t = SUPPORTED_DECISION_LANGS.includes(lang)
+    ? FALLBACK_TRANSLATIONS[lang]
+    : null;
 
   const origin =
     normalizeCode(
@@ -139,10 +228,10 @@ function decide({
         false,
 
       legalLabel:
-        'Zielland nicht unterstützt',
+        t ? t.unsupportedLegalLabel : 'Zielland nicht unterstützt',
 
       explanation:
-        'Das Zielland wurde in der Pack2EU-Länderdatenbank nicht gefunden.',
+        t ? t.unsupportedExplanation : 'Das Zielland wurde in der Pack2EU-Länderdatenbank nicht gefunden.',
 
       legalBasis:
         '',
@@ -283,6 +372,9 @@ function decide({
     STREAM_FALLBACK[stream] ||
     STREAM_FALLBACK.packaging;
 
+  const tStream =
+    t && (t[stream] || t.packaging);
+
   return {
 
     status:
@@ -298,12 +390,12 @@ function decide({
       false,
 
     legalLabel:
-      'Nationale Regel wird geprüft',
+      t ? t.needsReviewLegalLabel : 'Nationale Regel wird geprüft',
 
     explanation:
-      nonEURepresentativeRequired
-        ? fallback.explanationRepRequired
-        : fallback.explanationDefault,
+      tStream
+        ? (nonEURepresentativeRequired ? tStream.explanationRepRequired : tStream.explanationDefault)
+        : (nonEURepresentativeRequired ? fallback.explanationRepRequired : fallback.explanationDefault),
 
     legalBasis:
       fallback.legalBasis,

@@ -13,6 +13,11 @@ const {
   normalizeCode
 } = require('../compliance-engine');
 
+const {
+  parseLang,
+  applyTranslation
+} = require('../lib/country-translation');
+
 
 const router =
   express.Router();
@@ -103,7 +108,8 @@ function getRule(
 
 function buildDecision(
   customer,
-  destination
+  destination,
+  lang
 ) {
 
   const code =
@@ -140,7 +146,9 @@ function buildDecision(
     rule,
 
     destinationMeta:
-      country
+      country,
+
+    lang
 
   });
 }
@@ -160,8 +168,22 @@ function buildDecision(
 // Länder funktioniert.
 function countryPayload(
   country,
-  isActivated
+  isActivated,
+  lang
 ) {
+
+  // register_body kommt auf Deutsch aus countries.register_body -
+  // translations_json enthält seit db/index.js:
+  // applyBundledCountryTranslationSeed() bereits EN/FR/IT/ES für alle
+  // Länder, hier nur die gleiche applyTranslation()-Übersetzung wie in
+  // routes/countries.js anwenden (vorher wurde lang hier komplett
+  // ignoriert - Bug: die komplette Compliance-Weltkarte war immer
+  // Deutsch, siehe Kommentar in compliance-engine.js).
+  const translated = applyTranslation(
+    { register_body: country.register_body },
+    country.translations_json,
+    lang
+  );
 
   return {
 
@@ -175,7 +197,7 @@ function countryPayload(
       country.flag,
 
     register_body:
-      country.register_body,
+      translated.register_body,
 
     registration_url:
       isActivated ?
@@ -251,6 +273,11 @@ router.get(
 
     try {
 
+      const lang =
+        parseLang(
+          req.query.lang
+        );
+
       const customer =
         getCustomer(
           req.auth.userId
@@ -299,7 +326,8 @@ router.get(
       const compliance =
         buildDecision(
           customer,
-          code
+          code,
+          lang
         );
 
 
@@ -323,7 +351,8 @@ router.get(
         country:
           countryPayload(
             country,
-            !!activation
+            !!activation,
+            lang
           ),
 
         compliance,
@@ -380,6 +409,11 @@ router.get(
 
     try {
 
+      const lang =
+        parseLang(
+          req.query.lang
+        );
+
       const customer =
         getCustomer(
           req.auth.userId
@@ -419,7 +453,8 @@ router.get(
       const compliance =
         buildDecision(
           customer,
-          code
+          code,
+          lang
         );
 
 
@@ -438,6 +473,14 @@ router.get(
         );
 
 
+      const translatedCountry =
+        applyTranslation(
+          { register_body: country.register_body },
+          country.translations_json,
+          lang
+        );
+
+
       return res.json({
 
         country_code:
@@ -450,7 +493,7 @@ router.get(
           country.flag,
 
         register_body:
-          country.register_body,
+          translatedCountry.register_body,
 
         // Nur für bereits aktivierte Länder - siehe Kommentar bei
         // countryPayload() weiter oben in dieser Datei.
@@ -522,6 +565,11 @@ router.get(
 
     try {
 
+      const lang =
+        parseLang(
+          req.query.lang
+        );
+
       const customer =
         getCustomer(
           req.auth.userId
@@ -555,7 +603,8 @@ router.get(
             registration_generally_required,
             reporting_frequency,
             eco_fee_rates_json,
-            next_filing_rule_json
+            next_filing_rule_json,
+            translations_json
           FROM countries
           ORDER BY name
         `).all();
@@ -595,7 +644,8 @@ router.get(
             const compliance =
               buildDecision(
                 customer,
-                country.code
+                country.code,
+                lang
               );
 
 
@@ -603,7 +653,8 @@ router.get(
 
               ...countryPayload(
                 country,
-                !!activation
+                !!activation,
+                lang
               ),
 
               status:
