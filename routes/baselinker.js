@@ -164,9 +164,26 @@ router.post('/sync', requireAuth, async (req, res) => {
             });
           });
         } else {
-          // Kein Pack2EU-SKU vorhanden:
-          // Base-Artikelgewicht in kg in Gramm umrechnen.
-          totalWeight += baseWeightToGrams(item.weight) * quantity;
+          // Kein Pack2EU-SKU vorhanden: Base-Artikelgewicht in kg in
+          // Gramm umrechnen. WICHTIG: das Gewicht muss zusätzlich als
+          // packagingMaterials-Eintrag ("sonstige", da uns Base keine
+          // Materialaufschlüsselung liefert) gespeichert werden, nicht
+          // nur in totalWeight - Verpackungsstatistik, Jahresreport und
+          // Öko-Gebühr-Schätzung lesen ausschließlich packaging_data,
+          // nicht total_weight_grams (Audit-Fund: Bestellungen mit
+          // Gewicht > 0 erschienen in der Verpackungsstatistik trotzdem
+          // als 0 kg, weil hier bisher NUR totalWeight erhöht wurde).
+          // is_recyclable: false als konservative Annahme, solange die
+          // tatsächliche Materialzusammensetzung unbekannt ist.
+          const fallbackWeight = baseWeightToGrams(item.weight) * quantity;
+          totalWeight += fallbackWeight;
+          if (fallbackWeight > 0) {
+            packagingMaterials.push({
+              material: 'sonstige',
+              weight_grams: fallbackWeight,
+              is_recyclable: false
+            });
+          }
         }
       });
 
