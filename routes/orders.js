@@ -165,45 +165,90 @@ router.get('/', (req, res) => {
 });
 
 // ============================================================
-// ZIELLAND EINER MARKTPLATZ-BESTELLUNG KORRIGIEREN
+// MARKTPLATZ-BESTELLUNG KORRIGIEREN (Zielland und/oder Gewicht)
 //
 // Marktplatz-Bestellungen (marketplace_orders - Base/BaseLinker, Etsy,
 // Kaufland, Amazon, eBay, Skroutz) kommen per Sync/Webhook rein und
 // hatten bisher KEINE Korrekturmöglichkeit, falls die Quelle ein
 // falsches/unbekanntes Zielland liefert (z.B. Base/BaseLinker lieferte
 // vor der Normalisierung in routes/baselinker.js teils Klartext wie
-// "Italy" statt "IT" - Audit-Fund aus dem Jahresreport). Shopify- und
-// manuelle Bestellungen haben ihre eigene Korrektur bereits (siehe
-// PUT /manual/:id oben bzw. Shopify-Design-Entscheidung, dort bewusst
+// "Italy" statt "IT" - Audit-Fund aus dem Jahresreport) oder ein
+// offensichtlich falsches Gewicht (z.B. Tippfehler beim Kunden in Base
+// selbst, wie "3480000g" statt "348g"). Shopify- und manuelle
+// Bestellungen haben ihre eigene Korrektur bereits (siehe PUT
+// /manual/:id oben bzw. Shopify-Design-Entscheidung, dort bewusst
 // keine Korrektur anzubieten).
+//
+// Beide Felder sind optional, nur mitgeschickte werden geändert. Bei
+// einer Gewichtskorrektur bleiben echte, aus einer SKU-Zuordnung
+// stammende Materialien unangetastet - nur der nicht zugeordnete
+// "sonstige"-Rest (siehe routes/baselinker.js) wird auf die neue
+// Differenz angepasst, damit Verpackungsstatistik/Jahresreport/
+// Öko-Gebühr-Schätzung wieder zum korrigierten Gewicht passen.
 // ============================================================
-router.put('/marketplace/:id/destination', (req, res) => {
+router.put('/marketplace/:id', (req, res) => {
     try {
         const userId = req.customer.sub;
         const { id } = req.params;
-        const { destination_country } = req.body;
-
-        const normalized = normalizeCountryCode(destination_country);
-        if (!normalized) {
-            return res.status(400).json({ error: 'Ungültiger Ländercode.' });
-        }
+        const { destination_country, total_weight_grams } = req.body;
 
         const existing = db.prepare(
-            'SELECT id FROM marketplace_orders WHERE id = ? AND customer_id = ?'
+            'SELECT id, packaging_data FROM marketplace_orders WHERE id = ? AND customer_id = ?'
         ).get(id, userId);
         if (!existing) {
             return res.status(404).json({ error: 'Bestellung nicht gefunden.' });
         }
 
-        db.prepare(
-            'UPDATE marketplace_orders SET destination_country = ? WHERE id = ? AND customer_id = ?'
-        ).run(normalized, id, userId);
+        const updates = [];
+        const params = [];
 
-        res.json({ success: true, destination_country: normalized });
+        if (destination_country !== undefined) {
+            const normalized = normalizeCountryCode(destination_country);
+            if (!normalized) {
+                return res.status(400).json({ error: 'Ungültiger Ländercode.' });
+            }
+            updates.push('destination_country = ?');
+            params.push(normalized);
+        }
+
+        if (total_weight_grams !== undefined) {
+            const newWeight = Number(total_weight_grams);
+            if (!Number.isFinite(newWeight) || newWeight < 0) {
+                return res.status(400).json({ error: 'Ungültiges Gewicht.' });
+            }
+
+            let materials;
+            try {
+                materials = JSON.parse(existing.packaging_data || '[]');
+            } catch (e) {
+                materials = [];
+            }
+            if (!Array.isArray(materials)) materials = [];
+
+            const matchedMaterials = materials.filter(m => m.material !== 'sonstige');
+            const matchedWeight = matchedMaterials.reduce((sum, m) => sum + (Number(m.weight_grams) || 0), 0);
+            const remainder = Math.max(newWeight - matchedWeight, 0);
+
+            const newMaterials = remainder > 0
+                ? [...matchedMaterials, { material: 'sonstige', weight_grams: remainder, is_recyclable: false }]
+                : matchedMaterials;
+
+            updates.push('total_weight_grams = ?', 'packaging_data = ?');
+            params.push(newWeight, JSON.stringify(newMaterials));
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ error: 'Keine Änderungen angegeben.' });
+        }
+
+        params.push(id, userId);
+        db.prepare(`UPDATE marketplace_orders SET ${updates.join(', ')} WHERE id = ? AND customer_id = ?`).run(...params);
+
+        res.json({ success: true });
 
     } catch (error) {
-        console.error('❌ Zielland korrigieren Fehler:', error);
-        res.status(500).json({ error: 'Zielland konnte nicht korrigiert werden.' });
+        console.error('❌ Marktplatz-Bestellung korrigieren Fehler:', error);
+        res.status(500).json({ error: 'Bestellung konnte nicht korrigiert werden.' });
     }
 });
 

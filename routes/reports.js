@@ -10,7 +10,7 @@ const { normalizeCountryCode } = require('../lib/country-normalize');
 const router = express.Router();
 
 // Marktplatz-Bestellungen (marketplace_orders) lassen sich seit
-// PUT /orders/marketplace/:id/destination korrigieren, manuelle über
+// PUT /orders/marketplace/:id korrigieren, manuelle über
 // PUT /orders/manual/:id (bereits vorhanden) - Shopify-Bestellungen
 // bewusst nicht (siehe routes/orders.js).
 const CORRECTABLE_MARKETPLACE_PLATFORMS = ['etsy', 'kaufland', 'amazon', 'ebay', 'skroutz', 'baselinker'];
@@ -228,7 +228,7 @@ router.get('/monthly', (req, res) => {
 // nach (Zeitraum, Zielland) - ein Klick auf eine Report-Zeile soll genau
 // diese zugrundeliegenden Bestellungen zeigen, u.a. damit man ein
 // "Unbekannt" oder ein falsch zugeordnetes Land direkt korrigieren kann
-// (siehe PUT /orders/manual/:id und PUT /orders/marketplace/:id/destination).
+// (siehe PUT /orders/manual/:id und PUT /orders/marketplace/:id).
 // Query-Parameter: entweder period=YYYY-MM ODER year=YYYY (period hat
 // Vorrang, falls beides mitgeschickt wird), plus country=<ISO-Code|Unbekannt>.
 // ============================================================
