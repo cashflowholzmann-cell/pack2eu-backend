@@ -3932,6 +3932,23 @@ function init() {
       console.error('❌ TEST_ACCESS_EMAILS-Backfill fehlgeschlagen:', err.message);
     }
 
+    // Übersetzungen der Länder-Rechtstexte (register_body, eco_fee,
+    // requirements, labeling, notary_cost) - diese Felder waren bisher NUR
+    // auf Deutsch gespeichert und wurden im Dashboard unabhängig von der
+    // gewählten Sprache immer auf Deutsch angezeigt (Bug, gemeldet
+    // 25.09.2026 - "wieder deutsches Kleingedrucktes neben EPR/
+    // Bevollmächtigter"). Ein JSON-Blob statt einzelner Spalten pro Sprache,
+    // damit nicht 5 Felder × 4 Sprachen = 20 neue Spalten pro Tabelle nötig
+    // sind. Struktur: {"en":{"register_body":"...","eco_fee":"...",
+    // "requirements":[...],"labeling":[...],"notary_cost":"..."},"fr":{...},
+    // "it":{...},"es":{...}} - Deutsch selbst bleibt in den bestehenden
+    // Spalten, wird also nie dupliziert. Befüllt NICHT automatisch bei
+    // jedem Serverstart (das wäre der gleiche Fehler wie beim
+    // Rechtsänderungs-Radar - siehe legal-watch.js-Kommentar) sondern
+    // einmalig über scripts/translate-country-legal-text.js.
+    addColumnIfMissing('countries', 'translations_json', 'TEXT');
+    addColumnIfMissing('country_stream_rules', 'translations_json', 'TEXT');
+
     console.log(
       '=============================================='
     );
