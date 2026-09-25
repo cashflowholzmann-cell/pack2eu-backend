@@ -1,28 +1,14 @@
 // routes/baselinker.js
 //
-// Base.com (ehemals BaseLinker) - Multi-Channel-Management-Plattform, die
-// mehrere Verkaufskanäle (Shopify, WooCommerce, Amazon, eBay, Skroutz,
-// eMAG, ...) an einer Stelle bündelt. Für Kunden, die Base bereits nutzen,
-// deckt EINE Anbindung hier potenziell mehrere ihrer Verkaufskanäle auf
-// einmal ab.
+// Base.com (ehemals BaseLinker) – Bestellimport per API.
+// Base liefert Produktgewichte in Kilogramm. Pack2EU speichert und zeigt
+// Gewichte in Gramm an.
 //
-// Kein OAuth: der Kunde generiert sich selbst einen API-Token in seinem
-// Base-Konto (Account & other -> My account -> API) und trägt ihn hier
-// ein - gleiches Prinzip wie bei Kaufland/Skroutz. Auth per
-// X-BLToken-Header, ein einzelner Endpunkt (connector.php) mit
-// method+parameters, siehe api.baselinker.com.
-//
-// Base.com veröffentlicht kein offiziell dokumentiertes Webhook-Payload-
-// Format (nur inoffizielle Hinweise aus der Entwickler-Community) - daher
-// bewusst KEIN Webhook-Endpunkt hier, um kein rätselhaftes Format zu
-// raten. Stattdessen Polling per getOrders, ausgelöst über einen
-// manuellen "Sync"-Button im Dashboard (gleiches Prinzip wie Kaufland).
-//
-// Feld-Namen (order_id, order_source, delivery_country, products[].sku)
-// stammen aus mehreren unabhängigen Quellen (offizielle Doku-Suche +
-// Community-Wrapper-Bibliotheken), da api.baselinker.com selbst über
-// den Netzwerk-Proxy dieser Umgebung nicht direkt abrufbar war - vor dem
-// ersten echten Kunden-Sync unbedingt gegen eine echte Antwort verifizieren.
+// Wichtig: Gibt es für eine SKU bereits Pack2EU-Verpackungsdaten, bleiben
+// diese für die EPR-Berechnung maßgeblich. Gibt es keine passende Pack2EU-SKU,
+// verwenden wir das von Base gelieferte Artikelgewicht als Fallback, damit
+// importierte Bestellungen nicht mehr mit 0 g erscheinen.
+
 const express = require('express');
 const axios = require('axios');
 const { db } = require('../db');
@@ -36,6 +22,7 @@ async function baselinkerRequest({ method, parameters, apiToken }) {
   const body = new URLSearchParams();
   body.set('method', method);
   body.set('parameters', JSON.stringify(parameters || {}));
+
   return axios.post(BASELINKER_API_URL, body.toString(), {
     headers: {
       'X-BLToken': apiToken,
@@ -44,17 +31,37 @@ async function baselinkerRequest({ method, parameters, apiToken }) {
   });
 }
 
+/**
+ * Base.com liefert das Artikelgewicht üblicherweise in kg.
+ * Beispiel: "0.500" wird zu 500 Gramm.
+ */
+function baseWeightToGrams(weightKg) {
+  const normalized = String(weightKg ?? '')
+    .trim()
+    .replace(',', '.');
+
+  const weight = Number(normalized);
+
+  if (!Number.isFinite(weight) || weight <= 0) {
+    return 0;
+  }
+
+  return Math.round(weight * 1000);
+}
+
 // ============================================================
 // 1. Base.com-API-Token hinterlegen
 // ============================================================
 router.post('/connect', requireAuth, (req, res) => {
   const { apiToken } = req.body || {};
+
   if (!apiToken) {
     return res.status(400).json({ error: 'API-Token ist erforderlich.' });
   }
 
   db.prepare(`
-    UPDATE customers SET baselinker_api_token = ?, updated_at = datetime('now')
+    UPDATE customers
+    SET baselinker_api_token = ?, updated_at = datetime('now')
     WHERE id = ?
   `).run(apiToken.trim(), req.auth.userId);
 
@@ -63,9 +70,11 @@ router.post('/connect', requireAuth, (req, res) => {
 
 router.post('/disconnect', requireAuth, (req, res) => {
   db.prepare(`
-    UPDATE customers SET baselinker_api_token = NULL, updated_at = datetime('now')
+    UPDATE customers
+    SET baselinker_api_token = NULL, updated_at = datetime('now')
     WHERE id = ?
   `).run(req.auth.userId);
+
   res.json({ ok: true });
 });
 
@@ -74,51 +83,89 @@ router.post('/disconnect', requireAuth, (req, res) => {
 // ============================================================
 router.post('/sync', requireAuth, async (req, res) => {
   try {
-    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
+    const customer = db.prepare(`
+      SELECT *
+      FROM customers
+      WHERE id = ?
+    `).get(req.auth.userId);
+
     if (!customer?.baselinker_api_token) {
       return res.status(400).json({ error: 'Base.com nicht verbunden.' });
     }
 
     const skus = db.prepare(`
-      SELECT * FROM product_packaging WHERE customer_id = ? AND baselinker_sku IS NOT NULL
+      SELECT *
+      FROM product_packaging
+      WHERE customer_id = ?
+        AND baselinker_sku IS NOT NULL
     `).all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.baselinker_sku] = s; });
 
-    // Letzte 30 Tage - reicht für den laufenden Betrieb. Ein voller
-    // Erstimport (älter) wäre ein Sonderfall, aktuell nicht gebaut.
+    const skuMap = {};
+
+    skus.forEach((sku) => {
+      const key = String(sku.baselinker_sku || '').trim();
+
+      if (key) {
+        skuMap[key] = sku;
+      }
+    });
+
+    // Importiert Bestellungen der letzten 30 Tage.
     const dateFrom = Math.floor((Date.now() - 30 * 86400000) / 1000);
+
     const response = await baselinkerRequest({
       method: 'getOrders',
-      parameters: { date_from: dateFrom, get_unconfirmed_orders: true },
+      parameters: {
+        date_from: dateFrom,
+        get_unconfirmed_orders: true
+      },
       apiToken: customer.baselinker_api_token
     });
 
     if (response.data?.status !== 'SUCCESS') {
-      throw new Error(response.data?.error_message || 'Unbekannter Fehler von Base.com.');
+      throw new Error(
+        response.data?.error_message || 'Unbekannter Fehler von Base.com.'
+      );
     }
 
     const orders = response.data.orders || [];
     let imported = 0;
+    let updated = 0;
 
     for (const order of orders) {
       let totalWeight = 0;
       const packagingMaterials = [];
 
-      (order.products || []).forEach(item => {
-        const sku = skuMap[String(item.sku)];
+      (order.products || []).forEach((item) => {
+        const itemSku = String(item.sku || '').trim();
+        const sku = skuMap[itemSku];
+        const quantity = Number(item.quantity) > 0
+          ? Number(item.quantity)
+          : 1;
+
         if (sku) {
-          const qty = item.quantity || 1;
-          const weight = sku.total_weight_grams * qty;
-          totalWeight += weight;
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
+          // Pack2EU-Verpackungsdaten haben Vorrang.
+          totalWeight += Number(sku.total_weight_grams || 0) * quantity;
+
+          let materials = [];
+
+          try {
+            materials = JSON.parse(sku.materials_json || '[]');
+          } catch {
+            materials = [];
+          }
+
+          materials.forEach((material) => {
             packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * qty,
-              is_recyclable: m.is_recyclable
+              material: material.material,
+              weight_grams: Number(material.weight_grams || 0) * quantity,
+              is_recyclable: material.is_recyclable
             });
           });
+        } else {
+          // Kein Pack2EU-SKU vorhanden:
+          // Base-Artikelgewicht in kg in Gramm umrechnen.
+          totalWeight += baseWeightToGrams(item.weight) * quantity;
         }
       });
 
@@ -126,29 +173,78 @@ router.post('/sync', requireAuth, async (req, res) => {
         order.delivery_country || order.delivery_country_code || ''
       ).trim().toUpperCase() || null;
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type)
-        VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        String(order.order_id),
-        JSON.stringify(order),
-        destinationCountry,
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        // fulfillment_type wird hier zweckentfremdet, um order_source zu
-        // speichern (welcher Base-verbundene Kanal - Shopify/Amazon/
-        // Skroutz/... - die Bestellung geliefert hat), da die Spalte
-        // ohnehin nur ein generisches Klassifizierungs-Label ist.
-        order.order_source || null
-      );
-      if (result.changes > 0) imported++;
+      const externalOrderId = String(order.order_id);
+
+      // Bereits importierte Bestellungen werden aktualisiert. Dadurch wird
+      // auch deine vorhandene Testbestellung beim nächsten Sync von 0 g auf
+      // 500 g korrigiert – ohne sie vorher löschen zu müssen.
+      const existingOrder = db.prepare(`
+        SELECT id
+        FROM marketplace_orders
+        WHERE customer_id = ?
+          AND platform = 'baselinker'
+          AND external_order_id = ?
+      `).get(customer.id, externalOrderId);
+
+      if (existingOrder) {
+        db.prepare(`
+          UPDATE marketplace_orders
+          SET order_data_json = ?,
+              destination_country = ?,
+              total_weight_grams = ?,
+              packaging_data = ?,
+              fulfillment_type = ?
+          WHERE id = ?
+        `).run(
+          JSON.stringify(order),
+          destinationCountry,
+          totalWeight,
+          JSON.stringify(packagingMaterials),
+          order.order_source || null,
+          existingOrder.id
+        );
+
+        updated++;
+      } else {
+        db.prepare(`
+          INSERT INTO marketplace_orders
+          (
+            customer_id,
+            platform,
+            external_order_id,
+            order_data_json,
+            destination_country,
+            total_weight_grams,
+            packaging_data,
+            fulfillment_type
+          )
+          VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?)
+        `).run(
+          customer.id,
+          externalOrderId,
+          JSON.stringify(order),
+          destinationCountry,
+          totalWeight,
+          JSON.stringify(packagingMaterials),
+          order.order_source || null
+        );
+
+        imported++;
+      }
     }
 
-    res.json({ ok: true, imported, total: orders.length });
+    res.json({
+      ok: true,
+      imported,
+      updated,
+      total: orders.length
+    });
   } catch (err) {
-    console.error('❌ Base.com Sync Fehler:', err.response?.data || err.message);
+    console.error(
+      '❌ Base.com Sync Fehler:',
+      err.response?.data || err.message
+    );
+
     res.status(500).json({ error: 'Fehler beim Base.com-Sync.' });
   }
 });
@@ -159,16 +255,30 @@ router.post('/sync', requireAuth, async (req, res) => {
 router.get('/orders', requireAuth, (req, res) => {
   try {
     const orders = db.prepare(`
-      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data,
-             fulfillment_type AS order_source, created_at
+      SELECT
+        id,
+        external_order_id,
+        destination_country,
+        total_weight_grams,
+        packaging_data,
+        fulfillment_type AS order_source,
+        created_at
       FROM marketplace_orders
-      WHERE customer_id = ? AND platform = 'baselinker'
+      WHERE customer_id = ?
+        AND platform = 'baselinker'
       ORDER BY created_at DESC
     `).all(req.auth.userId);
+
     res.json(orders);
   } catch (error) {
-    console.error('❌ Base.com Bestellungen Fehler:', error.message);
-    res.status(500).json({ error: 'Fehler beim Laden der Base.com-Bestellungen.' });
+    console.error(
+      '❌ Base.com Bestellungen Fehler:',
+      error.message
+    );
+
+    res.status(500).json({
+      error: 'Fehler beim Laden der Base.com-Bestellungen.'
+    });
   }
 });
 
