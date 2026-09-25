@@ -254,6 +254,45 @@ function backfillBaselinkerFallbackMaterials() {
   }
 }
 
+// Audit-Fund: packaging_data ist als JSON-TEXT-Spalte gespeichert, ohne
+// dass die DB selbst erzwingt, dass der Inhalt ein Array ist - für eine
+// (vermutlich sehr alte, manuell angelegte) Bestellung stand dort z.B.
+// '{}' statt '[]'. JSON.parse() wirft dafür KEINEN Fehler (gültiges
+// JSON!), das bestehende try/catch in routes/reports.js fing das also
+// nicht ab - "materials.forEach is not a function" riss dadurch den
+// KOMPLETTEN Jahresreport (inkl. PDF-/CSV-Export) für ALLE Bestellungen
+// des Jahres ab, nicht nur die eine betroffene Zeile. routes/reports.js
+// hat seit diesem Fix zusätzlich eine Array.isArray()-Prüfung beim Lesen;
+// dieser Backfill bereinigt einmalig bereits so gespeicherte Alt-Zeilen
+// in allen drei Bestell-Tabellen, damit total_weight_grams weiterhin
+// stimmt, aber packaging_data wieder ein gültiges Array ist. Idempotent.
+function normalizeNonArrayPackagingData() {
+  const tables = ['orders', 'shopify_orders', 'marketplace_orders'];
+  let fixed = 0;
+
+  tables.forEach(table => {
+    if (!tableExists(table)) return;
+    const rows = db.prepare(`SELECT id, packaging_data FROM ${table} WHERE packaging_data IS NOT NULL`).all();
+    const update = db.prepare(`UPDATE ${table} SET packaging_data = '[]' WHERE id = ?`);
+    rows.forEach(row => {
+      let parsed;
+      try {
+        parsed = JSON.parse(row.packaging_data);
+      } catch (e) {
+        parsed = null;
+      }
+      if (!Array.isArray(parsed)) {
+        update.run(row.id);
+        fixed++;
+      }
+    });
+  });
+
+  if (fixed > 0) {
+    console.log(`✅ packaging_data-Bereinigung: ${fixed} Bestellung(en) mit ungültigem (nicht-Array-)Wert auf "[]" zurückgesetzt`);
+  }
+}
+
 // Vorübersetzte Länder-/Stream-Rechtstexte (EN/FR/IT/ES) aus einer fest
 // eingecheckten Datei einspielen, statt bei jedem Serverstart die
 // kostenpflichtige Anthropic-API zu bemühen (scripts/translate-country-
@@ -625,6 +664,7 @@ function init() {
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
     normalizeStoredDestinationCountries();
     backfillBaselinkerFallbackMaterials();
+    normalizeNonArrayPackagingData();
 
     // Rein informative Detailtabelle für Länder, deren Öko-Beitrag
     // innerhalb eines Materials stark gestaffelt ist (z. B. Italien/CONAI:

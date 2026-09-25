@@ -105,6 +105,18 @@ function buildReportData(orders) {
         } catch (e) {
             materials = [];
         }
+        // packaging_data ist gültiges JSON, aber nicht zwingend ein Array
+        // (z.B. '{}' oder 'null') - JSON.parse wirft dafür KEINEN Fehler,
+        // das try/catch oben fängt das also nicht ab. Ohne diese Prüfung
+        // riss eine einzige solche Bestellung mit "materials.forEach is
+        // not a function" den kompletten Jahresreport (und damit auch den
+        // PDF-/CSV-Export, die dieselbe Funktion nutzen) für ALLE
+        // Bestellungen des Jahres ab, statt nur diese eine Zeile zu
+        // überspringen - live beobachtet, "Report konnte nicht generiert
+        // werden".
+        if (!Array.isArray(materials)) {
+            materials = [];
+        }
 
         if (!reportData[country]) {
             reportData[country] = {
