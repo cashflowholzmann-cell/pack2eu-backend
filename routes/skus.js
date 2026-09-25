@@ -217,7 +217,7 @@ router.post('/:id/simulate-material', (req, res) => {
 // ============================================================
 router.post('/', (req, res) => {
   try {
-    const { sku_name, icon, shopify_product_id, destination, materials } = req.body;
+    const { sku_name, icon, shopify_product_id, baselinker_sku, destination, materials } = req.body;
     const customer_id = req.customer.sub;
 
     if (!sku_name || !materials || materials.length === 0) {
@@ -232,11 +232,11 @@ router.post('/', (req, res) => {
 
     const result = db.prepare(`
       INSERT INTO product_packaging
-      (customer_id, sku_name, icon, shopify_product_id, destination, materials_json, total_weight_grams,
+      (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
        is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      customer_id, sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
+      customer_id, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
       classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche
     );
@@ -255,7 +255,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { sku_name, icon, shopify_product_id, destination, materials } = req.body;
+    const { sku_name, icon, shopify_product_id, baselinker_sku, destination, materials } = req.body;
     const customer_id = req.customer.sub;
 
     // Prüfen, ob SKU existiert und dem Kunden gehört
@@ -273,12 +273,12 @@ router.put('/:id', (req, res) => {
 
     db.prepare(`
       UPDATE product_packaging
-      SET sku_name = ?, icon = ?, shopify_product_id = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
+      SET sku_name = ?, icon = ?, shopify_product_id = ?, baselinker_sku = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
           estimated_annual_units = ?, product_niche = ?, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
-      sku_name, icon || null, shopify_product_id || null, destination || null, materials_json, total_weight,
+      sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
       classification.contains_battery, classification.battery_type,
       estimatedAnnualUnits, productNiche,
