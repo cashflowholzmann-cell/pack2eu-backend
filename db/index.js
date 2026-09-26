@@ -738,6 +738,20 @@ function init() {
     // ohne FK (Nischen-Liste ist reine Frontend-Konvention).
     addColumnIfMissing('product_packaging', 'product_niche', 'TEXT');
 
+    // Kundenmeldung: Base/BaseLinker übermittelt zu einem Artikel ein
+    // Gewicht - das bezieht sich aber i.d.R. auf das PRODUKT selbst, nicht
+    // auf seine Verpackung. lib/marketplace-auto-sku.js hat dieses
+    // Gewicht bisher direkt in total_weight_grams geschrieben, wodurch der
+    // SKU-Editor bei einem noch unklassifizierten Artikel automatisch
+    // eine Materialzeile mit dem vollen PRODUKTGEWICHT vorausgefüllt hat -
+    // als hätte man das Produkt selbst schon als "Verpackung" verbucht.
+    // source_weight_grams trennt das jetzt sauber: rein informativer
+    // Referenzwert ("Base meldet ca. Xg Produktgewicht"), NIE Teil einer
+    // Gewichts-/Compliance-Berechnung. total_weight_grams bleibt exakt
+    // das, was es für klassifizierte Artikel schon immer war - die Summe
+    // der echten Verpackungsmaterialien (0, solange nicht klassifiziert).
+    addColumnIfMissing('product_packaging', 'source_weight_grams', 'INTEGER');
+
     // Stream-Dimension (siehe country_stream_rules-Kommentar in
     // schema.sql): additiv, default 'packaging' - keine Verhaltensänderung
     // für die bestehenden, ausschließlich Verpackungs-Aktivierungen aller
