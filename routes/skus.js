@@ -271,11 +271,18 @@ router.put('/:id', (req, res) => {
     const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
     const productNiche = readProductNiche(req.body);
 
+    // Ein direktes Bearbeiten der Materialien bedeutet immer "dieser
+    // Artikel bekommt jetzt seine eigenen, unabhängigen Materialien" -
+    // eine bestehende Verknüpfung (siehe /:id/link) wird dabei aufgelöst,
+    // sonst stünde die Zeile widersprüchlich sowohl verknüpft als auch mit
+    // abweichenden eigenen Werten da. Das Frontend bietet die
+    // Materialfelder für verknüpfte Artikel ohnehin nicht zum Bearbeiten
+    // an (siehe dashboard.html) - dies ist nur das Sicherheitsnetz.
     db.prepare(`
       UPDATE product_packaging
       SET sku_name = ?, icon = ?, shopify_product_id = ?, baselinker_sku = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-          estimated_annual_units = ?, product_niche = ?, updated_at = datetime('now')
+          estimated_annual_units = ?, product_niche = ?, linked_to_sku_id = NULL, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
       sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
@@ -285,11 +292,128 @@ router.put('/:id', (req, res) => {
       id, customer_id
     );
 
+    cascadeToLinkedVariants(customer_id, id, {
+      materials_json, total_weight,
+      is_electrical_equipment: classification.is_electrical_equipment,
+      weee_category: classification.weee_category,
+      contains_battery: classification.contains_battery,
+      battery_type: classification.battery_type,
+      product_niche: productNiche
+    });
+
     const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
     res.json(updated);
   } catch (error) {
     console.error('❌ Fehler beim Aktualisieren des SKUs:', error);
     res.status(500).json({ error: 'Fehler beim Aktualisieren des Produkts: ' + error.message });
+  }
+});
+
+// Aktualisiert alle Varianten, die über linked_to_sku_id auf sourceId
+// verweisen (siehe Kommentar bei product_packaging.linked_to_sku_id in
+// db/index.js) - hält z.B. alle Farbvarianten eines Nagellacks bei einer
+// späteren Korrektur der Verpackung automatisch synchron.
+function cascadeToLinkedVariants(customerId, sourceId, data) {
+  db.prepare(`
+    UPDATE product_packaging
+    SET materials_json = ?, total_weight_grams = ?,
+        is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
+        product_niche = ?, updated_at = datetime('now')
+    WHERE customer_id = ? AND linked_to_sku_id = ?
+  `).run(
+    data.materials_json, data.total_weight,
+    data.is_electrical_equipment, data.weee_category, data.contains_battery, data.battery_type,
+    data.product_niche,
+    customerId, sourceId
+  );
+}
+
+// ============================================================
+// SKU MIT BESTEHENDEM ARTIKEL VERKNÜPFEN
+//
+// Kundenwunsch (Brainstorming): Farbvarianten desselben Produkts (z.B.
+// Nagellack in 20 Farben) teilen sich fast immer dieselbe Verpackung,
+// haben aber oft eigene Marktplatz-SKUs. Statt jede Farbe einzeln zu
+// klassifizieren, verknüpft der Nutzer sie bewusst mit einem bereits
+// erfassten "Hauptartikel" - dessen Material-/Klassifizierungsdaten
+// werden übernommen und bei jeder späteren Änderung des Hauptartikels
+// automatisch nachgezogen (siehe cascadeToLinkedVariants oben).
+// ============================================================
+router.post('/:id/link', (req, res) => {
+  try {
+    const { id } = req.params;
+    const customer_id = req.customer.sub;
+    const targetId = Number(req.body.target_sku_id);
+
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      return res.status(400).json({ error: 'Zielartikel fehlt.' });
+    }
+    if (targetId === Number(id)) {
+      return res.status(400).json({ error: 'Ein Artikel kann nicht mit sich selbst verknüpft werden.' });
+    }
+
+    const self = db.prepare('SELECT id FROM product_packaging WHERE id = ? AND customer_id = ?').get(id, customer_id);
+    if (!self) {
+      return res.status(404).json({ error: 'Produkt nicht gefunden.' });
+    }
+
+    let target = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?').get(targetId, customer_id);
+    if (!target) {
+      return res.status(404).json({ error: 'Zielartikel nicht gefunden.' });
+    }
+
+    // Keine Verknüpfungsketten (A→B→C) - zeigt der gewählte Zielartikel
+    // selbst schon auf einen anderen, wird direkt dessen Hauptartikel
+    // verwendet. Hält die Auflösung beim Lesen überall einstufig.
+    if (target.linked_to_sku_id) {
+      const root = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?')
+        .get(target.linked_to_sku_id, customer_id);
+      if (root) target = root;
+    }
+    if (target.id === Number(id)) {
+      return res.status(400).json({ error: 'Ein Artikel kann nicht mit sich selbst verknüpft werden.' });
+    }
+
+    db.prepare(`
+      UPDATE product_packaging
+      SET linked_to_sku_id = ?, materials_json = ?, total_weight_grams = ?,
+          is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
+          product_niche = ?, updated_at = datetime('now')
+      WHERE id = ? AND customer_id = ?
+    `).run(
+      target.id, target.materials_json, target.total_weight_grams,
+      target.is_electrical_equipment, target.weee_category, target.contains_battery, target.battery_type,
+      target.product_niche,
+      id, customer_id
+    );
+
+    const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('❌ Fehler beim Verknüpfen des SKUs:', error);
+    res.status(500).json({ error: 'Fehler beim Verknüpfen: ' + error.message });
+  }
+});
+
+router.post('/:id/unlink', (req, res) => {
+  try {
+    const { id } = req.params;
+    const customer_id = req.customer.sub;
+
+    const result = db.prepare(`
+      UPDATE product_packaging SET linked_to_sku_id = NULL, updated_at = datetime('now')
+      WHERE id = ? AND customer_id = ?
+    `).run(id, customer_id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Produkt nicht gefunden.' });
+    }
+
+    const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('❌ Fehler beim Trennen der Verknüpfung:', error);
+    res.status(500).json({ error: 'Fehler beim Trennen der Verknüpfung: ' + error.message });
   }
 });
 
