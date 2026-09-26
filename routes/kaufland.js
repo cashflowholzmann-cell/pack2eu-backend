@@ -12,7 +12,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -98,10 +98,12 @@ router.post('/sync', requireAuth, async (req, res) => {
     for (const order of orders) {
       let totalWeight = 0;
       const packagingMaterials = [];
+      let hasUnclassifiedItem = false;
 
       (order.units || order.order_units || []).forEach(unit => {
         const externalId = String(unit.storefront_product_id || unit.product_id);
         const sku = skuMap[externalId];
+        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
         if (sku) {
           const qty = unit.quantity || 1;
           const weight = sku.total_weight_grams * qty;
@@ -127,15 +129,16 @@ router.post('/sync', requireAuth, async (req, res) => {
 
       const result = db.prepare(`
         INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data)
-        VALUES (?, 'kaufland', ?, ?, ?, ?, ?)
+        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items)
+        VALUES (?, 'kaufland', ?, ?, ?, ?, ?, ?)
       `).run(
         customer.id,
         String(order.id || order.order_id),
         JSON.stringify(order),
         normalizeCountryCode(order.shipping_address?.country_iso, order.delivery_address?.country_code) || 'DE',
         totalWeight,
-        JSON.stringify(packagingMaterials)
+        JSON.stringify(packagingMaterials),
+        hasUnclassifiedItem ? 1 : 0
       );
       if (result.changes > 0) imported++;
     }
@@ -153,7 +156,7 @@ router.post('/sync', requireAuth, async (req, res) => {
 router.get('/orders', requireAuth, (req, res) => {
   try {
     const orders = db.prepare(`
-      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, created_at
+      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, has_unclassified_items, created_at
       FROM marketplace_orders
       WHERE customer_id = ? AND platform = 'kaufland'
       ORDER BY created_at DESC

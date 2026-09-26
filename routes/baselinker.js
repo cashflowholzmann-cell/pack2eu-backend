@@ -14,7 +14,7 @@ const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
-const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
 
 const router = express.Router();
 
@@ -137,6 +137,10 @@ router.post('/sync', requireAuth, async (req, res) => {
     for (const order of orders) {
       let totalWeight = 0;
       const packagingMaterials = [];
+      // Kundenwunsch: Bestellungen mit mindestens einem noch nicht
+      // klassifizierten Artikel sollen in der Liste rot auffallen (siehe
+      // marketplace_orders.has_unclassified_items).
+      let hasUnclassifiedItem = false;
 
       (order.products || []).forEach((item) => {
         const itemSku = String(item.sku || '').trim();
@@ -157,6 +161,8 @@ router.post('/sync', requireAuth, async (req, res) => {
         const quantity = Number(item.quantity) > 0
           ? Number(item.quantity)
           : 1;
+
+        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
 
         if (sku) {
           // Pack2EU-Verpackungsdaten haben Vorrang.
@@ -253,9 +259,10 @@ router.post('/sync', requireAuth, async (req, res) => {
             destination_country,
             total_weight_grams,
             packaging_data,
-            fulfillment_type
+            fulfillment_type,
+            has_unclassified_items
           )
-          VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?)
+          VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?, ?)
         `).run(
           customer.id,
           externalOrderId,
@@ -263,7 +270,8 @@ router.post('/sync', requireAuth, async (req, res) => {
           destinationCountry,
           totalWeight,
           JSON.stringify(packagingMaterials),
-          order.order_source || null
+          order.order_source || null,
+          hasUnclassifiedItem ? 1 : 0
         );
 
         imported++;
@@ -299,6 +307,7 @@ router.get('/orders', requireAuth, (req, res) => {
         total_weight_grams,
         packaging_data,
         fulfillment_type AS order_source,
+        has_unclassified_items,
         created_at
       FROM marketplace_orders
       WHERE customer_id = ?

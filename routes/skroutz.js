@@ -26,7 +26,7 @@ const express = require('express');
 const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -128,8 +128,10 @@ router.post('/webhook/:customerId', async (req, res) => {
 
     let totalWeight = 0;
     const packagingMaterials = [];
+    let hasUnclassifiedItem = false;
     (fullOrder.line_items || []).forEach(item => {
       const sku = skuMap[String(item.shop_uid)];
+      if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
       if (sku) {
         const qty = item.quantity || 1;
         const weight = sku.total_weight_grams * qty;
@@ -155,8 +157,8 @@ router.post('/webhook/:customerId', async (req, res) => {
 
     db.prepare(`
       INSERT OR IGNORE INTO marketplace_orders
-      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type)
-      VALUES (?, 'skroutz', ?, ?, ?, ?, ?, ?)
+      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type, has_unclassified_items)
+      VALUES (?, 'skroutz', ?, ?, ?, ?, ?, ?, ?)
     `).run(
       customer.id,
       String(fullOrder.code),
@@ -167,7 +169,8 @@ router.post('/webhook/:customerId', async (req, res) => {
       // order.fulfilled_by_skroutz laut offiziellem Order-Objekt-Schema
       // (developer.skroutz.gr/smart_cart/_order_object) - FBS: Skroutz
       // übernimmt Lagerung/Versand, sonst versendet der Händler selbst.
-      fullOrder.fulfilled_by_skroutz ? 'fbs' : 'direct'
+      fullOrder.fulfilled_by_skroutz ? 'fbs' : 'direct',
+      hasUnclassifiedItem ? 1 : 0
     );
 
     res.status(200).json({ ok: true });
@@ -185,7 +188,7 @@ router.post('/webhook/:customerId', async (req, res) => {
 router.get('/orders', requireAuth, (req, res) => {
   try {
     const orders = db.prepare(`
-      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, fulfillment_type, created_at
+      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, fulfillment_type, has_unclassified_items, created_at
       FROM marketplace_orders
       WHERE customer_id = ? AND platform = 'skroutz'
       ORDER BY created_at DESC

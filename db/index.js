@@ -658,6 +658,16 @@ function init() {
     // mehr korrigierbar wäre".
     addColumnIfMissing('marketplace_orders', 'manually_corrected', 'INTEGER NOT NULL DEFAULT 0');
 
+    // Kundenwunsch: Bestellungen mit einem noch nicht klassifizierten
+    // Artikel (siehe lib/marketplace-auto-sku.js/isSkuUnclassified) sollen
+    // sofort auffallen, statt zwischen den anderen Bestellungen
+    // unterzugehen - wird bei jedem Sync gesetzt, sobald mindestens ein
+    // Bestellposten keiner vollständig klassifizierten SKU zugeordnet
+    // werden konnte (siehe jeweilige Sync-Route). Eine manuelle Korrektur
+    // (PUT /orders/marketplace/:id) setzt es wieder auf 0, weil die
+    // Bestellung dann bereits vollständig aufgeteilte Materialien trägt.
+    addColumnIfMissing('marketplace_orders', 'has_unclassified_items', 'INTEGER NOT NULL DEFAULT 0');
+
     // Base.com (ehemals BaseLinker) - Multi-Channel-Management, das
     // mehrere Verkaufskanäle (Shopify, Amazon, eBay, Skroutz, eMAG, ...)
     // bündelt. Kein OAuth, Kunde hinterlegt eigenen API-Token, siehe
