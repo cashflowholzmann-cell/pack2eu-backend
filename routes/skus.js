@@ -68,6 +68,24 @@ function readProductNiche(body = {}) {
   return value || null;
 }
 
+// Kundenwunsch (Brainstorming): Produktmaße als Grundlage für eine
+// künftige automatische Versandkarton-Auswahl (Gewicht allein reicht
+// nicht - eine leichte Babyflasche ist deutlich größer als ein
+// schwereres Parfum-Flakon). Bewusst KEINE Pflichtangabe wie bei den
+// Verpackungsmaterialien - fehlt ein Wert oder ist er ungültig, bleibt
+// er einfach NULL, ohne Validierungsfehler.
+function readDimensions(body = {}) {
+  function readOne(value) {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? num : null;
+  }
+  return {
+    length_cm: readOne(body.length_cm),
+    width_cm: readOne(body.width_cm),
+    height_cm: readOne(body.height_cm)
+  };
+}
+
 // ============================================================
 // ALLE SKUS DES KUNDEN
 // ============================================================
@@ -229,16 +247,19 @@ router.post('/', (req, res) => {
     const classification = readClassification(req.body);
     const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
     const productNiche = readProductNiche(req.body);
+    const dimensions = readDimensions(req.body);
 
     const result = db.prepare(`
       INSERT INTO product_packaging
       (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
-       is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
+       length_cm, width_cm, height_cm)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       customer_id, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
-      classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche
+      classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
+      dimensions.length_cm, dimensions.width_cm, dimensions.height_cm
     );
 
     const newSku = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
@@ -270,6 +291,7 @@ router.put('/:id', (req, res) => {
     const classification = readClassification(req.body);
     const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
     const productNiche = readProductNiche(req.body);
+    const dimensions = readDimensions(req.body);
 
     // Ein direktes Bearbeiten der Materialien bedeutet immer "dieser
     // Artikel bekommt jetzt seine eigenen, unabhängigen Materialien" -
@@ -282,13 +304,15 @@ router.put('/:id', (req, res) => {
       UPDATE product_packaging
       SET sku_name = ?, icon = ?, shopify_product_id = ?, baselinker_sku = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-          estimated_annual_units = ?, product_niche = ?, linked_to_sku_id = NULL, updated_at = datetime('now')
+          estimated_annual_units = ?, product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?,
+          linked_to_sku_id = NULL, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
       sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
       classification.is_electrical_equipment, classification.weee_category,
       classification.contains_battery, classification.battery_type,
       estimatedAnnualUnits, productNiche,
+      dimensions.length_cm, dimensions.width_cm, dimensions.height_cm,
       id, customer_id
     );
 
@@ -298,7 +322,10 @@ router.put('/:id', (req, res) => {
       weee_category: classification.weee_category,
       contains_battery: classification.contains_battery,
       battery_type: classification.battery_type,
-      product_niche: productNiche
+      product_niche: productNiche,
+      length_cm: dimensions.length_cm,
+      width_cm: dimensions.width_cm,
+      height_cm: dimensions.height_cm
     });
 
     const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
@@ -318,12 +345,12 @@ function cascadeToLinkedVariants(customerId, sourceId, data) {
     UPDATE product_packaging
     SET materials_json = ?, total_weight_grams = ?,
         is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-        product_niche = ?, updated_at = datetime('now')
+        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
     WHERE customer_id = ? AND linked_to_sku_id = ?
   `).run(
     data.materials_json, data.total_weight,
     data.is_electrical_equipment, data.weee_category, data.contains_battery, data.battery_type,
-    data.product_niche,
+    data.product_niche, data.length_cm, data.width_cm, data.height_cm,
     customerId, sourceId
   );
 }
@@ -378,12 +405,12 @@ router.post('/:id/link', (req, res) => {
       UPDATE product_packaging
       SET linked_to_sku_id = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-          product_niche = ?, updated_at = datetime('now')
+          product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
       target.id, target.materials_json, target.total_weight_grams,
       target.is_electrical_equipment, target.weee_category, target.contains_battery, target.battery_type,
-      target.product_niche,
+      target.product_niche, target.length_cm, target.width_cm, target.height_cm,
       id, customer_id
     );
 
