@@ -269,6 +269,15 @@ router.put('/marketplace/:id', (req, res) => {
             return res.status(400).json({ error: 'Keine Änderungen angegeben.' });
         }
 
+        // Markiert die Zeile als manuell korrigiert - der nächste Sync
+        // (aktuell nur routes/baselinker.js, siehe dortiger Kommentar)
+        // überschreibt Zielland/Gewicht/Materialien dann nicht mehr
+        // stillschweigend mit dem Stand aus der Marktplatz-Quelle. Über
+        // genau diese Maske bleibt die Korrektur trotzdem jederzeit
+        // änderbar (z.B. falls sich beim ersten Korrigieren selbst ein
+        // Tippfehler eingeschlichen hat).
+        updates.push('manually_corrected = 1');
+
         params.push(id, userId);
         db.prepare(`UPDATE marketplace_orders SET ${updates.join(', ')} WHERE id = ? AND customer_id = ?`).run(...params);
 

@@ -645,6 +645,19 @@ function init() {
     // getrennt auswerten können.
     addColumnIfMissing('marketplace_orders', 'fulfillment_type', 'TEXT');
 
+    // Kundenmeldung: Base/BaseLinker-Sync überschrieb eine manuelle
+    // Korrektur (Zielland/Materialien, siehe PUT /orders/marketplace/:id)
+    // beim nächsten Sync wieder mit dem Stand aus Base - jeder erneute
+    // Sync setzte die Bearbeitung zurück. Dieses Flag wird beim Speichern
+    // einer Korrektur gesetzt; routes/baselinker.js überspringt für
+    // markierte Zeilen beim nächsten Sync das Überschreiben von
+    // destination_country/total_weight_grams/packaging_data (order_data_
+    // json/fulfillment_type werden trotzdem aktualisiert). Die Korrektur
+    // selbst bleibt jederzeit über dieselbe Maske erneut änderbar -
+    // "erkennen, aber nicht so hart speichern, dass ein Tippfehler nicht
+    // mehr korrigierbar wäre".
+    addColumnIfMissing('marketplace_orders', 'manually_corrected', 'INTEGER NOT NULL DEFAULT 0');
+
     // Base.com (ehemals BaseLinker) - Multi-Channel-Management, das
     // mehrere Verkaufskanäle (Shopify, Amazon, eBay, Skroutz, eMAG, ...)
     // bündelt. Kein OAuth, Kunde hinterlegt eigenen API-Token, siehe
