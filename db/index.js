@@ -752,6 +752,20 @@ function init() {
     // der echten Verpackungsmaterialien (0, solange nicht klassifiziert).
     addColumnIfMissing('product_packaging', 'source_weight_grams', 'INTEGER');
 
+    // Kundenwunsch (Brainstorming): Farbvarianten desselben Produkts
+    // (z.B. Nagellack in 20 Farben) haben fast immer identische
+    // Verpackung, aber oft eigene Marktplatz-SKUs - ohne Verknüpfung
+    // müsste jede Farbe einzeln klassifiziert werden. linked_to_sku_id
+    // zeigt (einstufig, keine Ketten - siehe routes/skus.js) auf einen
+    // anderen product_packaging-Datensatz desselben Kunden, dessen
+    // Material-/Klassifizierungsdaten diese Zeile übernimmt. Bewusst kein
+    // Live-Verweis beim Lesen (das würde jeden Sync-Code-Pfad betreffen,
+    // der product_packaging liest), sondern eine Kopie bei Verknüpfung -
+    // aktualisiert der Kunde später den verknüpften Hauptartikel, kopiert
+    // PUT /skus/:id die neuen Werte an alle darauf verweisenden Varianten
+    // weiter (siehe dortiger Kommentar).
+    addColumnIfMissing('product_packaging', 'linked_to_sku_id', 'INTEGER');
+
     // Stream-Dimension (siehe country_stream_rules-Kommentar in
     // schema.sql): additiv, default 'packaging' - keine Verhaltensänderung
     // für die bestehenden, ausschließlich Verpackungs-Aktivierungen aller
