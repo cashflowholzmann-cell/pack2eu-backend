@@ -234,8 +234,20 @@ router.post('/sync', requireAuth, async (req, res) => {
       // Bereits importierte Bestellungen werden aktualisiert. Dadurch wird
       // auch deine vorhandene Testbestellung beim nächsten Sync von 0 g auf
       // 500 g korrigiert – ohne sie vorher löschen zu müssen.
+      //
+      // Kundenmeldung: eine über PUT /orders/marketplace/:id manuell
+      // korrigierte Bestellung (falscher Ländercode, Tippfehler beim
+      // Gewicht in Base selbst) fiel beim nächsten Sync einfach wieder auf
+      // den unkorrigierten Stand aus Base zurück, weil hier bisher
+      // unbedingt überschrieben wurde. manually_corrected markiert genau
+      // diesen Fall - Zielland/Gewicht/Materialien werden dann NICHT mehr
+      // aus Base übernommen (order_data_json/fulfillment_type schon, das
+      // sind reine Metadaten ohne Compliance-Relevanz). Die Korrektur
+      // selbst bleibt jederzeit über dieselbe Maske änderbar, falls sich
+      // dabei mal ein Tippfehler einschleicht - nur der automatische Sync
+      // fasst die Zeile nicht mehr an.
       const existingOrder = db.prepare(`
-        SELECT id
+        SELECT id, manually_corrected
         FROM marketplace_orders
         WHERE customer_id = ?
           AND platform = 'baselinker'
@@ -243,22 +255,35 @@ router.post('/sync', requireAuth, async (req, res) => {
       `).get(customer.id, externalOrderId);
 
       if (existingOrder) {
-        db.prepare(`
-          UPDATE marketplace_orders
-          SET order_data_json = ?,
-              destination_country = ?,
-              total_weight_grams = ?,
-              packaging_data = ?,
-              fulfillment_type = ?
-          WHERE id = ?
-        `).run(
-          JSON.stringify(order),
-          destinationCountry,
-          totalWeight,
-          JSON.stringify(packagingMaterials),
-          order.order_source || null,
-          existingOrder.id
-        );
+        if (existingOrder.manually_corrected) {
+          db.prepare(`
+            UPDATE marketplace_orders
+            SET order_data_json = ?,
+                fulfillment_type = ?
+            WHERE id = ?
+          `).run(
+            JSON.stringify(order),
+            order.order_source || null,
+            existingOrder.id
+          );
+        } else {
+          db.prepare(`
+            UPDATE marketplace_orders
+            SET order_data_json = ?,
+                destination_country = ?,
+                total_weight_grams = ?,
+                packaging_data = ?,
+                fulfillment_type = ?
+            WHERE id = ?
+          `).run(
+            JSON.stringify(order),
+            destinationCountry,
+            totalWeight,
+            JSON.stringify(packagingMaterials),
+            order.order_source || null,
+            existingOrder.id
+          );
+        }
 
         updated++;
       } else {
