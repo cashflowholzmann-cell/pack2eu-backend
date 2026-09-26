@@ -190,7 +190,7 @@ router.put('/marketplace/:id', (req, res) => {
     try {
         const userId = req.customer.sub;
         const { id } = req.params;
-        const { destination_country, total_weight_grams } = req.body;
+        const { destination_country, total_weight_grams, packaging_data } = req.body;
 
         const existing = db.prepare(
             'SELECT id, packaging_data FROM marketplace_orders WHERE id = ? AND customer_id = ?'
@@ -211,7 +211,35 @@ router.put('/marketplace/:id', (req, res) => {
             params.push(normalized);
         }
 
-        if (total_weight_grams !== undefined) {
+        if (Array.isArray(packaging_data)) {
+            // Nutzer teilt das Gewicht jetzt explizit auf echte Materialien
+            // auf (gleiche Maske wie im Produkte-Editor, inkl. material_
+            // subtype) - ersetzt die reine "sonstige"-Restlogik unten
+            // komplett, weil hier kein anonymer Rest mehr übrig bleiben
+            // soll. Kundenwunsch: eine einzige, konsistente Korrektur-
+            // Maske für alle Bestellquellen statt nur Zielland+Gesamt-
+            // gewicht.
+            const materials = packaging_data
+                .map(m => {
+                    const cleaned = {
+                        material: String(m.material || 'sonstige').trim() || 'sonstige',
+                        weight_grams: Math.max(0, Math.round(Number(m.weight_grams) || 0)),
+                        is_recyclable: Boolean(m.is_recyclable)
+                    };
+                    const subtype = String(m.material_subtype || '').trim();
+                    if (subtype) cleaned.material_subtype = subtype;
+                    return cleaned;
+                })
+                .filter(m => m.weight_grams > 0);
+
+            if (materials.length === 0) {
+                return res.status(400).json({ error: 'Mindestens ein Material mit Gewicht über 0g ist erforderlich.' });
+            }
+
+            const newWeight = materials.reduce((sum, m) => sum + m.weight_grams, 0);
+            updates.push('total_weight_grams = ?', 'packaging_data = ?');
+            params.push(newWeight, JSON.stringify(materials));
+        } else if (total_weight_grams !== undefined) {
             const newWeight = Number(total_weight_grams);
             if (!Number.isFinite(newWeight) || newWeight < 0) {
                 return res.status(400).json({ error: 'Ungültiges Gewicht.' });
