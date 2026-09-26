@@ -776,6 +776,17 @@ function init() {
     // weiter (siehe dortiger Kommentar).
     addColumnIfMissing('product_packaging', 'linked_to_sku_id', 'INTEGER');
 
+    // Kundenwunsch (Brainstorming): Produktmaße als Grundlage für eine
+    // künftige automatische Versandkarton-Auswahl - Gewicht allein reicht
+    // dafür nicht (eine leichte Babyflasche ist deutlich größer als ein
+    // schwereres Parfum-Flakon). Bewusst NICHT verpflichtend wie die
+    // Verpackungsmaterialien - reine Erleichterung/Richtwert, jederzeit
+    // änderbar, ohne Validierungsfehler bei fehlender Angabe (siehe
+    // routes/skus.js readDimensions()).
+    addColumnIfMissing('product_packaging', 'length_cm', 'REAL');
+    addColumnIfMissing('product_packaging', 'width_cm', 'REAL');
+    addColumnIfMissing('product_packaging', 'height_cm', 'REAL');
+
     // Stream-Dimension (siehe country_stream_rules-Kommentar in
     // schema.sql): additiv, default 'packaging' - keine Verhaltensänderung
     // für die bestehenden, ausschließlich Verpackungs-Aktivierungen aller
