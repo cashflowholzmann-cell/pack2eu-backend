@@ -178,24 +178,23 @@ router.post('/sync', requireAuth, async (req, res) => {
             });
           });
         } else {
-          // Kein Pack2EU-SKU vorhanden: Base-Artikelgewicht in kg in
-          // Gramm umrechnen. WICHTIG: das Gewicht muss zusätzlich als
-          // packagingMaterials-Eintrag ("sonstige", da uns Base keine
-          // Materialaufschlüsselung liefert) gespeichert werden, nicht
-          // nur in totalWeight - Verpackungsstatistik, Jahresreport und
-          // Öko-Gebühr-Schätzung lesen ausschließlich packaging_data,
-          // nicht total_weight_grams (Audit-Fund: Bestellungen mit
-          // Gewicht > 0 erschienen in der Verpackungsstatistik trotzdem
-          // als 0 kg, weil hier bisher NUR totalWeight erhöht wurde).
-          // is_recyclable: false als konservative Annahme, solange die
-          // tatsächliche Materialzusammensetzung unbekannt ist.
+          // Kein Pack2EU-SKU vorhanden: einen echten (noch leeren)
+          // Pack2EU-Artikel für diese Base-SKU anlegen, statt den Artikel
+          // anonym als "sonstige" zu verbuchen - Kundenwunsch: der Artikel
+          // soll im SKU-Editor auftauchen (mit dem "⚠️ Material fehlt"-
+          // Hinweis) und nur EINMAL mit einem Material befüllt werden
+          // müssen. Jede künftige Bestellung dieses Artikels matcht dann
+          // automatisch die echten Materialien (siehe skuMap oben).
           //
-          // Zusätzlich einen echten (noch leeren) Pack2EU-Artikel für
-          // diese Base-SKU anlegen, statt den Artikel nur anonym als
-          // "sonstige" zu verbuchen - Kundenwunsch: der Artikel soll im
-          // SKU-Editor auftauchen und nur EINMAL mit einem Material
-          // befüllt werden müssen. Der nächste Sync ordnet ihm dann
-          // automatisch die echten Materialien zu (siehe skuMap oben).
+          // WICHTIG (Kundenmeldung): Base liefert hier ein Gewicht, das
+          // sich i.d.R. auf das PRODUKT bezieht, nicht auf die Verpackung
+          // - es darf deshalb NICHT als "sonstige"-Verpackungsgewicht in
+          // diese Bestellung übernommen werden (würde die Öko-Gebühr-/
+          // Meldepflicht auf Basis des falschen Gewichts verzerren). Bis
+          // der Nutzer den Artikel klassifiziert, trägt diese Bestellung
+          // für dieses Item also bewusst 0g bei - ensureUnclassifiedProduct()
+          // speichert das Base-Gewicht nur als unverbindliche Referenz
+          // (source_weight_grams), nie als Verpackungsgewicht.
           ensureUnclassifiedProduct(db, customer.id, {
             field: 'baselinker_sku',
             externalId: matchKey,
@@ -205,16 +204,6 @@ router.post('/sync', requireAuth, async (req, res) => {
             // Bestellposition.
             totalWeightGrams: baseWeightToGrams(item.weight)
           });
-
-          const fallbackWeight = baseWeightToGrams(item.weight) * quantity;
-          totalWeight += fallbackWeight;
-          if (fallbackWeight > 0) {
-            packagingMaterials.push({
-              material: 'sonstige',
-              weight_grams: fallbackWeight,
-              is_recyclable: false
-            });
-          }
         }
       });
 
