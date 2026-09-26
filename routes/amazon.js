@@ -15,7 +15,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -161,10 +161,12 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
 
       let totalWeight = 0;
       const packagingMaterials = [];
+      let hasUnclassifiedItem = false;
       const items = itemsResponse.data?.payload?.OrderItems || [];
 
       items.forEach(item => {
         const sku = skuMap[item.SellerSKU];
+        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
         if (sku) {
           const qty = parseInt(item.QuantityOrdered, 10) || 1;
           const weight = sku.total_weight_grams * qty;
@@ -192,15 +194,16 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
 
       const result = db.prepare(`
         INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data)
-        VALUES (?, 'amazon', ?, ?, ?, ?, ?)
+        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items)
+        VALUES (?, 'amazon', ?, ?, ?, ?, ?, ?)
       `).run(
         customer.id,
         order.AmazonOrderId,
         JSON.stringify(order),
         normalizeCountryCode(order.ShippingAddress?.CountryCode) || 'DE',
         totalWeight,
-        JSON.stringify(packagingMaterials)
+        JSON.stringify(packagingMaterials),
+        hasUnclassifiedItem ? 1 : 0
       );
       if (result.changes > 0) imported++;
     }
@@ -218,7 +221,7 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
 router.get('/orders', requireAuth, (req, res) => {
   try {
     const orders = db.prepare(`
-      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, created_at
+      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, has_unclassified_items, created_at
       FROM marketplace_orders
       WHERE customer_id = ? AND platform = 'amazon'
       ORDER BY created_at DESC

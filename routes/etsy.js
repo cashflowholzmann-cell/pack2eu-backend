@@ -11,7 +11,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct } = require('../lib/marketplace-auto-sku');
+const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -171,9 +171,11 @@ router.post('/sync', requireAuth, async (req, res) => {
     for (const receipt of receipts) {
       let totalWeight = 0;
       const packagingMaterials = [];
+      let hasUnclassifiedItem = false;
 
       (receipt.transactions || []).forEach(tx => {
         const sku = skuMap[String(tx.listing_id)];
+        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
         if (sku) {
           const weight = sku.total_weight_grams * (tx.quantity || 1);
           totalWeight += weight;
@@ -198,15 +200,16 @@ router.post('/sync', requireAuth, async (req, res) => {
 
       const result = db.prepare(`
         INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data)
-        VALUES (?, 'etsy', ?, ?, ?, ?, ?)
+        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items)
+        VALUES (?, 'etsy', ?, ?, ?, ?, ?, ?)
       `).run(
         customer.id,
         String(receipt.receipt_id),
         JSON.stringify(receipt),
         normalizeCountryCode(receipt.country_iso) || 'DE',
         totalWeight,
-        JSON.stringify(packagingMaterials)
+        JSON.stringify(packagingMaterials),
+        hasUnclassifiedItem ? 1 : 0
       );
       if (result.changes > 0) imported++;
     }
@@ -224,7 +227,7 @@ router.post('/sync', requireAuth, async (req, res) => {
 router.get('/orders', requireAuth, (req, res) => {
   try {
     const orders = db.prepare(`
-      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, created_at
+      SELECT id, external_order_id, destination_country, total_weight_grams, packaging_data, has_unclassified_items, created_at
       FROM marketplace_orders
       WHERE customer_id = ? AND platform = 'etsy'
       ORDER BY created_at DESC

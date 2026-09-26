@@ -136,20 +136,26 @@ router.get('/', (req, res) => {
         // Icons je Bestellung - bei Shopify/Marktplatz-Bestellungen identisch
         // mit "source", bei manuellen Bestellungen frei waehlbar (siehe
         // source_platform).
+        // has_unclassified_items: nur marketplace_orders (Base/BaseLinker,
+        // Amazon, eBay, Etsy, Kaufland, Skroutz) kennt automatisch
+        // angelegte, noch unklassifizierte Artikel (siehe lib/marketplace-
+        // auto-sku.js) - manuelle und Shopify-Bestellungen liefern hier
+        // konstant 0, damit die Spaltenzahl in allen drei UNION-ALL-
+        // Zweigen übereinstimmt.
         const orders = db.prepare(`
-            SELECT 'manual' AS source, COALESCE(source_platform, 'own_shop') AS origin, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            SELECT 'manual' AS source, COALESCE(source_platform, 'own_shop') AS origin, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, 0 AS has_unclassified_items, created_at
             FROM orders
             WHERE user_id = ?
 
             UNION ALL
 
-            SELECT 'shopify' AS source, 'shopify' AS origin, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            SELECT 'shopify' AS source, 'shopify' AS origin, id, shopify_order_id, destination_country, total_weight_grams, packaging_data, 0 AS has_unclassified_items, created_at
             FROM shopify_orders
             WHERE customer_id = ?
 
             UNION ALL
 
-            SELECT platform AS source, platform AS origin, id, external_order_id AS shopify_order_id, destination_country, total_weight_grams, packaging_data, created_at
+            SELECT platform AS source, platform AS origin, id, external_order_id AS shopify_order_id, destination_country, total_weight_grams, packaging_data, has_unclassified_items, created_at
             FROM marketplace_orders
             WHERE customer_id = ?
 
@@ -277,6 +283,12 @@ router.put('/marketplace/:id', (req, res) => {
         // änderbar (z.B. falls sich beim ersten Korrigieren selbst ein
         // Tippfehler eingeschlichen hat).
         updates.push('manually_corrected = 1');
+
+        // Die Korrektur legt die Materialaufteilung jetzt explizit fest -
+        // die Bestellung trägt damit keinen unklassifizierten Posten mehr
+        // und verliert die rote Markierung in der Bestellliste (siehe
+        // marketplace_orders.has_unclassified_items).
+        updates.push('has_unclassified_items = 0');
 
         params.push(id, userId);
         db.prepare(`UPDATE marketplace_orders SET ${updates.join(', ')} WHERE id = ? AND customer_id = ?`).run(...params);
