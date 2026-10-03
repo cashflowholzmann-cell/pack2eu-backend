@@ -366,6 +366,50 @@ function cascadeToLinkedVariants(customerId, sourceId, data) {
 // werden übernommen und bei jeder späteren Änderung des Hauptartikels
 // automatisch nachgezogen (siehe cascadeToLinkedVariants oben).
 // ============================================================
+// Kern-Logik von POST /:id/link, ausgelagert in eine eigene Funktion, die
+// einen sprechenden Error wirft statt eine Response zu schreiben - damit
+// sie sowohl von der Einzel-Route unten als auch von POST /bulk-link
+// (Massen-Verknüpfung per CSV, siehe dort) ohne Codeverdopplung genutzt
+// werden kann.
+function linkSkuRow(customerId, sourceId, targetId) {
+  if (targetId === sourceId) {
+    throw new Error('Ein Artikel kann nicht mit sich selbst verknüpft werden.');
+  }
+
+  const self = db.prepare('SELECT id FROM product_packaging WHERE id = ? AND customer_id = ?').get(sourceId, customerId);
+  if (!self) throw new Error('Produkt nicht gefunden.');
+
+  let target = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?').get(targetId, customerId);
+  if (!target) throw new Error('Zielartikel nicht gefunden.');
+
+  // Keine Verknüpfungsketten (A→B→C) - zeigt der gewählte Zielartikel
+  // selbst schon auf einen anderen, wird direkt dessen Hauptartikel
+  // verwendet. Hält die Auflösung beim Lesen überall einstufig.
+  if (target.linked_to_sku_id) {
+    const root = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?')
+      .get(target.linked_to_sku_id, customerId);
+    if (root) target = root;
+  }
+  if (target.id === sourceId) {
+    throw new Error('Ein Artikel kann nicht mit sich selbst verknüpft werden.');
+  }
+
+  db.prepare(`
+    UPDATE product_packaging
+    SET linked_to_sku_id = ?, materials_json = ?, total_weight_grams = ?,
+        is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
+        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
+    WHERE id = ? AND customer_id = ?
+  `).run(
+    target.id, target.materials_json, target.total_weight_grams,
+    target.is_electrical_equipment, target.weee_category, target.contains_battery, target.battery_type,
+    target.product_niche, target.length_cm, target.width_cm, target.height_cm,
+    sourceId, customerId
+  );
+
+  return db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(sourceId);
+}
+
 router.post('/:id/link', (req, res) => {
   try {
     const { id } = req.params;
@@ -375,50 +419,99 @@ router.post('/:id/link', (req, res) => {
     if (!Number.isInteger(targetId) || targetId <= 0) {
       return res.status(400).json({ error: 'Zielartikel fehlt.' });
     }
-    if (targetId === Number(id)) {
-      return res.status(400).json({ error: 'Ein Artikel kann nicht mit sich selbst verknüpft werden.' });
-    }
 
-    const self = db.prepare('SELECT id FROM product_packaging WHERE id = ? AND customer_id = ?').get(id, customer_id);
-    if (!self) {
-      return res.status(404).json({ error: 'Produkt nicht gefunden.' });
-    }
-
-    let target = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?').get(targetId, customer_id);
-    if (!target) {
-      return res.status(404).json({ error: 'Zielartikel nicht gefunden.' });
-    }
-
-    // Keine Verknüpfungsketten (A→B→C) - zeigt der gewählte Zielartikel
-    // selbst schon auf einen anderen, wird direkt dessen Hauptartikel
-    // verwendet. Hält die Auflösung beim Lesen überall einstufig.
-    if (target.linked_to_sku_id) {
-      const root = db.prepare('SELECT * FROM product_packaging WHERE id = ? AND customer_id = ?')
-        .get(target.linked_to_sku_id, customer_id);
-      if (root) target = root;
-    }
-    if (target.id === Number(id)) {
-      return res.status(400).json({ error: 'Ein Artikel kann nicht mit sich selbst verknüpft werden.' });
-    }
-
-    db.prepare(`
-      UPDATE product_packaging
-      SET linked_to_sku_id = ?, materials_json = ?, total_weight_grams = ?,
-          is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-          product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
-      WHERE id = ? AND customer_id = ?
-    `).run(
-      target.id, target.materials_json, target.total_weight_grams,
-      target.is_electrical_equipment, target.weee_category, target.contains_battery, target.battery_type,
-      target.product_niche, target.length_cm, target.width_cm, target.height_cm,
-      id, customer_id
-    );
-
-    const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
+    const updated = linkSkuRow(customer_id, Number(id), targetId);
     res.json(updated);
   } catch (error) {
+    if (error.message === 'Produkt nicht gefunden.' || error.message === 'Zielartikel nicht gefunden.') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message === 'Ein Artikel kann nicht mit sich selbst verknüpft werden.') {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('❌ Fehler beim Verknüpfen des SKUs:', error);
     res.status(500).json({ error: 'Fehler beim Verknüpfen: ' + error.message });
+  }
+});
+
+// ============================================================
+// SKUS IN MASSE VERKNÜPFEN (CSV-Import)
+//
+// Kundenwunsch: bei einigen tausend Artikeln (Obergruppen + Farb-
+// varianten, z.B. "Nagellack Jade" in 20 Farben) ist Einzel-Verknüpfung
+// über die UI nicht praktikabel. Jede CSV-Zeile nennt eine Variante und
+// ihren Hauptartikel - beide werden wahlweise über die bereits
+// hinterlegte Base/BaseLinker-SKU ODER den Produktnamen aufgelöst (siehe
+// resolveSkuByIdentifier()), damit ein Export direkt aus Base/BaseLinker
+// (wo die Artikel ohnehin schon stehen) ohne Umbenennen als Vorlage für
+// die Verknüpfungs-CSV dient - der Händler muss die Artikel dafür nicht
+// erst in Pack2EU-Begriffe übersetzen.
+// ============================================================
+function resolveSkuByIdentifier(customerId, identifier) {
+  const bySkuCode = db.prepare(`
+    SELECT * FROM product_packaging WHERE customer_id = ? AND baselinker_sku = ?
+  `).get(customerId, identifier);
+  if (bySkuCode) return bySkuCode;
+
+  // Fallback auf den Produktnamen (case-insensitive, da von Hand
+  // übertragen/exportiert wird und Groß-/Kleinschreibung leicht abweicht).
+  return db.prepare(`
+    SELECT * FROM product_packaging WHERE customer_id = ? AND LOWER(sku_name) = LOWER(?)
+  `).get(customerId, identifier);
+}
+
+router.post('/bulk-link', (req, res) => {
+  try {
+    const customer_id = req.customer.sub;
+    const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Keine Zeilen zum Verarbeiten übermittelt.' });
+    }
+
+    let linked = 0;
+    const errors = [];
+
+    rows.forEach((row, index) => {
+      const rowNumber = index + 2; // Zeile 1 ist der CSV-Header
+      const articleIdentifier = String(row.artikel || '').trim();
+      const mainArticleIdentifier = String(row.hauptartikel || '').trim();
+
+      if (!articleIdentifier || !mainArticleIdentifier) {
+        errors.push({ row: rowNumber, error: 'Spalte "artikel" oder "hauptartikel" fehlt.' });
+        return;
+      }
+
+      const article = resolveSkuByIdentifier(customer_id, articleIdentifier);
+      if (!article) {
+        errors.push({ row: rowNumber, error: `Artikel "${articleIdentifier}" nicht gefunden.` });
+        return;
+      }
+      const mainArticle = resolveSkuByIdentifier(customer_id, mainArticleIdentifier);
+      if (!mainArticle) {
+        errors.push({ row: rowNumber, error: `Hauptartikel "${mainArticleIdentifier}" nicht gefunden.` });
+        return;
+      }
+
+      try {
+        linkSkuRow(customer_id, article.id, mainArticle.id);
+        linked++;
+      } catch (linkError) {
+        errors.push({ row: rowNumber, error: linkError.message });
+      }
+    });
+
+    res.json({
+      success: true,
+      linked,
+      errors,
+      total: rows.length,
+      message: errors.length === 0
+        ? `✅ ${linked} Artikel erfolgreich verknüpft!`
+        : `⚠️ ${linked} Artikel verknüpft, ${errors.length} Fehler gefunden.`
+    });
+  } catch (error) {
+    console.error('❌ Massen-Verknüpfung Fehler:', error);
+    res.status(500).json({ error: 'Massen-Verknüpfung fehlgeschlagen: ' + error.message });
   }
 });
 
