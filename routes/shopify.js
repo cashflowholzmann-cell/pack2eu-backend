@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 
 const router = express.Router();
 
@@ -138,12 +139,14 @@ router.post('/webhook/orders/create', verifyShopifyWebhook, async (req, res) => 
     
     let totalWeight = 0;
     const packagingMaterials = [];
-    
+    const weeeBatteryItemSets = [];
+
     order.line_items.forEach(item => {
       const sku = skuMap[item.product_id];
       if (sku) {
         const weight = sku.total_weight_grams * item.quantity;
         totalWeight += weight;
+        weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, item.quantity));
         const materials = JSON.parse(sku.materials_json);
         materials.forEach(m => {
           packagingMaterials.push({
@@ -156,11 +159,11 @@ router.post('/webhook/orders/create', verifyShopifyWebhook, async (req, res) => 
     });
     
     const insert = db.prepare(`
-      INSERT INTO shopify_orders 
-      (customer_id, shopify_order_id, order_data_json, destination_country, total_weight_grams, packaging_data)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO shopify_orders
+      (customer_id, shopify_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, weee_battery_items_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     insert.run(
       customer.id,
       // String(): better-sqlite3 bindet JS-Zahlen als REAL, was die
@@ -171,7 +174,8 @@ router.post('/webhook/orders/create', verifyShopifyWebhook, async (req, res) => 
       JSON.stringify(order),
       normalizeCountryCode(order.shipping_address?.country_code) || 'DE',
       totalWeight,
-      JSON.stringify(packagingMaterials)
+      JSON.stringify(packagingMaterials),
+      JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
     );
     
     console.log(`✅ Bestellung ${order.id} verarbeitet: ${totalWeight}g`);

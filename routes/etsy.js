@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
+const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -172,6 +173,7 @@ router.post('/sync', requireAuth, async (req, res) => {
       let totalWeight = 0;
       const packagingMaterials = [];
       let hasUnclassifiedItem = false;
+      const weeeBatteryItemSets = [];
 
       (receipt.transactions || []).forEach(tx => {
         const sku = skuMap[String(tx.listing_id)];
@@ -179,6 +181,7 @@ router.post('/sync', requireAuth, async (req, res) => {
         if (sku) {
           const weight = sku.total_weight_grams * (tx.quantity || 1);
           totalWeight += weight;
+          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, tx.quantity || 1));
           const materials = JSON.parse(sku.materials_json || '[]');
           materials.forEach(m => {
             packagingMaterials.push({
@@ -200,8 +203,8 @@ router.post('/sync', requireAuth, async (req, res) => {
 
       const result = db.prepare(`
         INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items)
-        VALUES (?, 'etsy', ?, ?, ?, ?, ?, ?)
+        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
+        VALUES (?, 'etsy', ?, ?, ?, ?, ?, ?, ?)
       `).run(
         customer.id,
         String(receipt.receipt_id),
@@ -209,7 +212,8 @@ router.post('/sync', requireAuth, async (req, res) => {
         normalizeCountryCode(receipt.country_iso) || 'DE',
         totalWeight,
         JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0
+        hasUnclassifiedItem ? 1 : 0,
+        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
       );
       if (result.changes > 0) imported++;
     }

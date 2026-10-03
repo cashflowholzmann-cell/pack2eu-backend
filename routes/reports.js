@@ -6,6 +6,7 @@ const { db } = require('../db');
 const PDFDocument = require('pdfkit');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { parseWeeeBatteryItems } = require('../lib/weee-battery-items');
 
 const router = express.Router();
 
@@ -63,21 +64,21 @@ router.use(requireActiveSubscription);
 // ============================================================
 function fetchOrdersForYear(userId, year) {
     return db.prepare(`
-        SELECT destination_country, packaging_data, created_at
+        SELECT destination_country, packaging_data, weee_battery_items_json, created_at
         FROM orders
         WHERE user_id = ?
         AND strftime('%Y', created_at) = ?
 
         UNION ALL
 
-        SELECT destination_country, packaging_data, created_at
+        SELECT destination_country, packaging_data, weee_battery_items_json, created_at
         FROM shopify_orders
         WHERE customer_id = ?
         AND strftime('%Y', created_at) = ?
 
         UNION ALL
 
-        SELECT destination_country, packaging_data, created_at
+        SELECT destination_country, packaging_data, weee_battery_items_json, created_at
         FROM marketplace_orders
         WHERE customer_id = ?
         AND strftime('%Y', created_at) = ?
@@ -121,7 +122,15 @@ function buildReportData(orders) {
         if (!reportData[country]) {
             reportData[country] = {
                 total_kg: 0,
-                materials: {}
+                materials: {},
+                // Kundenwunsch: WEEE-/Batterieprodukte (z.B. ein batterie-
+                // betriebenes Gerät neben Shampoo/Nagellack in derselben
+                // Bestellung) werden separat nach Stückzahl je Kategorie/
+                // Batterietyp gezählt statt nach Gewicht - siehe
+                // lib/weee-battery-items.js. weeeItems/batteryItems bleiben
+                // pro Land über alle Bestellungen des Jahres aufsummiert.
+                weeeItems: {},
+                batteryItems: {}
             };
         }
 
@@ -134,6 +143,18 @@ function buildReportData(orders) {
                 reportData[country].materials[material] = 0;
             }
             reportData[country].materials[material] += weightKg;
+        });
+
+        const weeeBatteryItems = parseWeeeBatteryItems(order.weee_battery_items_json);
+        weeeBatteryItems.weee.forEach(entry => {
+            const key = entry.category;
+            if (!key) return;
+            reportData[country].weeeItems[key] = (reportData[country].weeeItems[key] || 0) + (Number(entry.quantity) || 0);
+        });
+        weeeBatteryItems.battery.forEach(entry => {
+            const key = entry.battery_type;
+            if (!key) return;
+            reportData[country].batteryItems[key] = (reportData[country].batteryItems[key] || 0) + (Number(entry.quantity) || 0);
         });
     });
 

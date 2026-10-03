@@ -15,6 +15,7 @@ const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
+const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 
 const router = express.Router();
 
@@ -141,6 +142,11 @@ router.post('/sync', requireAuth, async (req, res) => {
       // klassifizierten Artikel sollen in der Liste rot auffallen (siehe
       // marketplace_orders.has_unclassified_items).
       let hasUnclassifiedItem = false;
+      // Kundenwunsch: Elektro-/Batterieprodukte in derselben Bestellung
+      // (z.B. ein batteriebetriebenes Gerät neben Shampoo/Nagellack)
+      // werden zusätzlich als Stückzahl je WEEE-Kategorie/Batterietyp
+      // erfasst - siehe lib/weee-battery-items.js.
+      const weeeBatteryItemSets = [];
 
       (order.products || []).forEach((item) => {
         const itemSku = String(item.sku || '').trim();
@@ -167,6 +173,7 @@ router.post('/sync', requireAuth, async (req, res) => {
         if (sku) {
           // Pack2EU-Verpackungsdaten haben Vorrang.
           totalWeight += Number(sku.total_weight_grams || 0) * quantity;
+          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, quantity));
 
           let materials = [];
 
@@ -260,9 +267,10 @@ router.post('/sync', requireAuth, async (req, res) => {
             total_weight_grams,
             packaging_data,
             fulfillment_type,
-            has_unclassified_items
+            has_unclassified_items,
+            weee_battery_items_json
           )
-          VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           customer.id,
           externalOrderId,
@@ -271,7 +279,8 @@ router.post('/sync', requireAuth, async (req, res) => {
           totalWeight,
           JSON.stringify(packagingMaterials),
           order.order_source || null,
-          hasUnclassifiedItem ? 1 : 0
+          hasUnclassifiedItem ? 1 : 0,
+          JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
         );
 
         imported++;
