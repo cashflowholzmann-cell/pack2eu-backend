@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
+const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -162,6 +163,7 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
       let totalWeight = 0;
       const packagingMaterials = [];
       let hasUnclassifiedItem = false;
+      const weeeBatteryItemSets = [];
       const items = itemsResponse.data?.payload?.OrderItems || [];
 
       items.forEach(item => {
@@ -171,6 +173,7 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
           const qty = parseInt(item.QuantityOrdered, 10) || 1;
           const weight = sku.total_weight_grams * qty;
           totalWeight += weight;
+          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
           const materials = JSON.parse(sku.materials_json || '[]');
           materials.forEach(m => {
             packagingMaterials.push({
@@ -194,8 +197,8 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
 
       const result = db.prepare(`
         INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items)
-        VALUES (?, 'amazon', ?, ?, ?, ?, ?, ?)
+        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
+        VALUES (?, 'amazon', ?, ?, ?, ?, ?, ?, ?)
       `).run(
         customer.id,
         order.AmazonOrderId,
@@ -203,7 +206,8 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
         normalizeCountryCode(order.ShippingAddress?.CountryCode) || 'DE',
         totalWeight,
         JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0
+        hasUnclassifiedItem ? 1 : 0,
+        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
       );
       if (result.changes > 0) imported++;
     }

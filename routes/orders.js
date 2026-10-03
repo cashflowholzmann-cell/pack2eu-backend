@@ -3,6 +3,7 @@ const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { emptyWeeeBatteryItems } = require('../lib/weee-battery-items');
 
 const router = express.Router();
 
@@ -16,13 +17,30 @@ function normalizeSourcePlatform(value) {
     return VALID_SOURCE_PLATFORMS.includes(value) ? value : 'own_shop';
 }
 
+// Kundenwunsch: eine manuelle Bestellung kann neben reinen
+// Verpackungsartikeln auch Elektro-/Batterieprodukte enthalten (z.B. ein
+// batteriebetriebenes Gerät). Der Bestellungs-Konfigurator im Frontend
+// berechnet das Stückzahl-Aggregat bereits clientseitig aus den
+// ausgewählten SKUs (siehe computeOrderWeeeBatteryItems() in
+// dashboard.html, analog zu computeOrderAggregate() für packaging_data) -
+// hier nur grob auf die erwartete Form {weee:[...], battery:[...]}
+// validieren, nicht die einzelnen SKUs erneut nachschlagen (genau wie
+// packaging_data bereits unverändert vom Client übernommen wird).
+function normalizeWeeeBatteryItems(value) {
+    if (!value || typeof value !== 'object') return emptyWeeeBatteryItems();
+    return {
+        weee: Array.isArray(value.weee) ? value.weee : [],
+        battery: Array.isArray(value.battery) ? value.battery : []
+    };
+}
+
 // ============================================================
 // MANUELLE BESTELLUNG
 // ============================================================
 router.post('/manual', (req, res) => {
     try {
         const userId = req.customer.sub;
-        const { order_id, destination_country, total_weight_grams, packaging_data, created_at, source_platform } = req.body;
+        const { order_id, destination_country, total_weight_grams, packaging_data, weee_battery_items, created_at, source_platform } = req.body;
 
         // Bestellung speichern
         const stmt = db.prepare(`
@@ -32,9 +50,10 @@ router.post('/manual', (req, res) => {
                 destination_country,
                 total_weight_grams,
                 packaging_data,
+                weee_battery_items_json,
                 created_at,
                 source_platform
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const result = stmt.run(
@@ -43,6 +62,7 @@ router.post('/manual', (req, res) => {
             destination_country,
             total_weight_grams || 0,
             JSON.stringify(packaging_data || []),
+            JSON.stringify(normalizeWeeeBatteryItems(weee_battery_items)),
             created_at || new Date().toISOString(),
             normalizeSourcePlatform(source_platform)
         );
@@ -74,7 +94,7 @@ router.put('/manual/:id', (req, res) => {
     try {
         const userId = req.customer.sub;
         const { id } = req.params;
-        const { order_id, destination_country, total_weight_grams, packaging_data, created_at, source_platform } = req.body;
+        const { order_id, destination_country, total_weight_grams, packaging_data, weee_battery_items, created_at, source_platform } = req.body;
 
         const existing = db.prepare('SELECT id FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
         if (!existing) {
@@ -87,6 +107,7 @@ router.put('/manual/:id', (req, res) => {
                 destination_country = ?,
                 total_weight_grams = ?,
                 packaging_data = ?,
+                weee_battery_items_json = ?,
                 created_at = ?,
                 source_platform = ?
             WHERE id = ? AND user_id = ?
@@ -95,6 +116,7 @@ router.put('/manual/:id', (req, res) => {
             destination_country,
             total_weight_grams || 0,
             JSON.stringify(packaging_data || []),
+            JSON.stringify(normalizeWeeeBatteryItems(weee_battery_items)),
             created_at || new Date().toISOString(),
             normalizeSourcePlatform(source_platform),
             id,

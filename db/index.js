@@ -809,6 +809,36 @@ function init() {
     // routes/orders.js).
     addColumnIfMissing('orders', 'source_platform', 'TEXT');
 
+    // Kundenwunsch: eine Bestellung kann neben reinen Verpackungsartikeln
+    // (Shampoo, Nagellack - Verpackungsgewicht in packaging_data) auch
+    // Elektro-/Batterieprodukte enthalten (z.B. ein batteriebetriebenes
+    // Gerät). WEEE/Batterie-EPR wird anders gemeldet als Verpackung -
+    // nicht nach Gewicht, sondern nach STÜCKZAHL je Kategorie/Batterietyp.
+    // weee_battery_items_json hält deshalb zusätzlich zu packaging_data
+    // ein eigenes {"weee":[{"category":code,"quantity":n,"sku_name":...}],
+    // "battery":[{"battery_type":code,"quantity":n,"sku_name":...}]} -
+    // befüllt aus product_packaging.is_electrical_equipment/weee_category
+    // bzw. contains_battery/battery_type zum Zeitpunkt der Bestellung
+    // (siehe lib/weee-battery-items.js), damit /reports/annual eine echte
+    // Stückzahl-Aggregation je Land für die WEEE-/Batterie-Meldung bilden
+    // kann - rein additiv, ändert nichts an der bestehenden
+    // Verpackungsgewicht-Logik.
+    addColumnIfMissing('orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
+    addColumnIfMissing('shopify_orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
+    addColumnIfMissing('marketplace_orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
+
+    // submissions war bisher implizit nur für den Verpackungs-Stream
+    // gedacht (Maße + Material-Gewichte) - stream unterscheidet jetzt wie
+    // bei activations/compliance_cases/monthly_reports zwischen
+    // 'packaging', 'weee' und 'battery'. items_json hält für weee/battery
+    // dieselbe Stückzahl-Struktur wie oben (Kategorie/Batterietyp +
+    // Menge) statt Material+Gewicht - length_cm/width_cm/height_cm bleiben
+    // dafür ungenutzt (0), da eine reine Stückzahl-Meldung keine
+    // Paketmaße hat und die Spalten nicht nachträglich NULL-fähig gemacht
+    // werden sollen (keine Tabellen-Neuanlage nötig).
+    addColumnIfMissing('submissions', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    addColumnIfMissing('submissions', 'items_json', 'TEXT');
+
     addColumnIfMissing(
       'customers',
       'created_at',

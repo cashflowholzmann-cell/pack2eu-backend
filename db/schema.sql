@@ -508,6 +508,10 @@ CREATE TABLE IF NOT EXISTS orders (
 
   packaging_data TEXT NOT NULL DEFAULT '[]',
 
+  -- Stückzahl-Aggregat für WEEE-/Batterieprodukte in dieser Bestellung -
+  -- siehe Kommentar in db/index.js (addColumnIfMissing-Migration).
+  weee_battery_items_json TEXT NOT NULL DEFAULT '{"weee":[],"battery":[]}',
+
   created_at TEXT NOT NULL
     DEFAULT (datetime('now'))
 );
@@ -534,6 +538,8 @@ CREATE TABLE IF NOT EXISTS shopify_orders (
   total_weight_grams INTEGER,
 
   packaging_data TEXT,
+
+  weee_battery_items_json TEXT NOT NULL DEFAULT '{"weee":[],"battery":[]}',
 
   submission_id INTEGER
     REFERENCES submissions(id),
@@ -577,6 +583,8 @@ CREATE TABLE IF NOT EXISTS marketplace_orders (
 
   packaging_data TEXT,
 
+  weee_battery_items_json TEXT NOT NULL DEFAULT '{"weee":[],"battery":[]}',
+
   created_at TEXT NOT NULL
     DEFAULT (datetime('now')),
 
@@ -608,6 +616,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   materials_json TEXT NOT NULL,
 
   total_weight_kg REAL NOT NULL,
+
+  -- 'packaging' (Standard, nutzt die Felder oben), 'weee' oder 'battery'
+  -- (nutzen stattdessen items_json, siehe Kommentar in db/index.js).
+  stream TEXT NOT NULL DEFAULT 'packaging',
+
+  items_json TEXT,
 
   status TEXT NOT NULL
     DEFAULT 'received',

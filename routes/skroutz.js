@@ -27,6 +27,7 @@ const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
+const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -129,6 +130,7 @@ router.post('/webhook/:customerId', async (req, res) => {
     let totalWeight = 0;
     const packagingMaterials = [];
     let hasUnclassifiedItem = false;
+    const weeeBatteryItemSets = [];
     (fullOrder.line_items || []).forEach(item => {
       const sku = skuMap[String(item.shop_uid)];
       if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
@@ -136,6 +138,7 @@ router.post('/webhook/:customerId', async (req, res) => {
         const qty = item.quantity || 1;
         const weight = sku.total_weight_grams * qty;
         totalWeight += weight;
+        weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
         const materials = JSON.parse(sku.materials_json || '[]');
         materials.forEach(m => {
           packagingMaterials.push({
@@ -157,8 +160,8 @@ router.post('/webhook/:customerId', async (req, res) => {
 
     db.prepare(`
       INSERT OR IGNORE INTO marketplace_orders
-      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type, has_unclassified_items)
-      VALUES (?, 'skroutz', ?, ?, ?, ?, ?, ?, ?)
+      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type, has_unclassified_items, weee_battery_items_json)
+      VALUES (?, 'skroutz', ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       customer.id,
       String(fullOrder.code),
@@ -170,7 +173,8 @@ router.post('/webhook/:customerId', async (req, res) => {
       // (developer.skroutz.gr/smart_cart/_order_object) - FBS: Skroutz
       // übernimmt Lagerung/Versand, sonst versendet der Händler selbst.
       fullOrder.fulfilled_by_skroutz ? 'fbs' : 'direct',
-      hasUnclassifiedItem ? 1 : 0
+      hasUnclassifiedItem ? 1 : 0,
+      JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
     );
 
     res.status(200).json({ ok: true });

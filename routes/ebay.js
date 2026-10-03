@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
+const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 
 const router = express.Router();
@@ -158,6 +159,7 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
       let totalWeight = 0;
       const packagingMaterials = [];
       let hasUnclassifiedItem = false;
+      const weeeBatteryItemSets = [];
 
       (order.lineItems || []).forEach(item => {
         const sku = skuMap[item.legacyItemId];
@@ -166,6 +168,7 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
           const qty = item.quantity || 1;
           const weight = sku.total_weight_grams * qty;
           totalWeight += weight;
+          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
           const materials = JSON.parse(sku.materials_json || '[]');
           materials.forEach(m => {
             packagingMaterials.push({
@@ -187,8 +190,8 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
 
       const result = db.prepare(`
         INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items)
-        VALUES (?, 'ebay', ?, ?, ?, ?, ?, ?)
+        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
+        VALUES (?, 'ebay', ?, ?, ?, ?, ?, ?, ?)
       `).run(
         customer.id,
         order.orderId,
@@ -196,7 +199,8 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
         normalizeCountryCode(order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode) || 'DE',
         totalWeight,
         JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0
+        hasUnclassifiedItem ? 1 : 0,
+        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
       );
       if (result.changes > 0) imported++;
     }
