@@ -16,6 +16,7 @@ const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
 const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { linkSkuRow } = require('./skus');
 
 const router = express.Router();
 
@@ -334,6 +335,171 @@ router.get('/orders', requireAuth, (req, res) => {
     res.status(500).json({
       error: 'Fehler beim Laden der Base.com-Bestellungen.'
     });
+  }
+});
+
+// ============================================================
+// 4. Base-Katalog: Varianten automatisch verknüpfen
+// ============================================================
+// Kundenwunsch: bei sehr vielen Farb-/Größenvarianten (z.B. Nagellack in
+// mehreren Farben) soll Pack2EU die ohnehin in Base gepflegte
+// Produkt->Varianten-Gruppierung nutzen, statt jede Variante einzeln oder
+// per CSV verknüpfen zu müssen. Base führt das nativ: ein "Produkt" bündelt
+// mehrere "Varianten", jede mit eigener SKU - genau diese Struktur bilden
+// wir hier auf unsere bestehende linked_to_sku_id-Verknüpfung ab.
+router.post('/sync-catalog-links', requireAuth, async (req, res) => {
+  try {
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
+    if (!customer?.baselinker_api_token) {
+      return res.status(400).json({ error: 'Base.com nicht verbunden.' });
+    }
+
+    const inventoriesResponse = await baselinkerRequest({
+      method: 'getInventories',
+      parameters: {},
+      apiToken: customer.baselinker_api_token
+    });
+    if (inventoriesResponse.data?.status !== 'SUCCESS') {
+      throw new Error(inventoriesResponse.data?.error_message || 'Unbekannter Fehler von Base.com.');
+    }
+    const inventories = inventoriesResponse.data.inventories || [];
+    if (inventories.length === 0) {
+      return res.status(400).json({ error: 'Kein Produktkatalog (Lager) in Base.com gefunden.' });
+    }
+    const inventoryId = inventories[0].inventory_id;
+
+    // Alle Produkt-IDs des Katalogs sammeln (Base liefert max. 1000 pro Seite).
+    const productIds = [];
+    let page = 1;
+    while (true) {
+      const listResponse = await baselinkerRequest({
+        method: 'getInventoryProductsList',
+        parameters: { inventory_id: inventoryId, page },
+        apiToken: customer.baselinker_api_token
+      });
+      if (listResponse.data?.status !== 'SUCCESS') {
+        throw new Error(listResponse.data?.error_message || 'Unbekannter Fehler von Base.com.');
+      }
+      const pageProductIds = Object.keys(listResponse.data.products || {});
+      if (pageProductIds.length === 0) break;
+      productIds.push(...pageProductIds);
+      if (pageProductIds.length < 1000) break;
+      page++;
+    }
+
+    if (productIds.length === 0) {
+      return res.json({
+        ok: true,
+        groups_found: 0,
+        linked: 0,
+        skipped: 0,
+        errors: [],
+        message: 'Keine Produkte im Base-Katalog gefunden.'
+      });
+    }
+
+    // Volle Produktdaten inkl. Varianten in Batches zu je 1000 IDs laden.
+    const productsById = {};
+    for (let i = 0; i < productIds.length; i += 1000) {
+      const batch = productIds.slice(i, i + 1000);
+      const dataResponse = await baselinkerRequest({
+        method: 'getInventoryProductsData',
+        parameters: { inventory_id: inventoryId, products: batch },
+        apiToken: customer.baselinker_api_token
+      });
+      if (dataResponse.data?.status !== 'SUCCESS') {
+        throw new Error(dataResponse.data?.error_message || 'Unbekannter Fehler von Base.com.');
+      }
+      Object.assign(productsById, dataResponse.data.products || {});
+    }
+
+    // Pack2EU-SKUs des Kunden nach Base-SKU indizieren.
+    const pack2euSkus = db.prepare(`
+      SELECT * FROM product_packaging WHERE customer_id = ? AND baselinker_sku IS NOT NULL
+    `).all(customer.id);
+    const pack2euByBaseSku = {};
+    pack2euSkus.forEach((sku) => {
+      const key = String(sku.baselinker_sku || '').trim();
+      if (key) pack2euByBaseSku[key] = sku;
+    });
+
+    function isClassified(sku) {
+      try {
+        const materials = JSON.parse(sku.materials_json || '[]');
+        return Array.isArray(materials) && materials.length > 0;
+      } catch {
+        return false;
+      }
+    }
+
+    let groupsFound = 0;
+    let linked = 0;
+    let skipped = 0;
+    const errors = [];
+
+    Object.values(productsById).forEach((product) => {
+      const variantEntries = Object.values(product.variants || {});
+      // Nur echte Variantengruppen (>=2 Varianten) sind für uns relevant -
+      // ein Produkt ohne Varianten gibt es nichts zu gruppieren.
+      const memberBaseSkus = variantEntries
+        .map((v) => String(v.sku || '').trim())
+        .filter(Boolean);
+      if (memberBaseSkus.length < 2) return;
+
+      groupsFound++;
+
+      const groupName = product.text_fields?.name || product.sku || String(product.id);
+      const matchedSkus = memberBaseSkus.map((baseSku) => pack2euByBaseSku[baseSku]).filter(Boolean);
+      if (matchedSkus.length < 2) {
+        skipped++;
+        return; // zu wenige bereits bekannte Pack2EU-Artikel in dieser Gruppe
+      }
+
+      // Hauptartikel-Kandidat: bereits klassifiziert und noch nicht
+      // anderweitig verknüpft. Lieber nichts verknüpfen als falsch
+      // zusammenführen, wenn die Gruppe uneindeutig ist.
+      const candidates = matchedSkus.filter((s) => isClassified(s) && !s.linked_to_sku_id);
+
+      if (candidates.length === 0) {
+        skipped++;
+        errors.push({ group: groupName, error: 'Keine klassifizierte Variante in dieser Gruppe gefunden - bitte zuerst eine Variante manuell klassifizieren.' });
+        return;
+      }
+
+      if (candidates.length > 1) {
+        const distinctWeights = new Set(candidates.map((c) => c.total_weight_grams));
+        if (distinctWeights.size > 1) {
+          skipped++;
+          errors.push({ group: groupName, error: 'Mehrere unterschiedlich klassifizierte Varianten gefunden - bitte manuell prüfen.' });
+          return;
+        }
+      }
+
+      const mainSku = candidates[0];
+      matchedSkus.forEach((sku) => {
+        if (sku.id === mainSku.id || sku.linked_to_sku_id === mainSku.id) return;
+        try {
+          linkSkuRow(customer.id, sku.id, mainSku.id);
+          linked++;
+        } catch (linkError) {
+          errors.push({ group: groupName, error: linkError.message });
+        }
+      });
+    });
+
+    res.json({
+      ok: true,
+      groups_found: groupsFound,
+      linked,
+      skipped,
+      errors,
+      message: linked > 0
+        ? `✅ ${linked} Variante(n) automatisch anhand des Base-Katalogs verknüpft (${groupsFound} Gruppen gefunden).`
+        : `ℹ️ Keine neuen Verknüpfungen gefunden (${groupsFound} Gruppen im Base-Katalog erkannt).`
+    });
+  } catch (err) {
+    console.error('❌ Base-Katalog-Verknüpfung Fehler:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Fehler beim Verknüpfen aus dem Base-Katalog: ' + err.message });
   }
 });
 
