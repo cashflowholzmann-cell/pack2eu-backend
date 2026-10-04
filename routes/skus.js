@@ -559,3 +559,7 @@ router.delete('/:id', (req, res) => {
 });
 
 module.exports = router;
+// Für die Base-Katalog-Auto-Verknüpfung (siehe routes/baselinker.js) -
+// nutzt dieselbe Verknüpfungslogik wie der Einzel- und CSV-Massen-Link,
+// statt sie ein drittes Mal zu duplizieren.
+module.exports.linkSkuRow = linkSkuRow;
