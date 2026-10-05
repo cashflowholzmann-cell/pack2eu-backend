@@ -1301,8 +1301,10 @@ function init() {
       WHERE code = 'SE'
     `).run(
       JSON.stringify([
-        'Registrierung und Meldung bei der schwedischen Umweltbehörde Naturvårdsverket erforderlich.',
-        'Anschluss an eine anerkannte Produzentenverantwortungsorganisation, z. B. Näringslivets Producentansvar (NPA) oder Tailor-Made Responsibility (TMR).',
+        'Registrierung und Meldung bei der schwedischen Umweltbehörde Naturvårdsverket im "Producentansvarsregistret" erforderlich, VOR Inverkehrbringen der Verpackung.',
+        'Anschluss an eine anerkannte Produzentenverantwortungsorganisation, z. B. Näringslivets Producentansvar (NPA) oder Tailor-Made Responsibility (TMR). Hinweis: Die frühere Organisation FTI (Förpacknings- och Tidningsinsamlingen) wurde zum 1.1.2024 in NPA eingegliedert – wer nach "FTI Schweden" sucht, landet heute bei NPA; die Registrierung selbst bleibt aber direkt bei Naturvårdsverket.',
+        'Jährliche Abstimmung der Verpackungsvolumina bei Naturvårdsverket, üblicherweise fällig bis 31.3. des Folgejahres für das Vorjahr (Quelle: Branchenleitfaden Certivo, Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).',
+        'Verspätete Registrierung wird in Schweden als sanktionsbewehrter Verstoß behandelt: Naturvårdsverket kann seit 1.1.2024 eine Umweltsanktionsgebühr (miljösanktionsavgift) sowie Zwangsgeld (vite) zur Durchsetzung verhängen.',
         'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.',
         'Meldefrequenz an die PRO gestaffelt nach Jahresgebühr: monatlich über 120.000 SEK, quartalsweise ab ca. 20.000 SEK, jährlich für sehr kleine Vertreiber – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
         'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: NPA-Tarife unterscheiden zwar "formstabiler Kunststoff" von anderem Kunststoff und gewähren Boni für unpigmentierte Monomaterialien (z. B. reines PP/PE), das wirkt aber eher wie eine Recycling-Bonus-Regelung innerhalb einer Kunststoff-Kategorie als eine echte Polymer-Aufschlüsselungspflicht (Quelle: naturvardsverket.se, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).',
