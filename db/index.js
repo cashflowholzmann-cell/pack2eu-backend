@@ -1134,6 +1134,7 @@ function init() {
         requirements_json = ?,
         labeling_json = ?,
         eco_fee = 'Éco-contribution an das gewählte Eco-organisme, gestaffelt nach Material, Gewicht und Recyclingfähigkeit.',
+        representative_required = 1,
         representative_provider_name = 'EPR Representative (France)',
         representative_provider_url = 'https://eprrepresentative.com/fr/mandataire-rep-france',
         representative_data_status = 'needs_verification',
@@ -1142,9 +1143,10 @@ function init() {
       WHERE code = 'FR'
     `).run(
       JSON.stringify([
-        'Mandataire (Bevollmächtigter) in Frankreich zwingend seit 10.07.2026 für Unternehmen ohne Sitz in Frankreich.',
+        'Mandataire (Bevollmächtigter) in Frankreich zwingend seit 10.07.2026 für Unternehmen ohne Sitz in Frankreich (Art. L541-10-9-1 Code de l\'environnement), unabhängig von EU- oder Nicht-EU-Herkunft.',
         'Mitgliedschaft bei einem Eco-organisme und jährliche Meldung der Verpackungsmengen über SYDEREP/ADEME.',
-        'Eindeutige REP-Kennung (identifiant unique) erforderlich.'
+        'Eindeutige REP-Kennung (identifiant unique) erforderlich.',
+        'ALTERNATIVE (10/2026 gefunden): Citeo, das größte französische Eco-organisme für Verpackungen, bietet über ein eigenes Portal direkt einen Bevollmächtigten-Auswahlservice an (https://clients.citeo.com/en/public/rep-choice) - laut Recherche OHNE eigene Marge auf den Bevollmächtigten-Service (nur die normale Öko-Gebühr/Mitgliedschaft wird weitergereicht). Noch nicht selbst verifiziert/kontaktiert, aber vermutlich günstiger als ein externer Drittanbieter - vor Nutzung direkt bei Citeo nachfragen.'
       ]),
       JSON.stringify([
         'Triman-Logo und Sortieranweisung (Info-tri) auf Verkaufsverpackungen vorgeschrieben.'
