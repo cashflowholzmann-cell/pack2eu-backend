@@ -1294,8 +1294,10 @@ function init() {
         registration_url = 'https://www.naturvardsverket.se/vagledning-och-stod/producentansvar/eu-forordningen-om-forpackningar-ppwr/',
         requirements_json = ?,
         eco_fee = 'Beitrag an die gewählte Producentansvarsorganisation (NPA oder TMR), material- und mengenabhängig.',
+        representative_required = 1,
+        representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
-        data_status = 'verified'
+        data_status = 'needs_verification'
       WHERE code = 'SE'
     `).run(
       JSON.stringify([
@@ -1304,7 +1306,8 @@ function init() {
         'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.',
         'Meldefrequenz an die PRO gestaffelt nach Jahresgebühr: monatlich über 120.000 SEK, quartalsweise ab ca. 20.000 SEK, jährlich für sehr kleine Vertreiber – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
         'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: NPA-Tarife unterscheiden zwar "formstabiler Kunststoff" von anderem Kunststoff und gewähren Boni für unpigmentierte Monomaterialien (z. B. reines PP/PE), das wirkt aber eher wie eine Recycling-Bonus-Regelung innerhalb einer Kunststoff-Kategorie als eine echte Polymer-Aufschlüsselungspflicht (Quelle: naturvardsverket.se, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).',
-        'Aktuelles schwedisches Recht verlangt Stand 09/2026 noch keinen Bevollmächtigten für Verpackungen – das könnte sich mit der PPWR-Umsetzung ändern; ein pan-europäischer Anbieter (EUROMANDAT) wirbt bereits mit Schweden-Abdeckung, ohne dass dies unabhängig bestätigt werden konnte.'
+        'KORREKTUR 10/2026: Seit 12.08.2026 (PPWR Art. 45 Abs. 3, EU-Verordnung, unmittelbar geltend) verlangt Naturvårdsverket laut eigener Webseite von JEDEM Hersteller, der nicht in Schweden niedergelassen ist (also auch EU-ansässigen, nicht nur Nicht-EU), einen in Schweden ansässigen Bevollmächtigten ("producentombud") per schriftlicher Vollmacht - unabhängig von der vorherigen schwedischen Eigenregel. Ein Vorschlag der EU-Kommission (Omnibus-Paket 10.12.2025), diese Pflicht für EU-ansässige Hersteller bis 2035 auszusetzen, wurde laut Rat im Juni 2026 NICHT angenommen (Verhandlungen wegen Widerstands der Mitgliedstaaten eingestellt) - die Pflicht gilt also aktuell uneingeschränkt. Konkreter Anbieter für Schweden noch nicht recherchiert.',
+        'WICHTIG: PPWR Art. 45 ist eine EU-VERORDNUNG mit unmittelbarer Geltung in allen 27 Mitgliedstaaten ab 12.08.2026 - diese Bevollmächtigtenpflicht gilt vermutlich nicht nur für Schweden, sondern grundsätzlich EU-weit für jedes Land, in dem ein Hersteller nicht niedergelassen ist. Die Länderdaten für ALLE anderen EU-Länder sollten auf dieselbe Frage hin geprüft werden (z. B. auch Finnland - dort wurde bislang nur das ältere nationale Abfallgesetz geprüft, nicht Art. 45 PPWR selbst) - noch nicht systematisch durchgeführt, dringend empfohlen über legal-watch.js nachzuholen.'
       ])
     );
 
