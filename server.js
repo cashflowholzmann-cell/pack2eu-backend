@@ -360,6 +360,8 @@ app.listen(PORT, '0.0.0.0', () => {
   );
   console.log('==============================================');
   console.log('');
+
+  require('./lib/baselinker-scheduler').startBaselinkerAutoSync();
 });
 
 // ============================================================

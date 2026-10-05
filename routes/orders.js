@@ -4,6 +4,7 @@ const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 const { emptyWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { resolveSkuByIdentifier } = require('./skus');
 
 const router = express.Router();
 
@@ -320,6 +321,126 @@ router.put('/marketplace/:id', (req, res) => {
     } catch (error) {
         console.error('❌ Marktplatz-Bestellung korrigieren Fehler:', error);
         res.status(500).json({ error: 'Bestellung konnte nicht korrigiert werden.' });
+    }
+});
+
+// ============================================================
+// CSV-BESTELLUNGS-BULK-IMPORT
+//
+// Kundenwunsch (Bella Rosa/bmind, Griechenland): Verkäufe über einen
+// Marktplatz ohne eigene Pack2EU-Integration (z.B. bmind) lassen sich
+// nicht automatisch synchronisieren. Statt jede Bestellung einzeln über
+// POST /manual anzulegen, können mehrere Bestellungen per CSV importiert
+// werden - analog zum bestehenden CSV-Massen-Link (routes/skus.js,
+// POST /skus/bulk-link): CSV wird clientseitig geparst, die Zeilen kommen
+// hier als JSON an.
+//
+// Erwartete Spalten je Zeile: artikel (Pack2EU-SKU-Name oder Base-SKU,
+// wie bei resolveSkuByIdentifier), menge, zielland (Code oder Klartext),
+// optional bestellnummer (zum Gruppieren mehrerer Artikel-Zeilen zu EINER
+// Bestellung - siehe packaging_data als Array bei POST /manual) und datum.
+// ============================================================
+router.post('/bulk-import', (req, res) => {
+    try {
+        const userId = req.customer.sub;
+        const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
+        if (rows.length === 0) {
+            return res.status(400).json({ error: 'Keine Zeilen zum Verarbeiten übermittelt.' });
+        }
+
+        const errors = [];
+        const orderGroups = new Map();
+
+        rows.forEach((row, index) => {
+            const rowNumber = index + 2; // Zeile 1 ist der CSV-Header
+            const articleIdentifier = String(row.artikel || '').trim();
+            const quantity = Number(row.menge) > 0 ? Number(row.menge) : 1;
+            const destinationRaw = String(row.zielland || '').trim();
+            const orderRef = String(row.bestellnummer || '').trim();
+
+            if (!articleIdentifier) {
+                errors.push({ row: rowNumber, error: 'Spalte "artikel" fehlt.' });
+                return;
+            }
+            if (!destinationRaw) {
+                errors.push({ row: rowNumber, error: 'Spalte "zielland" fehlt.' });
+                return;
+            }
+
+            const destination_country = normalizeCountryCode(destinationRaw);
+            if (!destination_country) {
+                errors.push({ row: rowNumber, error: `Zielland "${destinationRaw}" nicht erkannt.` });
+                return;
+            }
+
+            const sku = resolveSkuByIdentifier(userId, articleIdentifier);
+            if (!sku) {
+                errors.push({ row: rowNumber, error: `Artikel "${articleIdentifier}" nicht gefunden.` });
+                return;
+            }
+
+            let materials = [];
+            try { materials = JSON.parse(sku.materials_json || '[]'); } catch { materials = []; }
+
+            // Ohne Bestellnummer gilt jede Zeile als eigene Bestellung -
+            // sonst werden mehrere Zeilen mit derselben Bestellnummer zu
+            // einer Bestellung mit mehreren Verpackungs-Posten zusammengefasst.
+            const groupKey = orderRef || `__row_${index}`;
+            if (!orderGroups.has(groupKey)) {
+                orderGroups.set(groupKey, {
+                    order_ref: orderRef || null,
+                    destination_country,
+                    created_at: row.datum ? String(row.datum).trim() : null,
+                    totalWeight: 0,
+                    packaging_data: []
+                });
+            }
+            const group = orderGroups.get(groupKey);
+
+            group.totalWeight += Number(sku.total_weight_grams || 0) * quantity;
+            materials.forEach((material) => {
+                group.packaging_data.push({
+                    material: material.material,
+                    weight_grams: Number(material.weight_grams || 0) * quantity,
+                    is_recyclable: material.is_recyclable
+                });
+            });
+        });
+
+        const insertStmt = db.prepare(`
+            INSERT INTO orders (
+                user_id, shopify_order_id, destination_country, total_weight_grams,
+                packaging_data, weee_battery_items_json, created_at, source_platform
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        let imported = 0;
+        orderGroups.forEach((group) => {
+            insertStmt.run(
+                userId,
+                group.order_ref || ('CSV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7)),
+                group.destination_country,
+                group.totalWeight,
+                JSON.stringify(group.packaging_data),
+                JSON.stringify(emptyWeeeBatteryItems()),
+                group.created_at || new Date().toISOString(),
+                'own_shop'
+            );
+            imported++;
+        });
+
+        res.json({
+            success: true,
+            imported,
+            errors,
+            total: rows.length,
+            message: errors.length === 0
+                ? `✅ ${imported} Bestellung(en) erfolgreich importiert!`
+                : `⚠️ ${imported} Bestellung(en) importiert, ${errors.length} Fehler gefunden.`
+        });
+    } catch (error) {
+        console.error('❌ Bestellungs-Bulk-Import Fehler:', error);
+        res.status(500).json({ error: 'Bulk-Import fehlgeschlagen: ' + error.message });
     }
 });
 
