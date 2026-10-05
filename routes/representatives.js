@@ -535,15 +535,38 @@ router.get('/export.csv', requireAuth, requireRepRole, (req, res) => {
     const rep = db.prepare('SELECT country_code, stream FROM representatives WHERE id = ?').get(req.auth.userId);
     if (!rep) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.', error_code: 'NOT_FOUND' });
 
-    const rows = db.prepare(`
-      SELECT s.id, s.destination, s.created_at, s.status, s.total_weight_kg, s.materials_json,
-             c.company_name, c.customer_number
-      FROM submissions s
-      JOIN customers c ON c.id = s.customer_id
-      JOIN representative_customer_assignments rca ON rca.customer_id = c.id
-      WHERE rca.representative_id = ? AND s.destination = ? AND s.stream = ?
-      ORDER BY s.created_at DESC
-    `).all(req.auth.userId, rep.country_code, rep.stream);
+    const customerId = req.query.customerId ? parseInt(req.query.customerId, 10) : null;
+    let filename = `Pack2EU_Meldungen_${rep.country_code}.csv`;
+    let rows;
+
+    if (customerId) {
+      const assigned = db.prepare(`
+        SELECT 1 FROM representative_customer_assignments WHERE representative_id = ? AND customer_id = ?
+      `).get(req.auth.userId, customerId);
+      if (!assigned) return res.status(403).json({ error: 'Kein zugewiesener Kunde.', error_code: 'FORBIDDEN' });
+
+      rows = db.prepare(`
+        SELECT s.id, s.destination, s.created_at, s.status, s.total_weight_kg, s.materials_json,
+               c.company_name, c.customer_number
+        FROM submissions s
+        JOIN customers c ON c.id = s.customer_id
+        WHERE s.customer_id = ? AND s.destination = ? AND s.stream = ?
+        ORDER BY s.created_at DESC
+      `).all(customerId, rep.country_code, rep.stream);
+
+      const customerNumber = rows[0] && rows[0].customer_number;
+      filename = `Pack2EU_Meldungen_${rep.country_code}_${customerNumber || customerId}.csv`;
+    } else {
+      rows = db.prepare(`
+        SELECT s.id, s.destination, s.created_at, s.status, s.total_weight_kg, s.materials_json,
+               c.company_name, c.customer_number
+        FROM submissions s
+        JOIN customers c ON c.id = s.customer_id
+        JOIN representative_customer_assignments rca ON rca.customer_id = c.id
+        WHERE rca.representative_id = ? AND s.destination = ? AND s.stream = ?
+        ORDER BY s.created_at DESC
+      `).all(req.auth.userId, rep.country_code, rep.stream);
+    }
 
     const csvRows = [['Kundennummer', 'Firma', 'Zielland', 'Datum', 'Status', 'Gesamtgewicht (kg)', 'Materialien']];
     rows.forEach((r) => {
@@ -557,9 +580,8 @@ router.get('/export.csv', requireAuth, requireRepRole, (req, res) => {
     });
 
     const csv = csvRows.map((row) => row.join(';')).join('\n');
-    const filename = `Pack2EU_Meldungen_${rep.country_code}.csv`;
 
-    logAccess(req.auth.userId, null, 'export_csv', req);
+    logAccess(req.auth.userId, customerId || null, 'export_csv', req);
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
