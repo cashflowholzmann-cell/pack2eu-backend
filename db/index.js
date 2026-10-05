@@ -1724,7 +1724,7 @@ function init() {
         register_body = 'LVV (Lupa- ja valvontavirasto) – Tuottajarekisteri (seit 1.1.2026 zuständig, vorher Pirkanmaa ELY-Zentrum); Systembeteiligung über Suomen Pakkaustuottajat Oy (SPT) / Rinki',
         registration_url = 'https://rinkiin.fi/en/producer-responsibility/join-a-producer-organisation/',
         requirements_json = ?,
-        representative_required = 1,
+        representative_required = 0,
         representative_provider_name = NULL,
         representative_provider_url = NULL,
         representative_data_status = 'needs_verification',
@@ -1736,9 +1736,9 @@ function init() {
         'Registrierung und Meldung der Verpackungsmengen erfolgt in Finnland meist über Rinki (Suomen Pakkauskierrätys RINKI Oy).',
         'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.',
         'Materialmeldung vermutlich granular: Rinki-Gebühren werden laut mehreren Quellen materialspezifisch bis auf Kilogramm-Ebene berechnet unter Nennung anerkannter Kunststoffarten (PET, HDPE, PVC, LDPE, PP) – konnte nicht direkt an Rinkis offizieller Preisliste verifiziert werden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).',
-        'Finnland verlangt laut lvv.fi auch von EU-ansässigen (nicht nur nicht-EU) Fernabsatzhändlern ohne Niederlassung in Finnland einen in Finnland ansässigen Bevollmächtigten für die Verpackungs-Herstellerverantwortung.',
-        'Kundenmeldung 10/2026: Elker Oy (vorher hier als Anbieter gelistet) deckt laut eigener Website nur Elektrogeräte/Batterien (WEEE) ab, NICHT Verpackungen - fälschlich verlinkt, jetzt entfernt. Als Verpackungs-Bevollmächtigter in Finnland recherchiert (noch nicht verifiziert/kontaktiert): ERP Services Finland Oy (erp-recycling.org) deckt laut Recherche explizit auch Verpackungen ab - ABER das ist ein großer internationaler Konzern (ERP/Plastics Recyclers Europe-Gruppe), bewusst nicht die gewünschte Boutique-Positionierung wie bei anderen Ländern. Vor Freischaltung als Anbieter-Link erst eine kleinere Alternative prüfen oder bewusste Entscheidung für ERP treffen.',
-        'Rinkis Online-Formular mit E-Signatur funktioniert nur für in Finnland ansässige Unternehmen (finnische Identifizierung nötig). Ausländische Distanzverkäufer ohne Niederlassung in Finnland füllen stattdessen den PDF-Vertrag aus (Abschnitt "3A - Distance Seller" ankreuzen), unterschreiben ihn und schicken ihn an RINKI Ltd: https://ack2eu-backend.onrender.com/templates/rinki-fi-distance-seller-contract-en.pdf'
+        'KORREKTUR 10/2026 (vorherige Fassung dieses Hinweises war falsch): Die Bevollmächtigtenpflicht im finnischen Abfallgesetz (66 a §) gilt laut mehreren übereinstimmenden Quellen (unter anderem lvv.fi, ely-keskus.fi) NUR für Elektro-/Elektronikgeräte und für Einwegkunststoff-Verpackungen nach Anhang 1 (SUP-Richtlinie) - NICHT für gewöhnliche Verpackungen allgemein. Für normale Verpackungen kann ein ausländischer Fernabsatzhändler (EU wie Nicht-EU) der Produzentenorganisation (SPT/Rinki) stattdessen direkt selbst beitreten, ganz ohne Bevollmächtigten - genau das sieht auch Abschnitt "3A - Distance Seller" im Rinki-Vertragsformular vor (Direktunterschrift durch den Händler selbst, Abschnitt 7A).',
+        'Elker Oy war hier vorher fälschlich als Bevollmächtigten-Anbieter gelistet (Kundenmeldung 10/2026) - Elker deckt laut eigener Website ohnehin nur Elektrogeräte/Batterien (WEEE) ab, nicht Verpackungen, und ist nach obiger Korrektur für Verpackungen auch gar nicht nötig. Link entfernt.',
+        'Rinkis Online-Formular mit E-Signatur funktioniert nur für in Finnland ansässige Unternehmen (finnische Identifizierung nötig). Ausländische Distanzverkäufer ohne Niederlassung in Finnland füllen stattdessen den PDF-Vertrag aus (Abschnitt "3A - Distance Seller" ankreuzen, als Händler selbst unterschreiben unter 7A - kein Bevollmächtigter nötig) und schicken ihn an RINKI Ltd: https://ack2eu-backend.onrender.com/templates/rinki-fi-distance-seller-contract-en.pdf'
       ])
     );
 
