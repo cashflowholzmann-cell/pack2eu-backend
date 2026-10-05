@@ -1091,6 +1091,18 @@ function init() {
       `✅ Länder geprüft: ${ALL_COUNTRIES.length}`
     );
 
+    // Kundenwunsch 10/2026: pro Land soll nicht nur EIN Bevollmächtigten-
+    // Anbieter gezeigt werden, sondern - wo vorhanden - eine echte Wahl
+    // zwischen dem bisherigen (meist länderspezifischen) Anbieter und
+    // EUROMANDAT (deckt alle 27 Mitgliedstaaten zu einheitlichem Preis ab,
+    // siehe unten). representative_provider_price ergänzt den bestehenden
+    // Primär-Anbieter um einen Preis-Hinweis; die _alt_-Spalten tragen den
+    // zweiten, alternativen Anbieter.
+    addColumnIfMissing('countries', 'representative_provider_price', 'TEXT');
+    addColumnIfMissing('countries', 'representative_provider_alt_name', 'TEXT');
+    addColumnIfMissing('countries', 'representative_provider_alt_url', 'TEXT');
+    addColumnIfMissing('countries', 'representative_provider_alt_price', 'TEXT');
+
 
     // ========================================================
     // 5. BEKANNTE REGISTER
@@ -2620,6 +2632,84 @@ function init() {
 
     console.log(
       `✅ Melde-Stichtag-Regeln gesetzt: ${Object.keys(nextFilingRules).length} Länder`
+    );
+
+
+    // ========================================================
+    // 5B. BEVOLLMÄCHTIGTEN-PFLICHT NACHZIEHEN + EUROMANDAT ALS
+    // ALTERNATIV-ANBIETER (Kundenwunsch 10/2026)
+    //
+    // Dieselbe Lücke wie zuvor einzeln bei DE/FR gefunden (PR #166/#169):
+    // mehrere EU-Länder hatten bereits einen Bevollmächtigten-Anbieter
+    // recherchiert/eingetragen, aber representative_required stand noch
+    // auf 0 - wird hier systematisch für alle betroffenen EU-Länder
+    // nachgezogen (Art. 45 Abs. 3 VO (EU) 2025/40 gilt EU-weit identisch).
+    // NO (Norwegen) bewusst ausgenommen - kein EU-Mitgliedstaat, PPWR Art.
+    // 45 gilt dort nicht unmittelbar (eigene norwegische Rechtslage nicht
+    // recherchiert).
+    // ========================================================
+
+    const representativeRequiredCatchUp = ['AT', 'CY', 'CZ', 'EE', 'ES', 'HU', 'IE', 'IT', 'NL', 'PL', 'PT', 'SK'];
+    const markRepresentativeRequired =
+      db.prepare(`UPDATE countries SET representative_required = 1 WHERE code = ? AND representative_required = 0`);
+    for (const code of representativeRequiredCatchUp) {
+      markRepresentativeRequired.run(code);
+    }
+    console.log(
+      `✅ Bevollmächtigten-Pflicht nachgezogen: ${representativeRequiredCatchUp.length} Länder`
+    );
+
+    // EUROMANDAT (eigene Niederlassungen in allen 27 Mitgliedstaaten, 39
+    // €/Monat pro Land, siehe SE) als zweite, alternative Option neben dem
+    // jeweiligen bisherigen Anbieter hinterlegt, damit Kunden im Dashboard
+    // eine echte Wahl zwischen zwei Anbietern sehen, statt nur einem.
+    // Noch nicht unabhängig verifiziert (eigene Angaben des Anbieters,
+    // vom Kunden geteilt, Stand 10/2026) - representative_data_status der
+    // jeweiligen Zeile bleibt davon unberührt.
+    //
+    // Länder-spezifische URLs nach dem bei Schweden bestätigten Muster
+    // (https://euromandat.net/en/authorised-representative/sweden/)
+    // gebildet - NUR die schwedische URL wurde vom Kunden tatsächlich
+    // eingesehen/bestätigt, die übrigen sind nach demselben Muster
+    // abgeleitet, aber NICHT einzeln verifiziert (WebFetch auf diese
+    // Domain ist in dieser Umgebung blockiert). Sollte einer der Links
+    // nicht auflösen, landet man auf der entsprechenden Sprachversion
+    // der Seite und kann von dort zum richtigen Land navigieren.
+    const euromandatAltCountries = {
+      DE: 'germany',
+      FR: 'france',
+      AT: 'austria',
+      CY: 'cyprus',
+      CZ: 'czech-republic',
+      EE: 'estonia',
+      ES: 'spain',
+      HU: 'hungary',
+      IE: 'ireland',
+      IT: 'italy',
+      NL: 'netherlands',
+      PL: 'poland',
+      PT: 'portugal',
+      SK: 'slovakia'
+    };
+    const setEuromandatAlt = db.prepare(`
+      UPDATE countries
+      SET representative_provider_alt_name = 'EUROMANDAT',
+          representative_provider_alt_url = ?,
+          representative_provider_alt_price = '39 €/Monat pro Mitgliedstaat (netto, ca. 468 €/Jahr, inkl. bis 500 kg/Jahr Programmteilnahme) - Mindestlaufzeit 12 Monate'
+      WHERE code = ?
+    `);
+    for (const [code, slug] of Object.entries(euromandatAltCountries)) {
+      setEuromandatAlt.run(`https://euromandat.net/en/authorised-representative/${slug}/`, code);
+    }
+
+    // Bekannter Vergleichspreis für den bisherigen primären Anbieter in
+    // Deutschland (vom Kunden genannt) - ergänzt die bestehende
+    // REP-Germany-Eintragung um einen Preis-Anhaltspunkt für den Vergleich
+    // mit der EUROMANDAT-Alternative.
+    db.prepare(`UPDATE countries SET representative_provider_price = '170 €/Jahr' WHERE code = 'DE'`).run();
+
+    console.log(
+      `✅ EUROMANDAT als Alternativ-Anbieter hinterlegt: ${Object.keys(euromandatAltCountries).length} Länder`
     );
 
 
