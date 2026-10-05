@@ -332,12 +332,14 @@ app.use((err, req, res, next) => {
   // CORS-Fehler
   if (err.message && err.message.startsWith('CORS:')) {
     return res.status(403).json({
-      error: 'Zugriff von dieser Herkunft nicht erlaubt.'
+      error: 'Zugriff von dieser Herkunft nicht erlaubt.',
+      error_code: 'FORBIDDEN'
     });
   }
 
   res.status(500).json({
-    error: 'Interner Serverfehler.'
+    error: 'Interner Serverfehler.',
+    error_code: 'SERVER_ERROR'
   });
 });
 

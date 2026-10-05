@@ -105,7 +105,7 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     }
 
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
-    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
 
     let stripeCustomerId = customer.stripe_customer_id;
     if (!stripeCustomerId) {
@@ -173,9 +173,9 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
 router.post('/create-portal-session', requireAuth, async (req, res) => {
   try {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
-    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
     if (!customer.stripe_customer_id) {
-      return res.status(400).json({ error: 'Für dieses Konto liegt noch keine Zahlungshistorie bei Stripe vor.' });
+      return res.status(400).json({ error: 'Für dieses Konto liegt noch keine Zahlungshistorie bei Stripe vor.', error_code: 'NO_BILLING_HISTORY' });
     }
 
     const session = await stripe.billingPortal.sessions.create({
@@ -213,18 +213,18 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
     const customerId = req.customer.sub;
 
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
-    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
 
     const activation = db.prepare(
       'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
     ).get(customerId, country);
 
     if (!activation) {
-      return res.status(404).json({ error: 'Land nicht aktiviert.' });
+      return res.status(404).json({ error: 'Land nicht aktiviert.', error_code: 'COUNTRY_NOT_ACTIVATED' });
     }
 
     if (activation.mode === 'premium') {
-      return res.status(400).json({ error: 'Bereits im Premium-Modus.' });
+      return res.status(400).json({ error: 'Bereits im Premium-Modus.', error_code: 'ALREADY_PREMIUM' });
     }
 
     let stripeCustomerId = customer.stripe_customer_id;
@@ -293,10 +293,10 @@ router.post('/create-amazon-addon-session', requireAuth, async (req, res) => {
   }
 
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
-  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
 
   if (customer.amazon_addon_active) {
-    return res.status(400).json({ error: 'Das Amazon-Zusatzmodul ist bereits gebucht.' });
+    return res.status(400).json({ error: 'Das Amazon-Zusatzmodul ist bereits gebucht.', error_code: 'ADDON_ALREADY_BOOKED' });
   }
 
   let stripeCustomerId = customer.stripe_customer_id;
@@ -349,10 +349,10 @@ router.post('/create-gpsr-addon-session', requireAuth, async (req, res) => {
   }
 
   const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
-  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
 
   if (hasGpsrAccess(customer)) {
-    return res.status(400).json({ error: 'Die GPSR-Verantwortliche Person ist bereits gebucht bzw. in deinem Plan inklusive.' });
+    return res.status(400).json({ error: 'Die GPSR-Verantwortliche Person ist bereits gebucht bzw. in deinem Plan inklusive.', error_code: 'ADDON_ALREADY_BOOKED' });
   }
 
   let stripeCustomerId = customer.stripe_customer_id;
