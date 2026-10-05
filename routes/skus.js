@@ -563,3 +563,8 @@ module.exports = router;
 // nutzt dieselbe Verknüpfungslogik wie der Einzel- und CSV-Massen-Link,
 // statt sie ein drittes Mal zu duplizieren.
 module.exports.linkSkuRow = linkSkuRow;
+// Für den CSV-Bestellungs-Bulk-Import (siehe routes/orders.js) - löst
+// einen Artikel-Identifier genauso auf wie der CSV-Massen-Link oben
+// (Base/BaseLinker-SKU oder Produktname), damit Kunden dieselbe
+// Export-Vorlage für beide CSV-Importe verwenden können.
+module.exports.resolveSkuByIdentifier = resolveSkuByIdentifier;

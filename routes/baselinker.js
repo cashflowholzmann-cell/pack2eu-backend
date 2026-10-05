@@ -85,16 +85,14 @@ router.post('/disconnect', requireAuth, (req, res) => {
 // ============================================================
 // 2. Bestellungen synchronisieren (Polling)
 // ============================================================
-router.post('/sync', requireAuth, async (req, res) => {
-  try {
-    const customer = db.prepare(`
-      SELECT *
-      FROM customers
-      WHERE id = ?
-    `).get(req.auth.userId);
-
+//
+// syncBaselinkerOrdersForCustomer() enthält die eigentliche Sync-Logik,
+// losgelöst von req/res, damit sie sowohl vom manuellen "Sync"-Button
+// (Route unten) als auch vom automatischen Hintergrund-Scheduler
+// (lib/baselinker-scheduler.js) aufgerufen werden kann.
+async function syncBaselinkerOrdersForCustomer(customer) {
     if (!customer?.baselinker_api_token) {
-      return res.status(400).json({ error: 'Base.com nicht verbunden.' });
+      throw new Error('Base.com nicht verbunden.');
     }
 
     const skus = db.prepare(`
@@ -288,12 +286,23 @@ router.post('/sync', requireAuth, async (req, res) => {
       }
     }
 
-    res.json({
-      ok: true,
-      imported,
-      skipped,
-      total: orders.length
-    });
+    return { ok: true, imported, skipped, total: orders.length };
+}
+
+router.post('/sync', requireAuth, async (req, res) => {
+  try {
+    const customer = db.prepare(`
+      SELECT *
+      FROM customers
+      WHERE id = ?
+    `).get(req.auth.userId);
+
+    if (!customer?.baselinker_api_token) {
+      return res.status(400).json({ error: 'Base.com nicht verbunden.' });
+    }
+
+    const result = await syncBaselinkerOrdersForCustomer(customer);
+    res.json(result);
   } catch (err) {
     console.error(
       '❌ Base.com Sync Fehler:',
@@ -504,3 +513,4 @@ router.post('/sync-catalog-links', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.syncBaselinkerOrdersForCustomer = syncBaselinkerOrdersForCustomer;
