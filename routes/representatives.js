@@ -375,5 +375,200 @@ router.get('/submissions', requireAuth, requireRepRole, (req, res) => {
   }
 });
 
+// ============================================================
+// ÜBERSICHT ÜBER ALLE ZUGEWIESENEN KUNDEN (Kundenwunsch 10/2026)
+//
+// Sammel-Ansicht fürs Partner-Portal: Gesamtzahlen + pro-Kunde-
+// Aufschlüsselung (Gewicht, Meldungsstatus, verdächtige Angaben) für
+// Grafiken und die Kundenliste. Scoped auf stream + Zielland wie
+// GET /submissions, zusätzlich auf rep.stream (ein Bevollmächtigter
+// deckt genau einen Pflichtenstrom ab).
+//
+// GET /api/representatives/overview
+// ============================================================
+
+router.get('/overview', requireAuth, requireRepRole, (req, res) => {
+  try {
+    const rep = db.prepare('SELECT country_code, stream FROM representatives WHERE id = ?').get(req.auth.userId);
+    if (!rep) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.', error_code: 'NOT_FOUND' });
+
+    const assignedCustomers = db.prepare(`
+      SELECT c.id, c.company_name, c.customer_number
+      FROM customers c
+      JOIN representative_customer_assignments rca ON rca.customer_id = c.id
+      WHERE rca.representative_id = ?
+      ORDER BY c.company_name
+    `).all(req.auth.userId);
+
+    const submissions = db.prepare(`
+      SELECT s.id, s.customer_id, s.status, s.total_weight_kg, s.materials_json, s.stream
+      FROM submissions s
+      JOIN representative_customer_assignments rca ON rca.customer_id = s.customer_id
+      WHERE rca.representative_id = ? AND s.destination = ? AND s.stream = ?
+    `).all(req.auth.userId, rep.country_code, rep.stream);
+
+    // Materialgewichte aggregiert über ALLE zugewiesenen Kunden (für die
+    // Gesamt-Grafik) - nur Verpackungs-Stream hat materials_json in dieser
+    // Form, WEEE/Batterie nutzen stattdessen items_json (Stückzahlen statt
+    // Gewicht) und werden hier bewusst nicht mitgezählt.
+    const materialTotalsKg = {};
+    const customerAgg = new Map();
+
+    submissions.forEach((s) => {
+      if (!customerAgg.has(s.customer_id)) {
+        customerAgg.set(s.customer_id, { total_weight_kg: 0, submission_count: 0, pending_count: 0 });
+      }
+      const agg = customerAgg.get(s.customer_id);
+      agg.total_weight_kg += Number(s.total_weight_kg || 0);
+      agg.submission_count += 1;
+      if (s.status === 'pending' || s.status === 'received') agg.pending_count += 1;
+
+      if (s.stream === 'packaging') {
+        let materials = [];
+        try { materials = JSON.parse(s.materials_json || '[]'); } catch { materials = []; }
+        materials.forEach((m) => {
+          const key = m.material || 'sonstige';
+          materialTotalsKg[key] = (materialTotalsKg[key] || 0) + Number(m.weight_kg || 0) * (Number(m.qty) || 1);
+        });
+      }
+    });
+
+    // Verdächtige Angaben pro Kunde (lib/sku-anomalies.js) - unabhängig von
+    // Meldungen, direkt auf den aktuellen Produktdaten des Kunden geprüft.
+    const customers = assignedCustomers.map((c) => {
+      const agg = customerAgg.get(c.id) || { total_weight_kg: 0, submission_count: 0, pending_count: 0 };
+      const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ?').all(c.id);
+      const anomalies = findAnomalousSkus(skus);
+      return {
+        customer_id: c.id,
+        company_name: c.company_name,
+        customer_number: c.customer_number,
+        total_weight_kg: agg.total_weight_kg,
+        submission_count: agg.submission_count,
+        pending_count: agg.pending_count,
+        has_anomalies: anomalies.length > 0,
+        anomaly_count: anomalies.length
+      };
+    });
+
+    logAccess(req.auth.userId, null, 'view_overview', req);
+
+    res.json({
+      material_totals_kg: materialTotalsKg,
+      customers,
+      totals: {
+        customer_count: assignedCustomers.length,
+        submission_count: submissions.length,
+        pending_count: submissions.filter((s) => s.status === 'pending' || s.status === 'received').length,
+        completed_count: submissions.filter((s) => s.status === 'submitted' || s.status === 'exported').length,
+        total_weight_kg: Object.values(materialTotalsKg).reduce((a, b) => a + b, 0)
+      }
+    });
+  } catch (error) {
+    console.error('❌ Representative-Overview-Fehler:', error);
+    res.status(500).json({ error: 'Übersicht konnte nicht geladen werden.' });
+  }
+});
+
+
+// ============================================================
+// DETAILANSICHT EINES EINZELNEN ZUGEWIESENEN KUNDEN
+//
+// GET /api/representatives/customers/:customerId/overview
+// ============================================================
+
+router.get('/customers/:customerId/overview', requireAuth, requireRepRole, (req, res) => {
+  try {
+    const customerId = parseInt(req.params.customerId, 10);
+    const assigned = db.prepare(`
+      SELECT 1 FROM representative_customer_assignments WHERE representative_id = ? AND customer_id = ?
+    `).get(req.auth.userId, customerId);
+    if (!assigned) return res.status(403).json({ error: 'Kein zugewiesener Kunde.', error_code: 'FORBIDDEN' });
+
+    const customer = db.prepare(`
+      SELECT id, company_name, customer_number, contact_name, email, origin_country
+      FROM customers WHERE id = ?
+    `).get(customerId);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
+
+    const rep = db.prepare('SELECT country_code, stream FROM representatives WHERE id = ?').get(req.auth.userId);
+
+    const submissions = db.prepare(`
+      SELECT * FROM submissions
+      WHERE customer_id = ? AND destination = ? AND stream = ?
+      ORDER BY created_at DESC
+    `).all(customerId, rep.country_code, rep.stream);
+
+    const materialTotalsKg = {};
+    submissions.forEach((s) => {
+      let materials = [];
+      try { materials = JSON.parse(s.materials_json || '[]'); } catch { materials = []; }
+      materials.forEach((m) => {
+        const key = m.material || 'sonstige';
+        materialTotalsKg[key] = (materialTotalsKg[key] || 0) + Number(m.weight_kg || 0) * (Number(m.qty) || 1);
+      });
+    });
+
+    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ?').all(customerId);
+    const anomalies = findAnomalousSkus(skus);
+
+    logAccess(req.auth.userId, customerId, 'view_customer_overview', req);
+
+    res.json({ customer, submissions, material_totals_kg: materialTotalsKg, anomalies });
+  } catch (error) {
+    console.error('❌ Representative-Customer-Overview-Fehler:', error);
+    res.status(500).json({ error: 'Kundenübersicht konnte nicht geladen werden.' });
+  }
+});
+
+
+// ============================================================
+// CSV-EXPORT ALLER EINGEHENDEN MELDUNGEN (Kundenwunsch 10/2026)
+//
+// Ersetzt den bisherigen reinen "kommt bald"-Platzhalter im Frontend.
+//
+// GET /api/representatives/export.csv
+// ============================================================
+
+router.get('/export.csv', requireAuth, requireRepRole, (req, res) => {
+  try {
+    const rep = db.prepare('SELECT country_code, stream FROM representatives WHERE id = ?').get(req.auth.userId);
+    if (!rep) return res.status(404).json({ error: 'Bevollmächtigter nicht gefunden.', error_code: 'NOT_FOUND' });
+
+    const rows = db.prepare(`
+      SELECT s.id, s.destination, s.created_at, s.status, s.total_weight_kg, s.materials_json,
+             c.company_name, c.customer_number
+      FROM submissions s
+      JOIN customers c ON c.id = s.customer_id
+      JOIN representative_customer_assignments rca ON rca.customer_id = c.id
+      WHERE rca.representative_id = ? AND s.destination = ? AND s.stream = ?
+      ORDER BY s.created_at DESC
+    `).all(req.auth.userId, rep.country_code, rep.stream);
+
+    const csvRows = [['Kundennummer', 'Firma', 'Zielland', 'Datum', 'Status', 'Gesamtgewicht (kg)', 'Materialien']];
+    rows.forEach((r) => {
+      let materials = [];
+      try { materials = JSON.parse(r.materials_json || '[]'); } catch { materials = []; }
+      const materialsText = materials.map((m) => `${m.material} ${m.weight_kg}kg×${m.qty}`).join(', ');
+      csvRows.push([
+        r.customer_number, r.company_name, r.destination, r.created_at,
+        r.status, r.total_weight_kg, materialsText
+      ]);
+    });
+
+    const csv = csvRows.map((row) => row.join(';')).join('\n');
+    const filename = `Pack2EU_Meldungen_${rep.country_code}.csv`;
+
+    logAccess(req.auth.userId, null, 'export_csv', req);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('﻿' + csv);
+  } catch (error) {
+    console.error('❌ Representative-CSV-Export-Fehler:', error);
+    res.status(500).json({ error: 'CSV konnte nicht erstellt werden.' });
+  }
+});
+
 router.syncCustomerRepresentativeRequest = syncCustomerRepresentativeRequest;
 module.exports = router;
