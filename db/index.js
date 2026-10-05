@@ -2714,6 +2714,80 @@ function init() {
 
 
     // ========================================================
+    // 5C. EUROMANDAT FÜR DIE RESTLICHEN EU-LÄNDER (Kundenwunsch 10/2026:
+    // "UND DAS FÜR ALLE LÄNDER!" - Kunde hat die URLs für AT/BE/BG/HR/CY
+    // selbst im Browser geöffnet und bestätigt, dass das URL-Muster
+    // https://euromandat.net/en/authorised-representative/{land}/ trägt).
+    //
+    // Für diese Länder gab es bisher GAR KEINEN Bevollmächtigten-Anbieter
+    // in unseren Daten - EUROMANDAT wird hier deshalb als PRIMÄRER (nicht
+    // Alt-)Anbieter gesetzt. representative_required wird nach derselben
+    // Art.-45(3)-Logik wie beim 5B-Block auf 1 gesetzt (EU-weit geltend,
+    // unabhängig vom jeweiligen nationalen Recht).
+    //
+    // AUSNAHME FINNLAND: representative_required bleibt bewusst auf 0
+    // (siehe PR #164/FI-Korrektur weiter oben - Rinki akzeptiert
+    // nachweislich weiterhin Selbstunterschrift ohne Bevollmächtigten,
+    // das ist eine recherchierte Praxis-Lücke, keine übersehene Pflicht
+    // wie bei den anderen Ländern hier). EUROMANDAT wird für Finnland nur
+    // als optionale ALTERNATIVE ergänzt (bereits in der FI-Dokumentation
+    // als "kann vermitteln" angekündigt).
+    // ========================================================
+
+    const euromandatNewPrimaryCountries = {
+      BE: 'belgium',
+      BG: 'bulgaria',
+      HR: 'croatia',
+      DK: 'denmark',
+      GR: 'greece',
+      LT: 'lithuania',
+      LU: 'luxembourg',
+      LV: 'latvia',
+      MT: 'malta',
+      RO: 'romania',
+      SI: 'slovenia'
+    };
+    const setEuromandatPrimary = db.prepare(`
+      UPDATE countries
+      SET representative_required = 1,
+          representative_provider_name = 'EUROMANDAT',
+          representative_provider_url = ?,
+          representative_provider_price = '39 €/Monat pro Mitgliedstaat (netto, ca. 468 €/Jahr, inkl. bis 500 kg/Jahr Programmteilnahme) - Mindestlaufzeit 12 Monate',
+          representative_data_status = 'needs_verification'
+      WHERE code = ?
+    `);
+    const appendEuromandatBullet = db.prepare(`SELECT requirements_json FROM countries WHERE code = ?`);
+    const updateRequirements = db.prepare(`UPDATE countries SET requirements_json = ? WHERE code = ?`);
+    const euromandatCorrectionNote =
+      'ERGÄNZUNG 10/2026: Seit 12.08.2026 verlangt Art. 45 Abs. 3 der EU-Verordnung (EU) 2025/40 (PPWR), unmittelbar EU-weit geltend, von jedem hier nicht niedergelassenen Hersteller (auch EU-ansässigen) einen Bevollmächtigten für die erweiterte Herstellerverantwortung - unabhängig davon, was dazu im nationalen Recht dieses Landes steht oder (noch) nicht geregelt ist. EUROMANDAT bietet die Bevollmächtigten-Rolle für dieses Land konkret an (eigene Niederlassung vor Ort, 39 €/Monat, siehe Anbieter-Link). Eigene Angaben des Anbieters, noch nicht unabhängig von Pack2EU verifiziert.';
+
+    for (const [code, slug] of Object.entries(euromandatNewPrimaryCountries)) {
+      setEuromandatPrimary.run(`https://euromandat.net/en/authorised-representative/${slug}/`, code);
+
+      const row = appendEuromandatBullet.get(code);
+      if (row) {
+        let requirements = [];
+        try { requirements = JSON.parse(row.requirements_json || '[]'); } catch { requirements = []; }
+        requirements.push(euromandatCorrectionNote);
+        updateRequirements.run(JSON.stringify(requirements), code);
+      }
+    }
+    console.log(
+      `✅ EUROMANDAT als Primär-Anbieter hinterlegt: ${Object.keys(euromandatNewPrimaryCountries).length} Länder`
+    );
+
+    // Finnland: EUROMANDAT nur als Alternative, representative_required
+    // bewusst unangetastet (siehe Kommentar oben).
+    db.prepare(`
+      UPDATE countries
+      SET representative_provider_alt_name = 'EUROMANDAT',
+          representative_provider_alt_url = 'https://euromandat.net/en/authorised-representative/finland/',
+          representative_provider_alt_price = '39 €/Monat pro Mitgliedstaat (netto, ca. 468 €/Jahr, inkl. bis 500 kg/Jahr Programmteilnahme) - Mindestlaufzeit 12 Monate'
+      WHERE code = 'FI'
+    `).run();
+
+
+    // ========================================================
     // 6. JURISDIKTIONEN
     // ========================================================
 
