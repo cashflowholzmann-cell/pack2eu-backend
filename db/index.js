@@ -1724,8 +1724,9 @@ function init() {
         register_body = 'LVV (Lupa- ja valvontavirasto) – Tuottajarekisteri (seit 1.1.2026 zuständig, vorher Pirkanmaa ELY-Zentrum); Systembeteiligung über Suomen Pakkaustuottajat Oy (SPT) / Rinki',
         registration_url = 'https://rinkiin.fi/en/producer-responsibility/join-a-producer-organisation/',
         requirements_json = ?,
-        representative_provider_name = 'Elker Oy',
-        representative_provider_url = 'https://elker.fi/en/authorized-representative/',
+        representative_required = 1,
+        representative_provider_name = NULL,
+        representative_provider_url = NULL,
         representative_data_status = 'needs_verification',
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
@@ -1735,7 +1736,8 @@ function init() {
         'Registrierung und Meldung der Verpackungsmengen erfolgt in Finnland meist über Rinki (Suomen Pakkauskierrätys RINKI Oy).',
         'EU-weite Stoffverbote (u. a. Schwermetalle, PFAS in Lebensmittelkontakt-Verpackungen) gelten bereits ab 12.08.2026.',
         'Materialmeldung vermutlich granular: Rinki-Gebühren werden laut mehreren Quellen materialspezifisch bis auf Kilogramm-Ebene berechnet unter Nennung anerkannter Kunststoffarten (PET, HDPE, PVC, LDPE, PP) – konnte nicht direkt an Rinkis offizieller Preisliste verifiziert werden (Quelle: KI-Recherche Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).',
-        'Bewusst KEIN Großanbieter (ERP/Interzero/Landbell) als Kandidat: Elker Oy gehört laut Recherche drei kleinen finnischen Produzentenverantwortungs-Organisationen (ICT-tuottajaosuuskunta TY, SELT ry, FLIP ry) und ist nur nordisch tätig (über "Nordic PRO Solutions"), kein europaweiter Konzern - passt zur gewünschten Boutique-Strategie. Nicht direkt verifiziert, vor Kontaktaufnahme selbst prüfen.',
+        'Finnland verlangt laut lvv.fi auch von EU-ansässigen (nicht nur nicht-EU) Fernabsatzhändlern ohne Niederlassung in Finnland einen in Finnland ansässigen Bevollmächtigten für die Verpackungs-Herstellerverantwortung.',
+        'Kundenmeldung 10/2026: Elker Oy (vorher hier als Anbieter gelistet) deckt laut eigener Website nur Elektrogeräte/Batterien (WEEE) ab, NICHT Verpackungen - fälschlich verlinkt, jetzt entfernt. Als Verpackungs-Bevollmächtigter in Finnland recherchiert (noch nicht verifiziert/kontaktiert): ERP Services Finland Oy (erp-recycling.org) deckt laut Recherche explizit auch Verpackungen ab - ABER das ist ein großer internationaler Konzern (ERP/Plastics Recyclers Europe-Gruppe), bewusst nicht die gewünschte Boutique-Positionierung wie bei anderen Ländern. Vor Freischaltung als Anbieter-Link erst eine kleinere Alternative prüfen oder bewusste Entscheidung für ERP treffen.',
         'Rinkis Online-Formular mit E-Signatur funktioniert nur für in Finnland ansässige Unternehmen (finnische Identifizierung nötig). Ausländische Distanzverkäufer ohne Niederlassung in Finnland füllen stattdessen den PDF-Vertrag aus (Abschnitt "3A - Distance Seller" ankreuzen), unterschreiben ihn und schicken ihn an RINKI Ltd: https://ack2eu-backend.onrender.com/templates/rinki-fi-distance-seller-contract-en.pdf'
       ])
     );
