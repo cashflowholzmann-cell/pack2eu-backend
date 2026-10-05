@@ -1104,6 +1104,7 @@ function init() {
         requirements_json = ?,
         labeling_json = ?,
         eco_fee = 'Lizenzentgelt je nach Material/Gewicht beim gewählten dualen System (Systembeteiligung); die Registrierung bei LUCID selbst ist kostenlos.',
+        representative_required = 1,
         representative_provider_name = 'REP-Germany',
         representative_provider_url = 'https://rep-germany.de/bestellen/',
         representative_data_status = 'verified',
@@ -1115,6 +1116,7 @@ function init() {
         'Registrierungspflicht im Verpackungsregister LUCID für jedes Unternehmen, das verpackte Ware erstmals in Deutschland in Verkehr bringt – unabhängig von Menge oder Unternehmensgröße.',
         'Systembeteiligung (Lizenzierung) bei einem dualen System für alle mit Ware befüllten Verkaufsverpackungen.',
         'Bevollmächtigter in Deutschland zwingend erforderlich für Unternehmen ohne Sitz in Deutschland, seit 12.08.2026 (VerpackDG/PPWR).',
+        'WICHTIG: Die Bevollmächtigten-Pflicht ersetzt NICHT die eigene LUCID-Registrierung - umgekehrt wie bei Finnland (Rinki) ist das hier kein Alternativweg, sondern eine zusätzliche Pflicht. Laut ZSVR muss die LUCID-Registrierung in jedem Fall höchstpersönlich durch das Unternehmen selbst erfolgen; ein bestellter Bevollmächtigter darf diese Registrierung nicht anstelle des Unternehmens vornehmen. Ausländische Unternehmen müssen also beides erledigen: selbst bei LUCID registrieren UND einen deutschen Bevollmächtigten bestellen.',
         'Jährliche Datenmeldung (Mengenmeldung) bei LUCID für das Vorjahr, Frist jeweils 15. Mai.'
       ]),
       JSON.stringify([
