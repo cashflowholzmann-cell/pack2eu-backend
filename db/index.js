@@ -2680,7 +2680,7 @@ function init() {
       FR: 'france',
       AT: 'austria',
       CY: 'cyprus',
-      CZ: 'czech-republic',
+      CZ: 'czechia',
       EE: 'estonia',
       ES: 'spain',
       HU: 'hungary',
