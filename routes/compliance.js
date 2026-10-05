@@ -232,6 +232,26 @@ function countryPayload(
         (country.representative_provider_url || '') :
         '',
 
+    representative_provider_price:
+      isActivated ?
+        (country.representative_provider_price || '') :
+        '',
+
+    representative_provider_alt_name:
+      isActivated ?
+        (country.representative_provider_alt_name || '') :
+        '',
+
+    representative_provider_alt_url:
+      isActivated ?
+        (country.representative_provider_alt_url || '') :
+        '',
+
+    representative_provider_alt_price:
+      isActivated ?
+        (country.representative_provider_alt_price || '') :
+        '',
+
     representative_data_status:
       country.representative_data_status ||
       'needs_verification',
@@ -599,6 +619,10 @@ router.get(
             notary_cost,
             representative_provider_name,
             representative_provider_url,
+            representative_provider_price,
+            representative_provider_alt_name,
+            representative_provider_alt_url,
+            representative_provider_alt_price,
             representative_data_status,
             registration_generally_required,
             reporting_frequency,
