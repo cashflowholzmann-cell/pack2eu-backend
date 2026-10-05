@@ -72,7 +72,7 @@ const STREAM_FALLBACK = {
   packaging: {
     legalBasis: 'Regulation (EU) 2025/40',
     sourceUrl: 'https://eur-lex.europa.eu/eli/reg/2025/40/oj',
-    explanationRepRequired: 'Als außerhalb der EU ansässiger Händler benötigen Sie für dieses EU-Zielland einen Bevollmächtigten für die erweiterte Herstellerverantwortung. Die weiteren nationalen Anforderungen werden noch geprüft.',
+    explanationRepRequired: 'Sie benötigen für dieses EU-Zielland einen Bevollmächtigten für die erweiterte Herstellerverantwortung, da Sie dort nicht niedergelassen sind (Art. 45 Abs. 3 EU-Verpackungsverordnung PPWR) - unabhängig davon, ob Sie selbst in der EU ansässig sind. Die weiteren nationalen Anforderungen werden noch geprüft.',
     explanationDefault: 'Für dieses Länderpaar liegt bei Pack2EU noch keine verifizierte nationale Regel vor. Deshalb wird keine pauschale Bevollmächtigtenpflicht angenommen.'
   },
   weee: {
@@ -106,7 +106,7 @@ const FALLBACK_TRANSLATIONS = {
     unsupportedExplanation: 'This destination country was not found in the Pack2EU country database.',
     needsReviewLegalLabel: 'National rule under review',
     packaging: {
-      explanationRepRequired: 'As a trader established outside the EU, you need an authorised representative for extended producer responsibility for this EU destination country. The further national requirements are still being reviewed.',
+      explanationRepRequired: 'You need an authorised representative for extended producer responsibility for this EU destination country, because you are not established there (Article 45(3) of the EU Packaging Regulation, PPWR) - regardless of whether you are based in the EU yourself. The further national requirements are still being reviewed.',
       explanationDefault: 'Pack2EU does not yet have a verified national rule for this country pair. Therefore, no blanket authorised representative obligation is assumed.'
     },
     weee: {
@@ -123,7 +123,7 @@ const FALLBACK_TRANSLATIONS = {
     unsupportedExplanation: "Ce pays de destination n'a pas été trouvé dans la base de données pays de Pack2EU.",
     needsReviewLegalLabel: 'Règle nationale en cours de vérification',
     packaging: {
-      explanationRepRequired: "En tant que commerçant établi en dehors de l'UE, vous avez besoin d'un mandataire pour la responsabilité élargie des producteurs pour ce pays de destination de l'UE. Les autres exigences nationales sont encore en cours de vérification.",
+      explanationRepRequired: "Vous avez besoin d'un mandataire pour la responsabilité élargie des producteurs pour ce pays de destination de l'UE, car vous n'y êtes pas établi (article 45, paragraphe 3, du règlement UE sur les emballages, PPWR) - que vous soyez établi dans l'UE ou non. Les autres exigences nationales sont encore en cours de vérification.",
       explanationDefault: "Pack2EU ne dispose pas encore d'une règle nationale vérifiée pour cette paire de pays. Aucune obligation générale de mandataire n'est donc supposée."
     },
     weee: {
@@ -140,7 +140,7 @@ const FALLBACK_TRANSLATIONS = {
     unsupportedExplanation: 'Questo paese di destinazione non è stato trovato nel database paesi di Pack2EU.',
     needsReviewLegalLabel: 'Regola nazionale in fase di verifica',
     packaging: {
-      explanationRepRequired: "In quanto commerciante stabilito al di fuori dell'UE, per questo paese di destinazione UE è necessario un rappresentante autorizzato per la responsabilità estesa del produttore. Gli ulteriori requisiti nazionali sono ancora in fase di verifica.",
+      explanationRepRequired: "È necessario un rappresentante autorizzato per la responsabilità estesa del produttore per questo paese di destinazione UE, poiché non vi si è stabiliti (articolo 45, paragrafo 3, del regolamento UE sugli imballaggi, PPWR) - indipendentemente dal fatto che si sia stabiliti nell'UE. Gli ulteriori requisiti nazionali sono ancora in fase di verifica.",
       explanationDefault: "Per questa coppia di paesi, Pack2EU non dispone ancora di una regola nazionale verificata. Pertanto non si presume alcun obbligo generale di rappresentante autorizzato."
     },
     weee: {
@@ -157,7 +157,7 @@ const FALLBACK_TRANSLATIONS = {
     unsupportedExplanation: 'Este país de destino no se encontró en la base de datos de países de Pack2EU.',
     needsReviewLegalLabel: 'Norma nacional en revisión',
     packaging: {
-      explanationRepRequired: 'Como comerciante establecido fuera de la UE, necesita un representante autorizado para la responsabilidad ampliada del productor en este país de destino de la UE. Los demás requisitos nacionales todavía se están revisando.',
+      explanationRepRequired: 'Necesita un representante autorizado para la responsabilidad ampliada del productor en este país de destino de la UE, ya que no está establecido allí (artículo 45, apartado 3, del Reglamento UE sobre envases, PPWR) - independientemente de si está establecido en la UE. Los demás requisitos nacionales todavía se están revisando.',
       explanationDefault: 'Pack2EU todavía no dispone de una norma nacional verificada para este par de países. Por lo tanto, no se asume ninguna obligación general de representante autorizado.'
     },
     weee: {
@@ -199,12 +199,24 @@ function decide({
   const originEU =
     isEUCountry(origin);
 
-  // A producer established outside the EU needs an EPR authorised
-  // representative in every EU Member State where it first makes
-  // packaging or packaged products available.
-  const nonEURepresentativeRequired =
-    !originEU &&
-    isEUCountry(destination);
+  // KORREKTUR 10/2026 (vorher fälschlich nur für Nicht-EU-Herkunft
+  // angenommen): Art. 45 Abs. 3 PPWR (Verordnung (EU) 2025/40, Art. 3
+  // Abs. 1 Nr. 15 Buchst. c/d) verpflichtet JEDEN Hersteller - auch EU-
+  // ansässige, nicht nur Nicht-EU -, der nicht im jeweiligen Zielland
+  // niedergelassen ist und dort per Fernabsatz direkt an Endverbraucher
+  // verkauft, dort einen Bevollmächtigten zu bestellen ("shall appoint"),
+  // seit 12.08.2026 unmittelbar EU-weit geltend. Gilt nur für den
+  // Verpackungs-Stream. Für WEEE (Richtlinie 2012/19/EU Art. 17) und
+  // Batterie (Verordnung (EU) 2023/1542 Art. 43) bleibt die engere,
+  // bereits recherchierte Regel bestehen (nur Nicht-EU-Herkunft - siehe
+  // STREAM_RESEARCH_FOCUS in legal-watch.js), da das dortige Regelwerk
+  // keine entsprechend weite EU-weite Fernabsatz-Pflicht kennt.
+  const notEstablishedInDestination =
+    origin !== destination;
+  const distanceSellingRepresentativeRequired =
+    stream === 'packaging'
+      ? notEstablishedInDestination && isEUCountry(destination)
+      : !originEU && isEUCountry(destination);
 
 
   // ----------------------------------------------------------
@@ -292,7 +304,7 @@ function decide({
         ) === 1,
 
       representativeRequired:
-        nonEURepresentativeRequired ||
+        distanceSellingRepresentativeRequired ||
         Number(rule.representative_required) === 1,
 
       notaryRequired:
@@ -384,7 +396,7 @@ function decide({
       true,
 
     representativeRequired:
-      nonEURepresentativeRequired,
+      distanceSellingRepresentativeRequired,
 
     notaryRequired:
       false,
@@ -394,8 +406,8 @@ function decide({
 
     explanation:
       tStream
-        ? (nonEURepresentativeRequired ? tStream.explanationRepRequired : tStream.explanationDefault)
-        : (nonEURepresentativeRequired ? fallback.explanationRepRequired : fallback.explanationDefault),
+        ? (distanceSellingRepresentativeRequired ? tStream.explanationRepRequired : tStream.explanationDefault)
+        : (distanceSellingRepresentativeRequired ? fallback.explanationRepRequired : fallback.explanationDefault),
 
     legalBasis:
       fallback.legalBasis,
