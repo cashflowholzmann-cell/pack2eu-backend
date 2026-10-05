@@ -154,7 +154,7 @@ router.get('/by-country/:countryCode', requireAuth, (req, res) => {
 });
 
 router.post('/:id/export', requireAuth, (req, res) => {
-  db.prepare('UPDATE submissions SET status = "exported" WHERE id = ?').run(req.params.id);
+  db.prepare("UPDATE submissions SET status = 'exported' WHERE id = ?").run(req.params.id);
   res.json({ ok: true });
 });
 
