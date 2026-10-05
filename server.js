@@ -342,6 +342,24 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================================
+// SICHERHEITSNETZ: UNHANDLED PROMISE REJECTIONS
+//
+// Kundenmeldung 10/2026 ("Failed to fetch"): eine async Route ohne
+// try/catch (routes/billing.js, create-upgrade-session) warf bei einem
+// abgelehnten Stripe-Aufruf eine unhandled rejection - Express 4 fängt
+// das in async Handlern NICHT automatisch auf (anders als Express 5),
+// und ohne dieses Sicherheitsnetz hätte das potenziell den gesamten
+// Node-Prozess (und damit den Server für ALLE Kunden) abstürzen lassen
+// statt nur die eine Anfrage fehlschlagen zu lassen. Einzelne Routen
+// sollten weiterhin eigenes try/catch haben (bessere Fehlermeldungen),
+// das hier ist nur die letzte Verteidigungslinie.
+// ============================================================
+
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled Promise Rejection:', reason);
+});
+
+// ============================================================
 // SERVER START
 // ============================================================
 

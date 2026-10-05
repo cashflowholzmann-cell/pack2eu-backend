@@ -89,68 +89,73 @@ router.get('/public-prices', async (req, res) => {
 });
 
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
-  const { plan } = req.body;
-  const interval = req.body.interval === 'annual' ? 'annual' : 'monthly';
-
-  const envVarName = (STRIPE_PRICE_IDS[interval] || STRIPE_PRICE_IDS.monthly)[plan] || STRIPE_PRICE_IDS.monthly.M;
-  const priceId = process.env[envVarName];
-
-  if (!priceId) {
-    return res.status(400).json({
-      error: interval === 'annual'
-        ? 'Die Jahreszahlung für diesen Plan ist noch nicht konfiguriert.'
-        : 'Für diesen Plan ist kein Preis konfiguriert.'
-    });
-  }
-
-  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
-  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
-
-  let stripeCustomerId = customer.stripe_customer_id;
-  if (!stripeCustomerId) {
-    const sc = await stripe.customers.create({
-      email: customer.email,
-      name: customer.company_name,
-      metadata: { customer_number: customer.customer_number }
-    });
-    stripeCustomerId = sc.id;
-    db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
-  }
-
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    customer: stripeCustomerId,
-    line_items: [{ price: priceId, quantity: 1 }],
-    // Zeigt an der Kasse ein Gutschein-/Rabattcode-Feld an - ohne das gibt
-    // es aktuell KEINEN Weg, einen Code (z.B. für eine Reel-Aktion)
-    // einzulösen. Der Code selbst wird als Promotion Code im Stripe-
-    // Dashboard angelegt, nicht im Code hinterlegt.
-    allow_promotion_codes: true,
-    success_url: `${process.env.APP_URL}/Dashboard.html?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.APP_URL}/index.html`,
-    metadata: {
-      user_id: customer.id,
-      plan: plan,
-      interval: interval,
-      type: 'plan_upgrade'
-    }
-  });
-
-  // Für den Checkout-Funnel im Admin-Dashboard (siehe GET
-  // /admin/checkout-funnel): beantwortet "wie viele registrierte Kunden
-  // erreichen die Stripe-Kasse und brechen DORT ab" statt das nur zu
-  // vermuten. Der Webhook unten markiert die Zeile bei erfolgreicher
-  // Zahlung als 'completed'.
   try {
-    db.prepare(`
-      INSERT INTO checkout_sessions (stripe_session_id, customer_id, plan, interval, origin_country, is_eu, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'created')
-    `).run(session.id, customer.id, plan, interval, customer.origin_country, customer.is_eu ? 1 : 0);
-  } catch (err) {
-    console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
-  }
+    const { plan } = req.body;
+    const interval = req.body.interval === 'annual' ? 'annual' : 'monthly';
 
-  res.json({ url: session.url });
+    const envVarName = (STRIPE_PRICE_IDS[interval] || STRIPE_PRICE_IDS.monthly)[plan] || STRIPE_PRICE_IDS.monthly.M;
+    const priceId = process.env[envVarName];
+
+    if (!priceId) {
+      return res.status(400).json({
+        error: interval === 'annual'
+          ? 'Die Jahreszahlung für diesen Plan ist noch nicht konfiguriert.'
+          : 'Für diesen Plan ist kein Preis konfiguriert.'
+      });
+    }
+
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    let stripeCustomerId = customer.stripe_customer_id;
+    if (!stripeCustomerId) {
+      const sc = await stripe.customers.create({
+        email: customer.email,
+        name: customer.company_name,
+        metadata: { customer_number: customer.customer_number }
+      });
+      stripeCustomerId = sc.id;
+      db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: stripeCustomerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      // Zeigt an der Kasse ein Gutschein-/Rabattcode-Feld an - ohne das gibt
+      // es aktuell KEINEN Weg, einen Code (z.B. für eine Reel-Aktion)
+      // einzulösen. Der Code selbst wird als Promotion Code im Stripe-
+      // Dashboard angelegt, nicht im Code hinterlegt.
+      allow_promotion_codes: true,
+      success_url: `${process.env.APP_URL}/Dashboard.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL}/index.html`,
+      metadata: {
+        user_id: customer.id,
+        plan: plan,
+        interval: interval,
+        type: 'plan_upgrade'
+      }
+    });
+
+    // Für den Checkout-Funnel im Admin-Dashboard (siehe GET
+    // /admin/checkout-funnel): beantwortet "wie viele registrierte Kunden
+    // erreichen die Stripe-Kasse und brechen DORT ab" statt das nur zu
+    // vermuten. Der Webhook unten markiert die Zeile bei erfolgreicher
+    // Zahlung als 'completed'.
+    try {
+      db.prepare(`
+        INSERT INTO checkout_sessions (stripe_session_id, customer_id, plan, interval, origin_country, is_eu, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'created')
+      `).run(session.id, customer.id, plan, interval, customer.origin_country, customer.is_eu ? 1 : 0);
+    } catch (err) {
+      console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
+    }
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('❌ Abo-Checkout-Fehler:', error.message);
+    res.status(500).json({ error: 'Checkout konnte nicht gestartet werden.' });
+  }
 });
 
 // ============================================================
@@ -188,72 +193,91 @@ router.post('/create-portal-session', requireAuth, async (req, res) => {
 // ============================================================
 // PREMIUM-UPGRADE ZAHLUNG (149 € pro Land)
 // ============================================================
+// Bug (Kundenmeldung 10/2026, "Failed to fetch" beim Klick auf
+// "Bevollmächtigter erforderlich"): das Frontend (bookRepresentative())
+// schickte nie einen "price" mit, wodurch unit_amount zu NaN wurde -
+// Stripe lehnte das ab, und weil die Route kein try/catch hatte (und es
+// serverweit kein unhandledRejection-Auffangnetz gibt), konnte eine
+// abgelehnte Stripe-Anfrage den GESAMTEN Prozess crashen, nicht nur
+// diese eine Anfrage fehlschlagen lassen. Der Preis wird jetzt serverseitig
+// fest auf 149 € gesetzt (entspricht dem Kommentar/der Beschreibung unten)
+// statt vom Client übernommen zu werden - das behebt zugleich die
+// eigentliche Ursache UND das Sicherheitsproblem, einen Zahlungsbetrag
+// vom Client vorgeben zu lassen. Die gesamte Handler-Logik läuft jetzt in
+// try/catch, damit ein Stripe-/DB-Fehler nie mehr den Prozess crasht.
+const PREMIUM_UPGRADE_PRICE_EUR = 149;
+
 router.post('/create-upgrade-session', requireAuth, async (req, res) => {
-  const { country, price, type } = req.body;
-  const customerId = req.customer.sub;
-
-  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
-  if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
-
-  const activation = db.prepare(
-    'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
-  ).get(customerId, country);
-
-  if (!activation) {
-    return res.status(404).json({ error: 'Land nicht aktiviert.' });
-  }
-
-  if (activation.mode === 'premium') {
-    return res.status(400).json({ error: 'Bereits im Premium-Modus.' });
-  }
-
-  let stripeCustomerId = customer.stripe_customer_id;
-  if (!stripeCustomerId) {
-    const sc = await stripe.customers.create({
-      email: customer.email,
-      name: customer.company_name,
-      metadata: { customer_number: customer.customer_number }
-    });
-    stripeCustomerId = sc.id;
-    db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
-  }
-
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    customer: stripeCustomerId,
-    payment_method_types: ['card'],
-    line_items: [{
-      price_data: {
-        currency: 'eur',
-        product_data: {
-          name: `Pack2EU Premium Upgrade – ${country}`,
-          description: `Bevollmächtigter für ${country} (149 €)`
-        },
-        unit_amount: price * 100,
-      },
-      quantity: 1,
-    }],
-    success_url: `${process.env.APP_URL}/Dashboard.html?upgrade=success&country=${country}`,
-    cancel_url: `${process.env.APP_URL}/Dashboard.html?upgrade=cancel`,
-    metadata: {
-      user_id: customerId,
-      country: country,
-      type: type || 'premium_upgrade'
-    }
-  });
-
-  // Siehe Kommentar bei /create-checkout-session: dieselbe Sichtbarkeit
-  // im Checkout-Funnel, die bisher nur der Haupt-Abo-Kasse vorbehalten war.
   try {
-    db.prepare(`
-      INSERT INTO checkout_sessions (stripe_session_id, customer_id, origin_country, is_eu, type, status)
-      VALUES (?, ?, ?, ?, ?, 'created')
-    `).run(session.id, customer.id, customer.origin_country, customer.is_eu ? 1 : 0, type || 'premium_upgrade');
-  } catch (err) {
-    console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
-  }
+    const { country, type } = req.body;
+    const customerId = req.customer.sub;
 
-  res.json({ url: session.url });
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    const activation = db.prepare(
+      'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
+    ).get(customerId, country);
+
+    if (!activation) {
+      return res.status(404).json({ error: 'Land nicht aktiviert.' });
+    }
+
+    if (activation.mode === 'premium') {
+      return res.status(400).json({ error: 'Bereits im Premium-Modus.' });
+    }
+
+    let stripeCustomerId = customer.stripe_customer_id;
+    if (!stripeCustomerId) {
+      const sc = await stripe.customers.create({
+        email: customer.email,
+        name: customer.company_name,
+        metadata: { customer_number: customer.customer_number }
+      });
+      stripeCustomerId = sc.id;
+      db.prepare('UPDATE customers SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, customer.id);
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Pack2EU Premium Upgrade – ${country}`,
+            description: `Bevollmächtigter für ${country} (${PREMIUM_UPGRADE_PRICE_EUR} €)`
+          },
+          unit_amount: PREMIUM_UPGRADE_PRICE_EUR * 100,
+        },
+        quantity: 1,
+      }],
+      success_url: `${process.env.APP_URL}/Dashboard.html?upgrade=success&country=${country}`,
+      cancel_url: `${process.env.APP_URL}/Dashboard.html?upgrade=cancel`,
+      metadata: {
+        user_id: customerId,
+        country: country,
+        type: type || 'premium_upgrade'
+      }
+    });
+
+    // Siehe Kommentar bei /create-checkout-session: dieselbe Sichtbarkeit
+    // im Checkout-Funnel, die bisher nur der Haupt-Abo-Kasse vorbehalten war.
+    try {
+      db.prepare(`
+        INSERT INTO checkout_sessions (stripe_session_id, customer_id, origin_country, is_eu, type, status)
+        VALUES (?, ?, ?, ?, ?, 'created')
+      `).run(session.id, customer.id, customer.origin_country, customer.is_eu ? 1 : 0, type || 'premium_upgrade');
+    } catch (err) {
+      console.error('❌ Checkout-Session-Tracking-Fehler:', err.message);
+    }
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('❌ Premium-Upgrade-Checkout-Fehler:', error.message);
+    res.status(500).json({ error: 'Checkout konnte nicht gestartet werden.' });
+  }
 });
 
 // ============================================================
