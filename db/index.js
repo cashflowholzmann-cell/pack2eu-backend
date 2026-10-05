@@ -1312,7 +1312,7 @@ function init() {
         eco_fee = 'Beitrag an die gewählte Producentansvarsorganisation (NPA oder TMR), material- und mengenabhängig.',
         representative_required = 1,
         representative_provider_name = 'EUROMANDAT',
-        representative_provider_url = 'https://euromandat.net/en/authorised-representative/sweden/',
+        representative_provider_url = 'https://euromandat.net/en/open-a-case/?laender=se&stroeme=verpackung',
         representative_data_status = 'needs_verification',
         reporting_frequency = 'needs_verification',
         data_status = 'needs_verification'
@@ -2667,30 +2667,20 @@ function init() {
     // vom Kunden geteilt, Stand 10/2026) - representative_data_status der
     // jeweiligen Zeile bleibt davon unberührt.
     //
-    // Länder-spezifische URLs nach dem bei Schweden bestätigten Muster
-    // (https://euromandat.net/en/authorised-representative/sweden/)
-    // gebildet - NUR die schwedische URL wurde vom Kunden tatsächlich
-    // eingesehen/bestätigt, die übrigen sind nach demselben Muster
-    // abgeleitet, aber NICHT einzeln verifiziert (WebFetch auf diese
-    // Domain ist in dieser Umgebung blockiert). Sollte einer der Links
-    // nicht auflösen, landet man auf der entsprechenden Sprachversion
-    // der Seite und kann von dort zum richtigen Land navigieren.
-    const euromandatAltCountries = {
-      DE: 'germany',
-      FR: 'france',
-      AT: 'austria',
-      CY: 'cyprus',
-      CZ: 'czechia',
-      EE: 'estonia',
-      ES: 'spain',
-      HU: 'hungary',
-      IE: 'ireland',
-      IT: 'italy',
-      NL: 'netherlands',
-      PL: 'poland',
-      PT: 'portugal',
-      SK: 'slovakia'
-    };
+    // URL-Muster (Kundenfund 10/2026): /open-a-case/?laender={code}&
+    // stroeme=verpackung springt direkt in den Fall-Erstellungs-Prozess
+    // (vorausgefüllt mit Land + Verpackungs-Strom) statt auf eine
+    // Marketing-/Info-Seite - weniger Klicks für den Kunden. Nutzt den
+    // simplen 2-Buchstaben-ISO-Code, den wir ohnehin für jedes Land haben,
+    // also keine Land-Name-Zuordnungstabelle mehr nötig (vorher: eine
+    // pro Land einzeln gepflegte Slug-Liste). Vom Kunden im Browser für
+    // IT und DK bestätigt; für die übrigen Länder nach demselben Muster
+    // abgeleitet, nicht einzeln verifiziert.
+    function euromandatOpenCaseUrl(code) {
+      return `https://euromandat.net/en/open-a-case/?laender=${code.toLowerCase()}&stroeme=verpackung`;
+    }
+
+    const euromandatAltCountries = ['DE', 'FR', 'AT', 'CY', 'CZ', 'EE', 'ES', 'HU', 'IE', 'IT', 'NL', 'PL', 'PT', 'SK'];
     const setEuromandatAlt = db.prepare(`
       UPDATE countries
       SET representative_provider_alt_name = 'EUROMANDAT',
@@ -2698,8 +2688,8 @@ function init() {
           representative_provider_alt_price = '39 €/Monat pro Mitgliedstaat (netto, ca. 468 €/Jahr, inkl. bis 500 kg/Jahr Programmteilnahme) - Mindestlaufzeit 12 Monate'
       WHERE code = ?
     `);
-    for (const [code, slug] of Object.entries(euromandatAltCountries)) {
-      setEuromandatAlt.run(`https://euromandat.net/en/authorised-representative/${slug}/`, code);
+    for (const code of euromandatAltCountries) {
+      setEuromandatAlt.run(euromandatOpenCaseUrl(code), code);
     }
 
     // Bekannter Vergleichspreis für den bisherigen primären Anbieter in
@@ -2709,7 +2699,7 @@ function init() {
     db.prepare(`UPDATE countries SET representative_provider_price = '170 €/Jahr' WHERE code = 'DE'`).run();
 
     console.log(
-      `✅ EUROMANDAT als Alternativ-Anbieter hinterlegt: ${Object.keys(euromandatAltCountries).length} Länder`
+      `✅ EUROMANDAT als Alternativ-Anbieter hinterlegt: ${euromandatAltCountries.length} Länder`
     );
 
 
@@ -2734,19 +2724,7 @@ function init() {
     // als "kann vermitteln" angekündigt).
     // ========================================================
 
-    const euromandatNewPrimaryCountries = {
-      BE: 'belgium',
-      BG: 'bulgaria',
-      HR: 'croatia',
-      DK: 'denmark',
-      GR: 'greece',
-      LT: 'lithuania',
-      LU: 'luxembourg',
-      LV: 'latvia',
-      MT: 'malta',
-      RO: 'romania',
-      SI: 'slovenia'
-    };
+    const euromandatNewPrimaryCountries = ['BE', 'BG', 'HR', 'DK', 'GR', 'LT', 'LU', 'LV', 'MT', 'RO', 'SI'];
     const setEuromandatPrimary = db.prepare(`
       UPDATE countries
       SET representative_required = 1,
@@ -2761,8 +2739,8 @@ function init() {
     const euromandatCorrectionNote =
       'ERGÄNZUNG 10/2026: Seit 12.08.2026 verlangt Art. 45 Abs. 3 der EU-Verordnung (EU) 2025/40 (PPWR), unmittelbar EU-weit geltend, von jedem hier nicht niedergelassenen Hersteller (auch EU-ansässigen) einen Bevollmächtigten für die erweiterte Herstellerverantwortung - unabhängig davon, was dazu im nationalen Recht dieses Landes steht oder (noch) nicht geregelt ist. EUROMANDAT bietet die Bevollmächtigten-Rolle für dieses Land konkret an (eigene Niederlassung vor Ort, 39 €/Monat, siehe Anbieter-Link). Eigene Angaben des Anbieters, noch nicht unabhängig von Pack2EU verifiziert.';
 
-    for (const [code, slug] of Object.entries(euromandatNewPrimaryCountries)) {
-      setEuromandatPrimary.run(`https://euromandat.net/en/authorised-representative/${slug}/`, code);
+    for (const code of euromandatNewPrimaryCountries) {
+      setEuromandatPrimary.run(euromandatOpenCaseUrl(code), code);
 
       const row = appendEuromandatBullet.get(code);
       if (row) {
@@ -2773,7 +2751,7 @@ function init() {
       }
     }
     console.log(
-      `✅ EUROMANDAT als Primär-Anbieter hinterlegt: ${Object.keys(euromandatNewPrimaryCountries).length} Länder`
+      `✅ EUROMANDAT als Primär-Anbieter hinterlegt: ${euromandatNewPrimaryCountries.length} Länder`
     );
 
     // Finnland: EUROMANDAT nur als Alternative, representative_required
@@ -2781,10 +2759,10 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET representative_provider_alt_name = 'EUROMANDAT',
-          representative_provider_alt_url = 'https://euromandat.net/en/authorised-representative/finland/',
+          representative_provider_alt_url = ?,
           representative_provider_alt_price = '39 €/Monat pro Mitgliedstaat (netto, ca. 468 €/Jahr, inkl. bis 500 kg/Jahr Programmteilnahme) - Mindestlaufzeit 12 Monate'
       WHERE code = 'FI'
-    `).run();
+    `).run(euromandatOpenCaseUrl('FI'));
 
 
     // ========================================================
