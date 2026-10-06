@@ -84,6 +84,7 @@ router.get('/overview', (req, res) => {
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
     const views30d = db.prepare('SELECT referrer, utm_source, country, created_at, visit_id, session_id FROM page_views WHERE created_at >= ?').all(since30d);
     const viewsByChannel = {};
@@ -93,6 +94,12 @@ router.get('/overview', (req, res) => {
     });
 
     const viewsLast7d = views30d.filter(v => v.created_at >= since7d).length;
+
+    // Vergleichswert fürs Trend-Pfeilchen neben "Seitenaufrufe (24 Std.)" im
+    // Admin (Kundenwunsch 10/2026) - die 24h DAVOR (48h-24h), damit sich die
+    // aktuellen 24h gegen einen gleich langen Vorzeitraum vergleichen lassen
+    // statt z.B. gegen den 30-Tage-Schnitt.
+    const viewsPrev24h = views30d.filter(v => v.created_at >= since48h && v.created_at < since24h).length;
 
     // Echte Besuchs-Zählung statt nur roher Pageview-Anzahl (Kundenwunsch
     // 10/2026). visit_id (sessionStorage, pro Tab/Browser-Sitzung neu,
@@ -187,7 +194,7 @@ router.get('/overview', (req, res) => {
     const churnRate = everPaying > 0 ? churnTotals.churnedTotal / everPaying : null;
 
     res.json({
-      totals: { ...totals, viewsLast7d, uniqueVisits30d, uniqueVisits7d, uniqueVisitsTotal, ...churnTotals, churnRate },
+      totals: { ...totals, viewsLast7d, viewsPrev24h, uniqueVisits30d, uniqueVisits7d, uniqueVisitsTotal, ...churnTotals, churnRate },
       viewsByChannel,
       viewsByCountry,
       viewsByChannelAllTime,
