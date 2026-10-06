@@ -88,7 +88,7 @@ const MAX_LANDING_DURATION_SECONDS = 30 * 60;
 
 router.post('/event', trackLimiter, (req, res) => {
   try {
-    const { event_name, session_id, event_value } = req.body || {};
+    const { event_name, session_id, event_value, visit_id } = req.body || {};
     if (!ALLOWED_EVENTS.includes(event_name) || !session_id) {
       return res.status(400).json({ error: 'Ungültiges Event.' });
     }
@@ -104,9 +104,9 @@ router.post('/event', trackLimiter, (req, res) => {
     }
 
     db.prepare(`
-      INSERT INTO click_events (event_name, session_id, event_value)
-      VALUES (?, ?, ?)
-    `).run(event_name, String(session_id).slice(0, 100), value);
+      INSERT INTO click_events (event_name, session_id, event_value, visit_id)
+      VALUES (?, ?, ?, ?)
+    `).run(event_name, String(session_id).slice(0, 100), value, visit_id ? String(visit_id).slice(0, 100) : null);
 
     res.json({ ok: true });
   } catch (error) {
@@ -121,7 +121,7 @@ router.post('/event', trackLimiter, (req, res) => {
 // strukturierte Daten statt nur ein Event-Name reinkommen.
 router.post('/calculator-usage', trackLimiter, (req, res) => {
   try {
-    const { session_id, countries, total_kg, plan, savings } = req.body || {};
+    const { session_id, countries, total_kg, plan, savings, visit_id } = req.body || {};
 
     if (!session_id || !Array.isArray(countries) || countries.length === 0) {
       return res.status(400).json({ error: 'Ungültige Rechner-Daten.' });
@@ -143,15 +143,16 @@ router.post('/calculator-usage', trackLimiter, (req, res) => {
     const savingsNum = Number(savings);
 
     db.prepare(`
-      INSERT INTO calculator_usage (session_id, countries_json, country_count, total_kg, plan, savings)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO calculator_usage (session_id, countries_json, country_count, total_kg, plan, savings, visit_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       String(session_id).slice(0, 100),
       JSON.stringify(cleanCountries),
       cleanCountries.length,
       kg,
       typeof plan === 'string' ? plan.slice(0, 10) : null,
-      Number.isFinite(savingsNum) ? savingsNum : null
+      Number.isFinite(savingsNum) ? savingsNum : null,
+      visit_id ? String(visit_id).slice(0, 100) : null
     );
 
     res.json({ ok: true });
@@ -167,7 +168,7 @@ const ALLOWED_DEVICE_TYPES = ['mobile', 'tablet', 'desktop'];
 
 router.post('/pageview', trackLimiter, (req, res) => {
   try {
-    const { path, referrer, utm_source, utm_medium, utm_campaign, session_id, country, device_type } = req.body || {};
+    const { path, referrer, utm_source, utm_medium, utm_campaign, session_id, country, device_type, visit_id } = req.body || {};
 
     // Strenges Format statt Freitext (Whitelist-Prinzip wie bei den
     // Events oben) - nur ein zweistelliger ISO-Ländercode wird
@@ -179,8 +180,8 @@ router.post('/pageview', trackLimiter, (req, res) => {
     const cleanDeviceType = ALLOWED_DEVICE_TYPES.includes(device_type) ? device_type : null;
 
     db.prepare(`
-      INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign, session_id, country, device_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign, session_id, country, device_type, visit_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       String(path || '/').slice(0, 500),
       referrer ? String(referrer).slice(0, 500) : null,
@@ -189,7 +190,8 @@ router.post('/pageview', trackLimiter, (req, res) => {
       utm_campaign ? String(utm_campaign).slice(0, 100) : null,
       session_id ? String(session_id).slice(0, 100) : null,
       cleanCountry,
-      cleanDeviceType
+      cleanDeviceType,
+      visit_id ? String(visit_id).slice(0, 100) : null
     );
 
     res.json({ ok: true });
