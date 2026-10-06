@@ -17,6 +17,28 @@ const { sendSupportTicketConfirmationEmail, sendSupportTicketNotificationEmail }
 const router = express.Router();
 router.use(requireAuth, requireCustomer, requireActiveSubscription);
 
+// Ticketnummer im Format JJMMTT-NN (z.B. "261006-01", nächster Tag
+// "261007-01") statt der reinen durchlaufenden id (Kundenwunsch 10/2026) -
+// sortiert als String korrekt chronologisch (anders als TTMMJJ, wo z.B.
+// "05112601" alphabetisch vor "06102601" käme, obwohl November nach
+// Oktober liegt). NN zählt pro Kalendertag (UTC, wie created_at) neu von
+// 01 - synchron innerhalb desselben better-sqlite3-Aufrufs, also ohne
+// Race Condition zwischen Zählen und Einfügen.
+function generateTicketNumber() {
+  const now = new Date();
+  const datePrefix = [
+    String(now.getUTCFullYear()).slice(-2),
+    String(now.getUTCMonth() + 1).padStart(2, '0'),
+    String(now.getUTCDate()).padStart(2, '0')
+  ].join('');
+
+  const { count } = db.prepare(`
+    SELECT COUNT(*) as count FROM support_tickets WHERE ticket_number LIKE ?
+  `).get(`${datePrefix}-%`);
+
+  return `${datePrefix}-${String(count + 1).padStart(2, '0')}`;
+}
+
 router.post('/', async (req, res) => {
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   if (!message) {
@@ -29,9 +51,10 @@ router.post('/', async (req, res) => {
   const customerId = req.auth.userId;
 
   try {
-    const customer = db.prepare('SELECT company_name, customer_number, email FROM customers WHERE id = ?').get(customerId);
+    const customer = db.prepare('SELECT company_name, customer_number, email, preferred_lang FROM customers WHERE id = ?').get(customerId);
 
-    const insertResult = db.prepare('INSERT INTO support_tickets (customer_id, message) VALUES (?, ?)').run(customerId, message);
+    const ticketNumber = generateTicketNumber();
+    const insertResult = db.prepare('INSERT INTO support_tickets (customer_id, message, ticket_number) VALUES (?, ?, ?)').run(customerId, message, ticketNumber);
     const ticketId = insertResult.lastInsertRowid;
 
     // E-Mail-Versand ist ein Nice-to-have, kein Kernbestandteil - ein SMTP-
@@ -39,14 +62,14 @@ router.post('/', async (req, res) => {
     // lib/email.js: sendMail() scheitert ohnehin nie, loggt nur).
     try {
       await Promise.all([
-        sendSupportTicketConfirmationEmail(customer.email, ticketId, message),
-        sendSupportTicketNotificationEmail(ticketId, customer, message)
+        sendSupportTicketConfirmationEmail(customer.email, ticketNumber, message, customer.preferred_lang),
+        sendSupportTicketNotificationEmail(ticketNumber, customer, message)
       ]);
     } catch (emailError) {
       console.error('❌ Support-Ticket-Mail Fehler:', emailError.message);
     }
 
-    res.status(201).json({ id: ticketId, status: 'open' });
+    res.status(201).json({ id: ticketId, ticket_number: ticketNumber, status: 'open' });
   } catch (error) {
     console.error('❌ Support-Ticket Fehler:', error);
     res.status(500).json({ error: 'Ticket konnte nicht angelegt werden: ' + error.message });
@@ -56,7 +79,7 @@ router.post('/', async (req, res) => {
 router.get('/', (req, res) => {
   try {
     const tickets = db.prepare(`
-      SELECT id, message, status, created_at, updated_at
+      SELECT id, ticket_number, message, status, created_at, updated_at
       FROM support_tickets
       WHERE customer_id = ?
       ORDER BY created_at DESC

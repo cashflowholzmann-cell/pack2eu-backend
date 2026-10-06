@@ -4407,6 +4407,15 @@ function init() {
     addColumnIfMissing('country_stream_rules', 'translations_json', 'TEXT');
     applyBundledCountryTranslationSeed();
 
+    // Menschenlesbare Ticketnummer im Format JJMMTT-NN (z.B. "261006-01"),
+    // zusätzlich zur fortlaufenden id - siehe routes/support-tickets.js.
+    addColumnIfMissing('support_tickets', 'ticket_number', 'TEXT');
+
+    // Sprache für Einladungs-/Login-Code-Mails an Bevollmächtigte - wird bei
+    // Anlage aus country_code abgeleitet (siehe lib/lang-by-country.js),
+    // da es (Stand 10/2026) kein eigenes Sprachfeld im Anlage-Formular gibt.
+    addColumnIfMissing('representatives', 'preferred_lang', 'TEXT');
+
     console.log(
       '=============================================='
     );
