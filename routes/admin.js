@@ -1078,6 +1078,21 @@ router.put('/support-tickets/:id', (req, res) => {
 // ============================================================
 // KUNDEN (Lese-Übersicht fürs Vertriebs-Tool)
 // ============================================================
+// Kundenwunsch 10/2026: "wie aktiv sind die einzelnen Kunden?" - kombiniert
+// den letzten Login mit der letzten echten Nutzung (Produkt angelegt/
+// geändert, Bestellung erfasst, Meldung abgegeben) zu einem einzigen
+// last_activity_at + einer Einordnung, statt nur das Erstellungsdatum zu
+// zeigen. Pro Kunde 4 kleine Korrelat-Subqueries (MAX je Tabelle) - bei der
+// hier ohnehin gültigen LIMIT 200 unproblematisch, spart aber eine JOIN-
+// Explosion über vier unterschiedlich geformte Tabellen.
+function computeActivityStatus(lastActivityAt) {
+  if (!lastActivityAt) return 'never';
+  const days = (Date.now() - new Date(lastActivityAt).getTime()) / 86400000;
+  if (days <= 7) return 'active';
+  if (days <= 30) return 'recent';
+  return 'quiet';
+}
+
 router.get('/customers', (req, res) => {
   const customers = db.prepare(`
     SELECT id, customer_number, company_name, email, plan, subscription_status,
@@ -1090,11 +1105,32 @@ router.get('/customers', (req, res) => {
                   AND password_reset_expires_at IS NOT NULL
                   AND password_reset_expires_at > datetime('now')
              THEN 1 ELSE 0
-           END as invite_pending
+           END as invite_pending,
+           last_login_at,
+           (SELECT MAX(updated_at) FROM product_packaging WHERE customer_id = customers.id) as last_product_activity,
+           (SELECT MAX(created_at) FROM orders WHERE user_id = customers.id) as last_order_activity,
+           (SELECT MAX(created_at) FROM marketplace_orders WHERE customer_id = customers.id) as last_marketplace_activity,
+           (SELECT MAX(created_at) FROM submissions WHERE customer_id = customers.id) as last_submission_activity
     FROM customers
     ORDER BY created_at DESC
     LIMIT 200
   `).all();
+
+  customers.forEach((c) => {
+    const timestamps = [
+      c.last_login_at, c.last_product_activity, c.last_order_activity,
+      c.last_marketplace_activity, c.last_submission_activity
+    ].filter(Boolean);
+    c.last_activity_at = timestamps.length
+      ? timestamps.reduce((max, t) => (t > max ? t : max))
+      : null;
+    c.activity_status = computeActivityStatus(c.last_activity_at);
+    delete c.last_product_activity;
+    delete c.last_order_activity;
+    delete c.last_marketplace_activity;
+    delete c.last_submission_activity;
+  });
+
   res.json(customers);
 });
 

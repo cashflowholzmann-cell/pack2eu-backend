@@ -590,6 +590,14 @@ function init() {
     // auf Englisch zurück (Standard seit 25.09.2026).
     addColumnIfMissing('customers', 'preferred_lang', 'TEXT');
 
+    // Kundenwunsch 10/2026: "wie aktiv sind die einzelnen Kunden?" - bisher
+    // gab es dafür (anders als bei representatives) gar kein Feld. Wird bei
+    // jedem erfolgreichen Login gesetzt (siehe routes/auth.js POST /login)
+    // und bildet zusammen mit den letzten Produkt-/Bestellungs-/Meldungs-
+    // Zeitstempeln die Aktivitäts-Übersicht im Admin-Tool
+    // (GET /admin/customers).
+    addColumnIfMissing('customers', 'last_login_at', 'TEXT');
+
     // Postadresse/Telefon der Verantwortlichen Person - Pflichtangabe,
     // die laut Art. 16 GPSR auf dem Produkt/der Verpackung stehen muss.
     // Bisher gab es dafür kein Feld (representatives.company reicht für

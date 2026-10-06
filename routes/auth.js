@@ -419,6 +419,10 @@ router.post(
       }
 
 
+      db.prepare(`
+        UPDATE customers SET last_login_at = datetime('now') WHERE id = ?
+      `).run(customer.id);
+
       const token =
         signToken(
           customer
