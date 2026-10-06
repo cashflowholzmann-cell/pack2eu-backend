@@ -88,10 +88,29 @@ router.get('/public-prices', async (req, res) => {
   }
 });
 
+// 14-tägiger Gratis-Trial (Kundenwunsch 10/2026, erste Branchen-Landingpage:
+// kosmetik.html) - nutzt Stripes EIGENEN trial_period_days statt einer
+// selbstgebauten Sperrlogik: die Karte wird bei Stripe Checkout wie gewohnt
+// hinterlegt, aber ERST nach 14 Tagen belastet. checkout.session.completed
+// feuert bereits beim Abschluss des Checkouts (auch während der Trial-
+// Phase), schaltet also sofort frei - genau wie eine normale Zahlung, siehe
+// Webhook unten. Schlägt die automatische Abbuchung nach 14 Tagen fehl,
+// kümmert sich Stripes eigenes Dunning (Retries, danach Kündigung) darum;
+// eine gekündigte Subscription löst den bestehenden
+// 'customer.subscription.deleted'-Webhook aus, der den Zugang wieder
+// sperrt - alle Daten bleiben dabei erhalten, nur requireActiveSubscription
+// greift wieder. WICHTIG (einmalig, kein Code): im Stripe-Dashboard unter
+// Billing > Subscriptions > "Manage failed payments" muss "Cancel the
+// subscription" (nicht nur "mark as unpaid") aktiv sein, sonst bleibt eine
+// nicht bezahlte Trial-Subscription unbegrenzt in 'past_due' hängen, statt
+// den Zugang zu sperren.
+const TRIAL_PERIOD_DAYS = 14;
+
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   try {
     const { plan } = req.body;
     const interval = req.body.interval === 'annual' ? 'annual' : 'monthly';
+    const trial = req.body.trial === true;
 
     const envVarName = (STRIPE_PRICE_IDS[interval] || STRIPE_PRICE_IDS.monthly)[plan] || STRIPE_PRICE_IDS.monthly.M;
     const priceId = process.env[envVarName];
@@ -106,6 +125,13 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
 
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.customer.sub);
     if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
+
+    // Verhindert, dass ein bereits zahlender/ehemals zahlender Kunde sich
+    // per manipuliertem Request nochmal einen Trial erschleicht - ein Trial
+    // ist nur für Konten gedacht, die noch nie ein echtes Abo hatten.
+    if (trial && (customer.subscription_status === 'active' || customer.stripe_subscription_id)) {
+      return res.status(400).json({ error: 'Für dieses Konto ist bereits ein Abo aktiv oder war aktiv - kein Trial mehr möglich.' });
+    }
 
     let stripeCustomerId = customer.stripe_customer_id;
     if (!stripeCustomerId) {
@@ -128,7 +154,12 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
       // Dashboard angelegt, nicht im Code hinterlegt.
       allow_promotion_codes: true,
       success_url: `${process.env.APP_URL}/Dashboard.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.APP_URL}/index.html`,
+      // Nur eine eigene Seite erlaubt (sonst offenes Weiterleitungsziel über
+      // einen beliebigen externen Link) - fällt sonst auf index.html zurück.
+      cancel_url: (typeof req.body.cancelUrl === 'string' && req.body.cancelUrl.startsWith(process.env.APP_URL))
+        ? req.body.cancelUrl
+        : `${process.env.APP_URL}/index.html`,
+      ...(trial ? { subscription_data: { trial_period_days: TRIAL_PERIOD_DAYS } } : {}),
       metadata: {
         user_id: customer.id,
         plan: plan,
