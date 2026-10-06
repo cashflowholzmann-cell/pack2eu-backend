@@ -68,6 +68,24 @@ function generateCustomerNumber() {
 // REGISTRIERUNG
 // ============================================================
 
+// Gleiche Branchen-Liste wie beim Erst-Onboarding (siehe ONBOARDING_NICHES-
+// Kommentar weiter unten) - hier oben definiert, damit registerSchema sie
+// mitnutzen kann: eine Branchen-Landingpage (z.B. eine Kosmetik-Kampagne)
+// kann die Branche direkt bei der Registrierung mitschicken, statt der
+// Kunde sie im Onboarding-Wizard nochmal manuell auswählen muss.
+const ONBOARDING_NICHES = [
+  'fashion',
+  'beauty',
+  'home_deco',
+  'electronics',
+  'baby_toys',
+  'sport_outdoor',
+  'food_beverage',
+  'books_stationery',
+  'jewelry_accessories',
+  'pet_supplies'
+];
+
 const registerSchema =
   z.object({
 
@@ -130,7 +148,20 @@ const registerSchema =
     lang:
       z.enum(['de', 'en', 'fr', 'it', 'es'])
         .optional()
-        .default('en')
+        .default('en'),
+
+    // Optional direkt bei der Registrierung mitgeschickt (z.B. von einer
+    // Branchen-Landingpage wie kosmetik.html -> 'beauty') - erspart dem
+    // Kunden, die Branche im Erst-Onboarding nochmal manuell auszuwählen
+    // (siehe maybeShowOnboarding()/openOnboardingModal() in dashboard.html).
+    // Setzt NUR customers.niche, NICHT onboarding_completed_at - der
+    // restliche Onboarding-Wizard (Presets/Länder/Testbestellung) läuft
+    // beim ersten Dashboard-Login trotzdem durch, nur eben ohne den
+    // Nische-Auswahl-Schritt.
+    niche:
+      z.enum(ONBOARDING_NICHES)
+        .nullable()
+        .optional()
 
   });
 
@@ -182,7 +213,8 @@ router.post(
       isEU,
       acquisitionSource,
       sessionId,
-      lang
+      lang,
+      niche
     } =
       parsed.data;
 
@@ -273,9 +305,10 @@ router.post(
             is_eu,
             acquisition_source,
             acquisition_session_id,
-            preferred_lang
+            preferred_lang,
+            niche
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
 
@@ -310,7 +343,10 @@ router.post(
           sessionId ||
             null,
 
-          lang
+          lang,
+
+          niche ||
+            null
 
         );
 
@@ -844,19 +880,6 @@ router.get(
 //
 // POST /api/auth/onboarding
 // ============================================================
-
-const ONBOARDING_NICHES = [
-  'fashion',
-  'beauty',
-  'home_deco',
-  'electronics',
-  'baby_toys',
-  'sport_outdoor',
-  'food_beverage',
-  'books_stationery',
-  'jewelry_accessories',
-  'pet_supplies'
-];
 
 const onboardingSchema = z.object({
   niche: z.enum(ONBOARDING_NICHES).nullable().optional(),
