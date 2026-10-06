@@ -83,6 +83,7 @@ router.get('/overview', (req, res) => {
   try {
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const views30d = db.prepare('SELECT referrer, utm_source, country, created_at, visit_id, session_id FROM page_views WHERE created_at >= ?').all(since30d);
     const viewsByChannel = {};
@@ -175,8 +176,12 @@ router.get('/overview', (req, res) => {
           END = 'open'
         ) as openTasks,
         (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as views30d,
+        -- Rollierendes 24h-Fenster (nicht Kalendertag) - bewusst roh (jeder
+        -- Pageview zählt), keine "echte Besuche"-Unterscheidung wie bei den
+        -- anderen Zeiträumen (Kundenwunsch 10/2026).
+        (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as viewsLast24h,
         (SELECT COUNT(*) FROM page_views) as viewsTotal
-    `).get(since30d);
+    `).get(since30d, since24h);
 
     const everPaying = totals.activeCustomers + churnTotals.churnedTotal;
     const churnRate = everPaying > 0 ? churnTotals.churnedTotal / everPaying : null;
