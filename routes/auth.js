@@ -1048,7 +1048,7 @@ router.post('/forgot-password', async (req, res) => {
   if (!email) return res.json(genericResponse);
 
   try {
-    const customer = db.prepare('SELECT id, email FROM customers WHERE email = ?').get(email);
+    const customer = db.prepare('SELECT id, email, preferred_lang FROM customers WHERE email = ?').get(email);
     if (!customer) return res.json(genericResponse);
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -1062,7 +1062,7 @@ router.post('/forgot-password', async (req, res) => {
     `).run(tokenHash, expiresAt, customer.id);
 
     const resetUrl = `${process.env.APP_URL || ''}/index.html?resetToken=${rawToken}`;
-    await sendPasswordResetEmail(customer.email, resetUrl);
+    await sendPasswordResetEmail(customer.email, resetUrl, customer.preferred_lang);
 
     return res.json(genericResponse);
   } catch (error) {

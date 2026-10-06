@@ -214,7 +214,7 @@ router.post('/login', repAuthLimiter, async (req, res) => {
       WHERE id = ?
     `).run(codeHash, expiresAt, rep.id);
 
-    await sendRepresentativeLoginCodeEmail(rep.email, code);
+    await sendRepresentativeLoginCodeEmail(rep.email, code, rep.preferred_lang);
 
     return res.json({ requiresCode: true, message: 'Bestätigungscode wurde per E-Mail verschickt.' });
   } catch (error) {

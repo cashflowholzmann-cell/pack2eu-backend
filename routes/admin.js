@@ -29,6 +29,7 @@ const {
   sendCompAccessActivatedEmail
 } = require('../lib/email');
 const { classifyChannel: classifyChannelShared } = require('../lib/acquisition-channel');
+const { langForCountry } = require('../lib/lang-by-country');
 
 const router = express.Router();
 
@@ -1066,7 +1067,7 @@ router.delete('/tasks/:id', (req, res) => {
 // ============================================================
 router.get('/support-tickets', (req, res) => {
   const tickets = db.prepare(`
-    SELECT st.id, st.message, st.status, st.created_at, st.updated_at,
+    SELECT st.id, st.ticket_number, st.message, st.status, st.created_at, st.updated_at,
            c.company_name, c.customer_number, c.email
     FROM support_tickets st
     JOIN customers c ON c.id = st.customer_id
@@ -1969,8 +1970,9 @@ function issueRepInvite(repId, email, name) {
     WHERE id = ?
   `).run(tokenHash, expiresAt, repId);
 
+  const rep = db.prepare('SELECT preferred_lang FROM representatives WHERE id = ?').get(repId);
   const acceptUrl = `${process.env.APP_URL || ''}/representative.html?inviteToken=${rawToken}`;
-  return sendRepresentativeInviteEmail(email, name, acceptUrl);
+  return sendRepresentativeInviteEmail(email, name, acceptUrl, rep?.preferred_lang);
 }
 
 router.get('/representatives', (req, res) => {
@@ -2000,10 +2002,10 @@ async function createAndInviteRepresentative({ countryCode, name, email, company
   const placeholderHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
 
   const insert = db.prepare(`
-    INSERT INTO representatives (country_code, name, email, password_hash, company, stream)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO representatives (country_code, name, email, password_hash, company, stream, preferred_lang)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
-  const result = insert.run(countryCode, name, email, placeholderHash, company || null, stream);
+  const result = insert.run(countryCode, name, email, placeholderHash, company || null, stream, langForCountry(countryCode));
 
   await issueRepInvite(result.lastInsertRowid, email, name);
   return result.lastInsertRowid;
