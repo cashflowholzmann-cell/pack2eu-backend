@@ -1048,6 +1048,34 @@ router.delete('/tasks/:id', (req, res) => {
 });
 
 // ============================================================
+// SUPPORT-TICKETS (siehe routes/support-tickets.js)
+//
+// Offene zuerst, innerhalb dessen älteste zuerst - "nach Reihenfolge
+// abgearbeitet" ist hier wörtlich die Sortierung, keine Priorisierung.
+// ============================================================
+router.get('/support-tickets', (req, res) => {
+  const tickets = db.prepare(`
+    SELECT st.id, st.message, st.status, st.created_at, st.updated_at,
+           c.company_name, c.customer_number, c.email
+    FROM support_tickets st
+    JOIN customers c ON c.id = st.customer_id
+    ORDER BY (st.status = 'done'), st.created_at ASC
+  `).all();
+  res.json(tickets);
+});
+
+router.put('/support-tickets/:id', (req, res) => {
+  const existing = db.prepare('SELECT id FROM support_tickets WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Ticket nicht gefunden.' });
+
+  const status = req.body?.status === 'done' ? 'done' : req.body?.status === 'open' ? 'open' : null;
+  if (!status) return res.status(400).json({ error: 'Status muss "open" oder "done" sein.' });
+
+  db.prepare(`UPDATE support_tickets SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, req.params.id);
+  res.json({ success: true });
+});
+
+// ============================================================
 // KUNDEN (Lese-Übersicht fürs Vertriebs-Tool)
 // ============================================================
 router.get('/customers', (req, res) => {

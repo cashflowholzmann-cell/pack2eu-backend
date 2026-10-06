@@ -694,6 +694,40 @@ CREATE TABLE IF NOT EXISTS feedback (
 
 
 -- ================================================================
+-- SUPPORT-TICKETS
+--
+-- Einfaches Ticket-System ab Starter-Paket (Kundenwunsch 10/2026): Kunde
+-- tippt "was geht nicht" ein, bekommt eine Eingangsbestätigung mit
+-- Ticketnummer, wir bearbeiten strikt nach Reihenfolge (ältestes offenes
+-- Ticket zuerst) im Admin-Tool. Die Ticketnummer ist einfach die id -
+-- erscheint als Betreff sowohl in der Kunden-Bestätigung als auch in der
+-- internen Benachrichtigung an support@pack2eu.global, damit beide Mails
+-- im selben Postfach-Thread landen (siehe lib/email.js).
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  customer_id INTEGER NOT NULL
+    REFERENCES customers(id)
+    ON DELETE CASCADE,
+
+  message TEXT NOT NULL,
+
+  status TEXT NOT NULL
+    DEFAULT 'open'
+    CHECK (status IN ('open', 'done')),
+
+  created_at TEXT NOT NULL
+    DEFAULT (datetime('now')),
+
+  updated_at TEXT NOT NULL
+    DEFAULT (datetime('now'))
+);
+
+
+-- ================================================================
 -- BEVOLLMÄCHTIGTE
 -- ================================================================
 
