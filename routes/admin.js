@@ -28,6 +28,7 @@ const {
   sendCompAccessNewAccountEmail,
   sendCompAccessActivatedEmail
 } = require('../lib/email');
+const { classifyChannel: classifyChannelShared } = require('../lib/acquisition-channel');
 
 const router = express.Router();
 
@@ -69,13 +70,11 @@ router.use(requireAuth, requireAdmin);
 // ============================================================
 // ÜBERSICHT
 // ============================================================
+// Siehe lib/acquisition-channel.js - dieselbe Klassifizierung wird jetzt
+// auch von routes/auth.js (First-Touch-Attribution bei der Registrierung)
+// genutzt, statt wie bisher zweimal getrennt gepflegt zu werden.
 function classifyChannel(row) {
-  if (row.utm_source) return row.utm_source.toLowerCase();
-  const ref = (row.referrer || '').toLowerCase();
-  if (!ref) return 'direkt';
-  if (/facebook|instagram|tiktok|linkedin|twitter|x\.com|pinterest/.test(ref)) return 'social_media';
-  if (/google|bing|duckduckgo|yahoo/.test(ref)) return 'suchmaschine';
-  return 'sonstige_website';
+  return classifyChannelShared(row.referrer, row.utm_source);
 }
 
 router.get('/overview', (req, res) => {
@@ -83,7 +82,7 @@ router.get('/overview', (req, res) => {
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const views30d = db.prepare('SELECT referrer, utm_source, country, created_at FROM page_views WHERE created_at >= ?').all(since30d);
+    const views30d = db.prepare('SELECT referrer, utm_source, country, created_at, visit_id, session_id FROM page_views WHERE created_at >= ?').all(since30d);
     const viewsByChannel = {};
     views30d.forEach(v => {
       const ch = classifyChannel(v);
@@ -91,6 +90,17 @@ router.get('/overview', (req, res) => {
     });
 
     const viewsLast7d = views30d.filter(v => v.created_at >= since7d).length;
+
+    // Echte Besuchs-Zählung statt nur roher Pageview-Anzahl (Kundenwunsch
+    // 10/2026). visit_id (sessionStorage, pro Tab/Browser-Sitzung neu,
+    // siehe db/index.js-Kommentar bei page_views.visit_id) zählt
+    // tatsächliche Besuche; session_id bleibt bewusst dauerhaft und würde
+    // einen Besucher, der an mehreren Tagen wiederkommt, fälschlich als
+    // eine einzige Session zählen. Fällt für Altdaten ohne visit_id (vor
+    // diesem Feature) auf session_id zurück statt den Pageview komplett
+    // aus der Zählung rauszulassen.
+    const uniqueVisits30d = new Set(views30d.map(v => v.visit_id || v.session_id).filter(Boolean)).size;
+    const uniqueVisits7d = new Set(views30d.filter(v => v.created_at >= since7d).map(v => v.visit_id || v.session_id).filter(Boolean)).size;
 
     // Herkunftsland der Besucher (aus der clientseitigen IP-Erkennung,
     // siehe page_views.country) - zeigt, wo tatsächlich Traffic
@@ -105,7 +115,7 @@ router.get('/overview', (req, res) => {
     // NEBEN der 30-Tage-Ansicht mit (nicht anstelle), damit ältere Quellen/
     // Länder nicht nach 30 Tagen aus der Statistik verschwinden, sondern
     // dauerhaft sichtbar bleiben.
-    const viewsAllTime = db.prepare('SELECT referrer, utm_source, country FROM page_views').all();
+    const viewsAllTime = db.prepare('SELECT referrer, utm_source, country, visit_id, session_id FROM page_views').all();
     const viewsByChannelAllTime = {};
     const viewsByCountryAllTime = {};
     viewsAllTime.forEach(v => {
@@ -114,6 +124,7 @@ router.get('/overview', (req, res) => {
       const c = v.country || 'unbekannt';
       viewsByCountryAllTime[c] = (viewsByCountryAllTime[c] || 0) + 1;
     });
+    const uniqueVisitsTotal = new Set(viewsAllTime.map(v => v.visit_id || v.session_id).filter(Boolean)).size;
 
     const leadsBySource = db.prepare(`
       SELECT source, COUNT(*) as count FROM leads GROUP BY source
@@ -169,7 +180,7 @@ router.get('/overview', (req, res) => {
     const churnRate = everPaying > 0 ? churnTotals.churnedTotal / everPaying : null;
 
     res.json({
-      totals: { ...totals, viewsLast7d, ...churnTotals, churnRate },
+      totals: { ...totals, viewsLast7d, uniqueVisits30d, uniqueVisits7d, uniqueVisitsTotal, ...churnTotals, churnRate },
       viewsByChannel,
       viewsByCountry,
       viewsByChannelAllTime,

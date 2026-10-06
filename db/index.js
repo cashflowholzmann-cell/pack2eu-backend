@@ -4108,6 +4108,20 @@ function init() {
     // GET /admin/landing-engagement -> heroBounce).
     addColumnIfMissing('page_views', 'device_type', 'TEXT');
 
+    // Kundenwunsch 10/2026 (nach DB-Auswertung): session_id ist bewusst
+    // dauerhaft (localStorage, nie ablaufend, siehe index.html
+    // getOrCreateSessionId()) - das ist RICHTIG für
+    // customers.acquisition_session_id, damit ein Kauf Tage/Wochen nach
+    // dem ersten Besuch noch demselben anonymen Besucher zugeordnet
+    // werden kann. Für "wie viele Besuche/Sessions" ist dieselbe ID aber
+    // ungeeignet - ein 13 Tage alter "ein Besucher, viele Tage online"-
+    // Verlauf zählt sonst als eine einzige Session. visit_id (sessionStorage,
+    // leert sich beim Schließen des Tabs/Browsers - siehe index.html
+    // getOrCreateVisitId()) ergänzt deshalb eine zweite, kurzlebige ID pro
+    // tatsächlichem Besuch, ohne die bestehende, bewusst dauerhafte
+    // session_id zu ersetzen. NULL bei alten Zeilen von vor diesem Feature.
+    addColumnIfMissing('page_views', 'visit_id', 'TEXT');
+
     // Klick-Events fürs Funnel-Tracking (siehe routes/track.js,
     // POST /track/event) - erfasst gezielt "Demo gestartet" und
     // "Rechner geöffnet" pro anonymer Session-ID, damit sich im
@@ -4123,6 +4137,9 @@ function init() {
       );
     `);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_click_events_session_id ON click_events(session_id);`);
+
+    // Siehe Kommentar bei page_views.visit_id oben - gleiche Ergänzung hier.
+    addColumnIfMissing('click_events', 'visit_id', 'TEXT');
 
     // Numerischer Zusatzwert für Events, die mehr als nur "ist passiert"
     // transportieren - aktuell nur 'demo_duration' (Sekunden, die die
@@ -4147,6 +4164,9 @@ function init() {
       );
     `);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_calculator_usage_created_at ON calculator_usage(created_at);`);
+
+    // Siehe Kommentar bei page_views.visit_id oben - gleiche Ergänzung hier.
+    addColumnIfMissing('calculator_usage', 'visit_id', 'TEXT');
 
     // Nutzung des öffentlichen FAQ-Chats auf der Landing Page (siehe
     // routes/faq-chat.js): jede vorgefertigte Frage (Klick, 0 Cent) und

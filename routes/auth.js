@@ -5,6 +5,7 @@ const { z } = require('zod');
 
 const { db } = require('../db');
 const { sendPasswordResetEmail, sendWelcomeEmail } = require('../lib/email');
+const { classifyChannel } = require('../lib/acquisition-channel');
 
 const {
   signToken,
@@ -207,6 +208,33 @@ router.post(
       }
 
 
+      // First-Touch-Attribution statt "aktueller Referrer beim Absenden
+      // des Formulars": acquisitionSource oben kommt aus
+      // getAcquisitionSource() im Frontend, die document.referrer JETZT
+      // ausliest - bei einer Registrierung, die (wie hier) von einer
+      // internen Seite (z.B. dashboard.html) aus passiert, war das nie
+      // der echte Herkunftskanal, sondern nur "kam von unserer eigenen
+      // Seite". sessionId verknüpft dieselbe anonyme Besucher-ID wie
+      // beim Pageview-/Event-Tracking (siehe routes/track.js) - die
+      // ALLERERSTE page_views-Zeile dieser Session trägt den echten
+      // Eintritts-Referrer (z.B. Google), unabhängig davon, wie viele
+      // Tage/Besuche seitdem vergangen sind. Fällt nur auf den vom
+      // Client gesendeten Wert zurück, wenn gar keine Pageview-Historie
+      // existiert (z.B. Ad-Blocker, oder sessionId fehlt).
+      let resolvedAcquisitionSource = acquisitionSource || null;
+      if (sessionId) {
+        const firstTouch = db.prepare(`
+          SELECT referrer, utm_source FROM page_views
+          WHERE session_id = ?
+          ORDER BY created_at ASC
+          LIMIT 1
+        `).get(sessionId);
+        if (firstTouch) {
+          resolvedAcquisitionSource = classifyChannel(firstTouch.referrer, firstTouch.utm_source);
+        }
+      }
+
+
       const passwordHash =
         bcrypt.hashSync(
           password,
@@ -277,8 +305,7 @@ router.post(
             ? 1
             : 0,
 
-          acquisitionSource ||
-            null,
+          resolvedAcquisitionSource,
 
           sessionId ||
             null,
