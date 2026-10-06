@@ -30,6 +30,7 @@ const {
 } = require('../lib/email');
 const { classifyChannel: classifyChannelShared } = require('../lib/acquisition-channel');
 const { langForCountry } = require('../lib/lang-by-country');
+const REP_LANGS = ['de', 'en', 'fr', 'it', 'es'];
 
 const router = express.Router();
 
@@ -1979,7 +1980,7 @@ router.get('/representatives', (req, res) => {
   try {
     const reps = db.prepare(`
       SELECT r.id, r.country_code, r.stream, r.name, r.email, r.company, r.active,
-             r.address, r.phone,
+             r.address, r.phone, r.preferred_lang,
              r.email_verified_at, r.last_login_at, r.created_at,
              (SELECT COUNT(*) FROM representative_customer_assignments WHERE representative_id = r.id) as assignedCustomers
       FROM representatives r
@@ -1994,18 +1995,23 @@ router.get('/representatives', (req, res) => {
 
 // Von /representatives (manuelle Anlage) UND /representative-requests/:id/approve
 // (Freigabe einer Kunden-Anfrage) genutzt - siehe dort.
-async function createAndInviteRepresentative({ countryCode, name, email, company, stream = 'packaging' }) {
+async function createAndInviteRepresentative({ countryCode, name, email, company, stream = 'packaging', lang }) {
   // Platzhalter-Hash: kein bekanntes Passwort, wird durch das echte
   // Passwort bei der Einladungs-Annahme ersetzt (siehe /accept-invite in
   // routes/representatives.js) - so bleibt die NOT-NULL-Spalte erfüllt,
   // ohne dass der Account vor Annahme der Einladung nutzbar wäre.
   const placeholderHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
 
+  // 'lang' ist eine explizite Admin-Auswahl (z.B. polnischer Bevollmächtigter,
+  // der aber Englisch bevorzugt) - fehlt sie, wird weiterhin aus dem Land
+  // abgeleitet (siehe lib/lang-by-country.js).
+  const preferredLang = REP_LANGS.includes(lang) ? lang : langForCountry(countryCode);
+
   const insert = db.prepare(`
     INSERT INTO representatives (country_code, name, email, password_hash, company, stream, preferred_lang)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
-  const result = insert.run(countryCode, name, email, placeholderHash, company || null, stream, langForCountry(countryCode));
+  const result = insert.run(countryCode, name, email, placeholderHash, company || null, stream, preferredLang);
 
   await issueRepInvite(result.lastInsertRowid, email, name);
   return result.lastInsertRowid;
@@ -2024,6 +2030,8 @@ router.post('/representatives', async (req, res) => {
   // Nur für 'gpsr' relevant: Pflichtangabe fürs Produkt (Art. 16 GPSR).
   const address = req.body?.address ? String(req.body.address).trim() : null;
   const phone = req.body?.phone ? String(req.body.phone).trim() : null;
+  // Leer/fehlend = automatisch aus dem Land ableiten (siehe createAndInviteRepresentative).
+  const lang = req.body?.lang ? String(req.body.lang).trim().toLowerCase() : null;
 
   if (!email || !name || !countryCode) {
     return res.status(400).json({ error: 'E-Mail, Name und Land sind Pflichtfelder.' });
@@ -2033,7 +2041,7 @@ router.post('/representatives', async (req, res) => {
     const existing = db.prepare('SELECT id FROM representatives WHERE email = ?').get(email);
     if (existing) return res.status(409).json({ error: 'E-Mail bereits registriert.' });
 
-    const id = await createAndInviteRepresentative({ countryCode, name, email, company, stream });
+    const id = await createAndInviteRepresentative({ countryCode, name, email, company, stream, lang });
     if (address || phone) {
       db.prepare('UPDATE representatives SET address = ?, phone = ? WHERE id = ?').run(address, phone, id);
     }
@@ -2110,6 +2118,15 @@ router.patch('/representatives/:id', (req, res) => {
   if (req.body?.phone !== undefined) {
     fields.push('phone = ?');
     values.push(req.body.phone ? String(req.body.phone).trim() : null);
+  }
+  if (req.body?.lang !== undefined) {
+    // Leerer String = zurück auf "automatisch nach Land".
+    const lang = req.body.lang ? String(req.body.lang).trim().toLowerCase() : null;
+    const countryCode = req.body?.country_code !== undefined
+      ? String(req.body.country_code).trim().toUpperCase()
+      : db.prepare('SELECT country_code FROM representatives WHERE id = ?').get(req.params.id)?.country_code;
+    fields.push('preferred_lang = ?');
+    values.push(REP_LANGS.includes(lang) ? lang : langForCountry(countryCode));
   }
 
   if (fields.length === 0) {
