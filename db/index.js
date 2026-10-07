@@ -178,6 +178,52 @@ function migrateMarketplaceOrdersPlatformCheck() {
   console.log("✅ marketplace_orders: CHECK-Constraint um 'baselinker' erweitert");
 }
 
+// Dritter Durchlauf (WooCommerce-Integration, routes/woocommerce.js) -
+// gleicher Grund wie beim Baselinker-Rebuild oben: SQLite CHECK-
+// Constraints lassen sich nicht per ALTER TABLE erweitern, ein INSERT mit
+// platform='woocommerce' würde sonst an jeder einzelnen Bestellung
+// scheitern. fulfillment_type (vom Baselinker-Rebuild) wird mitgeführt,
+// damit dieser dritte Rebuild sie nicht wieder verliert.
+function migrateMarketplaceOrdersWoocommercePlatform() {
+  if (!tableExists('marketplace_orders')) return;
+
+  const currentSql = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'marketplace_orders'
+  `).get()?.sql || '';
+
+  if (currentSql.includes("'woocommerce'")) return;
+
+  const hasFulfillmentType = columnExists('marketplace_orders', 'fulfillment_type');
+
+  db.exec(`
+    CREATE TABLE marketplace_orders_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      platform TEXT NOT NULL CHECK (platform IN ('etsy', 'kaufland', 'amazon', 'ebay', 'skroutz', 'baselinker', 'woocommerce')),
+      external_order_id TEXT NOT NULL,
+      order_data_json TEXT,
+      destination_country TEXT,
+      total_weight_grams INTEGER NOT NULL DEFAULT 0,
+      packaging_data TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      fulfillment_type TEXT,
+      UNIQUE(platform, external_order_id)
+    );
+
+    INSERT INTO marketplace_orders_new
+      (id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at${hasFulfillmentType ? ', fulfillment_type' : ''})
+    SELECT id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at${hasFulfillmentType ? ', fulfillment_type' : ''}
+    FROM marketplace_orders;
+
+    DROP TABLE marketplace_orders;
+    ALTER TABLE marketplace_orders_new RENAME TO marketplace_orders;
+
+    CREATE INDEX IF NOT EXISTS idx_marketplace_orders_customer ON marketplace_orders(customer_id);
+  `);
+
+  console.log("✅ marketplace_orders: CHECK-Constraint um 'woocommerce' erweitert");
+}
+
 // Zielland-Freitext (z.B. Base/BaseLinker delivery_country = "Italy" statt
 // des ISO-Codes "IT") normalisieren - Ursache dafür, dass im Jahresreport
 // z.B. "IT" und "ITALY" als getrennte Zeilen auftauchten. routes/baselinker.js
@@ -557,6 +603,17 @@ function init() {
     addColumnIfMissing('customers', 'kaufland_client_key', 'TEXT');
     addColumnIfMissing('customers', 'kaufland_secret_key', 'TEXT');
 
+    // WooCommerce (Kundenwunsch 10/2026, ursprünglich für Bella Rosa/
+    // Griechenland - gilt aber für jeden WooCommerce-Shop): wie Kaufland
+    // kein OAuth-Redirect, sondern Consumer Key/Secret, die sich der Kunde
+    // selbst in seinem eigenen WordPress-Adminbereich erzeugt (WooCommerce
+    // -> Einstellungen -> Erweitert -> REST-API). Zusätzlich die Shop-URL,
+    // da WooCommerce (anders als Kaufland/Skroutz/Base) selbst gehostet
+    // ist und keine feste zentrale API-Basis-URL hat.
+    addColumnIfMissing('customers', 'woocommerce_store_url', 'TEXT');
+    addColumnIfMissing('customers', 'woocommerce_consumer_key', 'TEXT');
+    addColumnIfMissing('customers', 'woocommerce_consumer_secret', 'TEXT');
+
     // Amazon SP-API (Login with Amazon, siehe routes/amazon.js) - Code
     // bereits fertig, wartet auf Amazons Entwickler-/Rollen-Freigabe.
     addColumnIfMissing('customers', 'amazon_selling_partner_id', 'TEXT');
@@ -643,6 +700,7 @@ function init() {
     // im Skroutz-Händler-Panel, siehe routes/skroutz.js).
     addColumnIfMissing('customers', 'skroutz_api_token', 'TEXT');
     migrateMarketplaceOrdersPlatformCheck();
+    migrateMarketplaceOrdersWoocommercePlatform();
 
     // Skroutz-Bestellungen können entweder "Fulfilled by Skroutz" (FBS -
     // Skroutz übernimmt Lagerung/Versand) oder direkt vom Händler selbst
@@ -693,6 +751,7 @@ function init() {
     addColumnIfMissing('product_packaging', 'ebay_item_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
+    addColumnIfMissing('product_packaging', 'woocommerce_product_id', 'TEXT');
     normalizeStoredDestinationCountries();
     backfillBaselinkerFallbackMaterials();
     normalizeNonArrayPackagingData();
