@@ -52,6 +52,7 @@ const supportTicketRoutes = require('./routes/support-tickets');
 // Freigabe da ist und die zugehörigen Env-Vars gesetzt sind.
 const etsyRoutes = require('./routes/etsy');
 const kauflandRoutes = require('./routes/kaufland');
+const woocommerceRoutes = require('./routes/woocommerce');
 const amazonRoutes = require('./routes/amazon');
 const ebayRoutes = require('./routes/ebay');
 const skroutzRoutes = require('./routes/skroutz');
@@ -300,6 +301,7 @@ app.use('/api/support-tickets', supportTicketRoutes);
 // Weitere Marktplätze
 app.use('/api/etsy', etsyRoutes);
 app.use('/api/kaufland', kauflandRoutes);
+app.use('/api/woocommerce', woocommerceRoutes);
 app.use('/api/skroutz', skroutzRoutes);
 app.use('/api/baselinker', baselinkerRoutes);
 app.use('/api/amazon', amazonRoutes);
