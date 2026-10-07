@@ -161,7 +161,19 @@ const registerSchema =
     niche:
       z.enum(ONBOARDING_NICHES)
         .nullable()
+        .optional(),
+
+    // Kartenloser 14-Tage-Trial (Kundenwunsch 10/2026, bisher nur von
+    // kosmetik.html gesendet): überspringt den sofortigen Stripe-
+    // Checkout-Aufruf, Kunde landet direkt im Dashboard und zahlt erst
+    // nach Ablauf (siehe middleware/auth.js requireActiveSubscription).
+    // Bewusst ein expliziter Opt-in-Flag statt an die Branchen-Landing-
+    // page gekoppelt - die normale Registrierung über index.html bleibt
+    // dadurch komplett unverändert (Flag fehlt dort einfach).
+    cardlessTrial:
+      z.boolean()
         .optional()
+        .default(false)
 
   });
 
@@ -214,7 +226,8 @@ router.post(
       acquisitionSource,
       sessionId,
       lang,
-      niche
+      niche,
+      cardlessTrial
     } =
       parsed.data;
 
@@ -357,6 +370,13 @@ router.post(
           SET subscription_status = 'active',
               comp_account_note = 'Eigener Test-Account (TEST_ACCESS_EMAILS)',
               comp_account_granted_at = datetime('now')
+          WHERE id = ?
+        `).run(result.lastInsertRowid);
+      } else if (cardlessTrial) {
+        db.prepare(`
+          UPDATE customers
+          SET subscription_status = 'trialing',
+              trial_ends_at = datetime('now', '+14 days')
           WHERE id = ?
         `).run(result.lastInsertRowid);
       }
@@ -562,6 +582,7 @@ router.get(
             email,
             plan,
             subscription_status,
+            trial_ends_at,
             niche,
             onboarding_completed_at,
             billing_interval,

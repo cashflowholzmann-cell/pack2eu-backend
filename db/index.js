@@ -4279,6 +4279,16 @@ function init() {
     addColumnIfMissing('customers', 'comp_account_granted_at', 'TEXT');
     addColumnIfMissing('customers', 'comp_account_revoked_at', 'TEXT');
 
+    // Kartenloser 14-Tage-Trial (Kundenwunsch 10/2026, bisher nur für
+    // kosmetik.html): subscription_status='trialing' + trial_ends_at
+    // gesetzt statt sofortigem Stripe-Checkout bei der Registrierung
+    // (siehe routes/auth.js registerSchema.cardlessTrial). NULL für alle
+    // Kunden, die nie einen kartenlosen Trial hatten (normale Registrierung
+    // über index.html, oder bereits zahlende/comp-Kunden) - dient
+    // middleware/auth.js requireActiveSubscription als Ablaufdatum, ab dem
+    // ein 'trialing'-Kunde ausgesperrt wird.
+    addColumnIfMissing('customers', 'trial_ends_at', 'TEXT');
+
     // Zwischengespeichertes Ergebnis der KI-Themenanalyse (siehe
     // routes/admin.js, POST /topics/analyze) - läuft nicht bei jedem
     // Seitenaufruf automatisch, sondern nur auf Knopfdruck im internen
