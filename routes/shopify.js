@@ -21,7 +21,7 @@ const OAUTH_STATE_TTL_MINUTES = 10;
 // ============================================================
 function verifyShopifyWebhook(req, res, next) {
   const hmacHeader = req.headers['x-shopify-hmac-sha256'];
-  const secret = process.env.SHOPIFY_CLIENT_SECRET;
+  const secret = process.env.SHOPIFY_API_SECRET;
 
   if (!secret || !hmacHeader || !Buffer.isBuffer(req.body)) {
     return res.status(401).send('Unauthorized');
@@ -51,11 +51,18 @@ function verifyShopifyWebhook(req, res, next) {
 // ============================================================
 // requireAuth + oauth_states (statt der vorherigen fest verdrahteten
 // Test-E-Mail im Callback) - identisches Muster wie Etsy/Amazon/eBay.
+//
+// Env-Var-Namen SHOPIFY_API_KEY/SHOPIFY_API_SECRET bewusst so (nicht
+// SHOPIFY_CLIENT_ID/SECRET wie bei Etsy/Amazon) - folgt Shopifys eigener
+// Terminologie ("API key"/"API secret key" im Partner Dashboard) und war
+// bereits unter diesem Namen bei Render hinterlegt (Audit-Fund 10/2026:
+// Code suchte nach SHOPIFY_CLIENT_ID, das es nie gab - deshalb lief die
+// Verbindung trotz vorhandener, korrekter Zugangsdaten nie).
 router.get('/auth', requireAuth, (req, res) => {
   const { shop } = req.query;
   if (!shop) return res.status(400).json({ error: 'Shop-Parameter fehlt.' });
-  if (!process.env.SHOPIFY_CLIENT_ID || !process.env.SHOPIFY_REDIRECT_URI) {
-    return res.status(503).json({ error: 'Shopify-Integration ist noch nicht konfiguriert (SHOPIFY_CLIENT_ID/SHOPIFY_REDIRECT_URI fehlen).' });
+  if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_REDIRECT_URI) {
+    return res.status(503).json({ error: 'Shopify-Integration ist noch nicht konfiguriert (SHOPIFY_API_KEY/SHOPIFY_REDIRECT_URI fehlen).' });
   }
 
   const state = crypto.randomBytes(16).toString('hex');
@@ -66,7 +73,7 @@ router.get('/auth', requireAuth, (req, res) => {
     VALUES (?, 'shopify', ?, ?, ?)
   `).run(req.auth.userId, state, shop, expiresAt);
 
-  const authUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_CLIENT_ID}&scope=read_products,read_orders&redirect_uri=${process.env.SHOPIFY_REDIRECT_URI}&state=${state}`;
+  const authUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_API_KEY}&scope=read_products,read_orders&redirect_uri=${process.env.SHOPIFY_REDIRECT_URI}&state=${state}`;
 
   // JSON statt redirect: der Aufruf braucht den Bearer-Token, den eine
   // einfache Browser-Navigation nicht mitschicken kann. Das Frontend
@@ -92,8 +99,8 @@ router.get('/callback', async (req, res) => {
     }
 
     const response = await axios.post(`https://${shop}/admin/oauth/access_token`, {
-      client_id: process.env.SHOPIFY_CLIENT_ID,
-      client_secret: process.env.SHOPIFY_CLIENT_SECRET,
+      client_id: process.env.SHOPIFY_API_KEY,
+      client_secret: process.env.SHOPIFY_API_SECRET,
       code: code,
     });
 

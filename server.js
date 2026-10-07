@@ -211,10 +211,10 @@ app.get('/api/config/discovery-call', (req, res) => {
 // eigenen Projekt, damit sie dieselbe stabile Render-URL nutzt wie die
 // API selbst - kein Cloudflare-Tunnel/separates Hosting mehr nötig.
 // Braucht Shopify App Bridge (Pflicht für eingebettete Apps), das den
-// öffentlichen Client-ID/API-Key aus SHOPIFY_CLIENT_ID injiziert
+// öffentlichen Client-ID/API-Key aus SHOPIFY_API_KEY injiziert
 // bekommt - kein Secret, daher unbedenklich serverseitig einzusetzen.
 app.get('/shopify-app', (req, res) => {
-  const apiKey = process.env.SHOPIFY_CLIENT_ID || '';
+  const apiKey = process.env.SHOPIFY_API_KEY || '';
   const appUrl = process.env.APP_URL || 'https://www.pack2eu.global';
   res.set('Content-Type', 'text/html; charset=utf-8');
   res.send(`<!DOCTYPE html>
