@@ -595,6 +595,9 @@ router.get(
             (skroutz_api_token IS NOT NULL) AS skroutz_connected,
             (baselinker_api_token IS NOT NULL) AS baselinker_connected,
             (woocommerce_consumer_key IS NOT NULL) AS woocommerce_connected,
+            (emag_username IS NOT NULL) AS emag_connected,
+            (shein_open_key_id IS NOT NULL) AS shein_connected,
+            (temu_access_token IS NOT NULL) AS temu_connected,
             amazon_addon_active
           FROM customers
           WHERE id = ?
