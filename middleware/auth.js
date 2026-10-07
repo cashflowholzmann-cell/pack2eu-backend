@@ -209,16 +209,47 @@ function requireActiveSubscription(req, res, next) {
   }
 
   const customer = db.prepare(
-    'SELECT subscription_status FROM customers WHERE id = ?'
+    'SELECT subscription_status, trial_ends_at FROM customers WHERE id = ?'
   ).get(req.auth.userId);
 
-  if (!customer || customer.subscription_status !== 'active') {
+  if (!customer) {
     return res.status(402).json({
       error: 'Bitte zuerst die Zahlung abschließen, um Pack2EU zu nutzen.'
     });
   }
 
-  next();
+  if (customer.subscription_status === 'active') {
+    return next();
+  }
+
+  // Kartenloser 14-Tage-Trial (siehe routes/auth.js registerSchema.
+  // cardlessTrial): kein Stripe-Objekt existiert, daher kein Webhook, der
+  // den Status am Tag 15 automatisch umschaltet - stattdessen wird
+  // trial_ends_at bei jedem Request live geprüft (kein Cron-Job nötig).
+  // Lazy-Flip auf 'inactive' bei Ablauf, damit der Status in der DB nicht
+  // dauerhaft fälschlich 'trialing' zeigt (u.a. relevant fürs Admin-Tool).
+  if (customer.subscription_status === 'trialing') {
+    const stillInTrial = db.prepare(
+      "SELECT trial_ends_at > datetime('now') AS valid FROM customers WHERE id = ?"
+    ).get(req.auth.userId);
+
+    if (stillInTrial && stillInTrial.valid) {
+      return next();
+    }
+
+    db.prepare(
+      "UPDATE customers SET subscription_status = 'inactive' WHERE id = ? AND subscription_status = 'trialing'"
+    ).run(req.auth.userId);
+
+    return res.status(402).json({
+      error: 'Deine 14 kostenlosen Tage sind abgelaufen. Bitte hinterlege eine Zahlungsmethode, um Pack2EU weiter zu nutzen.',
+      trialExpired: true
+    });
+  }
+
+  return res.status(402).json({
+    error: 'Bitte zuerst die Zahlung abschließen, um Pack2EU zu nutzen.'
+  });
 }
 
 
