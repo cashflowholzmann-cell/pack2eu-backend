@@ -224,6 +224,67 @@ function migrateMarketplaceOrdersWoocommercePlatform() {
   console.log("✅ marketplace_orders: CHECK-Constraint um 'woocommerce' erweitert");
 }
 
+// Vierter Durchlauf (eMAG/SHEIN/Temu, routes/emag.js, routes/shein.js,
+// routes/temu.js, Bella-Rosa-Expansion 10/2026) - gleicher Grund wie bei
+// den vorherigen drei Rebuilds. has_unclassified_items und
+// weee_battery_items_json existieren inzwischen (siehe addColumnIfMissing
+// weiter unten, laufen VOR diesem Aufruf) und werden deshalb - anders als
+// bei den früheren Rebuilds, die vor Einführung dieser beiden Spalten
+// liefen - hier mitgeführt, statt sie beim Rebuild zu verlieren.
+function migrateMarketplaceOrdersEmagSheinTemuPlatform() {
+  if (!tableExists('marketplace_orders')) return;
+
+  const currentSql = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'marketplace_orders'
+  `).get()?.sql || '';
+
+  if (currentSql.includes("'emag'")) return;
+
+  const hasFulfillmentType = columnExists('marketplace_orders', 'fulfillment_type');
+  const hasManuallyCorrected = columnExists('marketplace_orders', 'manually_corrected');
+  const hasUnclassifiedItems = columnExists('marketplace_orders', 'has_unclassified_items');
+  const hasWeeeBatteryItems = columnExists('marketplace_orders', 'weee_battery_items_json');
+
+  const extraCols = [
+    hasFulfillmentType && 'fulfillment_type',
+    hasManuallyCorrected && 'manually_corrected',
+    hasUnclassifiedItems && 'has_unclassified_items',
+    hasWeeeBatteryItems && 'weee_battery_items_json'
+  ].filter(Boolean);
+  const extraColsSql = extraCols.map(c => `, ${c}`).join('');
+
+  db.exec(`
+    CREATE TABLE marketplace_orders_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      platform TEXT NOT NULL CHECK (platform IN ('etsy', 'kaufland', 'amazon', 'ebay', 'skroutz', 'baselinker', 'woocommerce', 'emag', 'shein', 'temu')),
+      external_order_id TEXT NOT NULL,
+      order_data_json TEXT,
+      destination_country TEXT,
+      total_weight_grams INTEGER NOT NULL DEFAULT 0,
+      packaging_data TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      fulfillment_type TEXT,
+      manually_corrected INTEGER NOT NULL DEFAULT 0,
+      has_unclassified_items INTEGER NOT NULL DEFAULT 0,
+      weee_battery_items_json TEXT NOT NULL DEFAULT '{"weee":[],"battery":[]}',
+      UNIQUE(platform, external_order_id)
+    );
+
+    INSERT INTO marketplace_orders_new
+      (id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at${extraColsSql})
+    SELECT id, customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, created_at${extraColsSql}
+    FROM marketplace_orders;
+
+    DROP TABLE marketplace_orders;
+    ALTER TABLE marketplace_orders_new RENAME TO marketplace_orders;
+
+    CREATE INDEX IF NOT EXISTS idx_marketplace_orders_customer ON marketplace_orders(customer_id);
+  `);
+
+  console.log("✅ marketplace_orders: CHECK-Constraint um 'emag', 'shein', 'temu' erweitert");
+}
+
 // Zielland-Freitext (z.B. Base/BaseLinker delivery_country = "Italy" statt
 // des ISO-Codes "IT") normalisieren - Ursache dafür, dass im Jahresreport
 // z.B. "IT" und "ITALY" als getrennte Zeilen auftauchten. routes/baselinker.js
@@ -614,6 +675,33 @@ function init() {
     addColumnIfMissing('customers', 'woocommerce_consumer_key', 'TEXT');
     addColumnIfMissing('customers', 'woocommerce_consumer_secret', 'TEXT');
 
+    // eMAG Marketplace (Bella-Rosa-Expansion 10/2026, siehe routes/emag.js) -
+    // wie Kaufland kein OAuth, der Kunde trägt seine eigenen eMAG-
+    // Verkäuferkonto-Zugangsdaten (Username/Passwort, von eMAG per
+    // Account-Betreuer vergeben) ein. Zusätzlich das Land, da eMAG pro
+    // Land (RO/BG/HU) eine eigene API-Basis-URL betreibt.
+    addColumnIfMissing('customers', 'emag_username', 'TEXT');
+    addColumnIfMissing('customers', 'emag_password', 'TEXT');
+    addColumnIfMissing('customers', 'emag_country', 'TEXT');
+
+    // SHEIN Marketplace (Bella-Rosa-Expansion 10/2026, siehe routes/shein.js) -
+    // Kunde erzeugt sich Open-Key-ID/Secret-Key selbst im eigenen SHEIN
+    // Seller Hub (Personal Center -> Drittanbieter-Anwendungen). Noch NICHT
+    // gegen echte Zugangsdaten verifiziert (siehe requireSheinConfigured in
+    // routes/shein.js) - Connector ist vorbereitet, aber erst live, sobald
+    // SHEIN_API_BASE_URL gesetzt und einmal real getestet wurde.
+    addColumnIfMissing('customers', 'shein_open_key_id', 'TEXT');
+    addColumnIfMissing('customers', 'shein_secret_key', 'TEXT');
+
+    // Temu Open Platform (Bella-Rosa-Expansion 10/2026, siehe routes/temu.js) -
+    // anders als eMAG/SHEIN kein reines Kunden-Zugangsdaten-Modell: Pack2EU
+    // muss zuerst selbst eine App im Temu Open Platform registrieren
+    // (globaler App Key/Secret, siehe requireTemuConfigured), danach
+    // autorisiert jeder Kunde diese App für seinen eigenen Shop und bekommt
+    // einen Shop-spezifischen Access Token - genau wie bei Amazon SP-API.
+    addColumnIfMissing('customers', 'temu_access_token', 'TEXT');
+    addColumnIfMissing('customers', 'temu_shop_id', 'TEXT');
+
     // Amazon SP-API (Login with Amazon, siehe routes/amazon.js) - Code
     // bereits fertig, wartet auf Amazons Entwickler-/Rollen-Freigabe.
     addColumnIfMissing('customers', 'amazon_selling_partner_id', 'TEXT');
@@ -701,6 +789,7 @@ function init() {
     addColumnIfMissing('customers', 'skroutz_api_token', 'TEXT');
     migrateMarketplaceOrdersPlatformCheck();
     migrateMarketplaceOrdersWoocommercePlatform();
+    migrateMarketplaceOrdersEmagSheinTemuPlatform();
 
     // Skroutz-Bestellungen können entweder "Fulfilled by Skroutz" (FBS -
     // Skroutz übernimmt Lagerung/Versand) oder direkt vom Händler selbst
@@ -752,6 +841,9 @@ function init() {
     addColumnIfMissing('product_packaging', 'skroutz_shop_uid', 'TEXT');
     addColumnIfMissing('product_packaging', 'baselinker_sku', 'TEXT');
     addColumnIfMissing('product_packaging', 'woocommerce_product_id', 'TEXT');
+    addColumnIfMissing('product_packaging', 'emag_product_id', 'TEXT');
+    addColumnIfMissing('product_packaging', 'shein_product_id', 'TEXT');
+    addColumnIfMissing('product_packaging', 'temu_product_id', 'TEXT');
     normalizeStoredDestinationCountries();
     backfillBaselinkerFallbackMaterials();
     normalizeNonArrayPackagingData();
