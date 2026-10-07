@@ -46,6 +46,24 @@ function verifyShopifyWebhook(req, res, next) {
   next();
 }
 
+// Normalisiert die vom Kunden eingegebene Shop-Adresse auf die reine
+// *.myshopify.com-Domain, die die OAuth-URL braucht. Audit-Fund 10/2026:
+// Shopifys neue Admin-Oberfläche zeigt Kunden standardmäßig KEINE
+// myshopify.com-URL mehr an, sondern "admin.shopify.com/store/<handle>" -
+// ein Kunde, der das aus seiner eigenen Adresszeile kopiert (naheliegend),
+// bekam bisher eine kaputte "https://https://admin.shopify.com/..."-URL
+// mit DNS-Fehler statt einer funktionierenden Verbindung.
+function normalizeShopifyShop(raw) {
+  const trimmed = String(raw || '').trim();
+
+  const adminMatch = trimmed.match(/admin\.shopify\.com\/store\/([a-z0-9-]+)/i);
+  if (adminMatch) return `${adminMatch[1]}.myshopify.com`;
+
+  let shop = trimmed.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  if (shop && !shop.includes('.')) shop = `${shop}.myshopify.com`;
+  return shop;
+}
+
 // ============================================================
 // 1. Shopify OAuth – Händler autorisiert die App
 // ============================================================
@@ -59,7 +77,7 @@ function verifyShopifyWebhook(req, res, next) {
 // Code suchte nach SHOPIFY_CLIENT_ID, das es nie gab - deshalb lief die
 // Verbindung trotz vorhandener, korrekter Zugangsdaten nie).
 router.get('/auth', requireAuth, (req, res) => {
-  const { shop } = req.query;
+  const shop = normalizeShopifyShop(req.query.shop);
   if (!shop) return res.status(400).json({ error: 'Shop-Parameter fehlt.' });
   if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_REDIRECT_URI) {
     return res.status(503).json({ error: 'Shopify-Integration ist noch nicht konfiguriert (SHOPIFY_API_KEY/SHOPIFY_REDIRECT_URI fehlen).' });
