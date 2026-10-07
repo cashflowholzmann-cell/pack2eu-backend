@@ -4146,6 +4146,19 @@ function init() {
     // Demo im Dashboard offen war, siehe dashboard.html + routes/track.js).
     addColumnIfMissing('click_events', 'event_value', 'INTEGER');
 
+    // Pfad der Seite, auf der das Event ausgelöst wurde (window.location.
+    // pathname, z.B. '/index.html' oder '/kosmetik.html') - ermöglicht dem
+    // Admin-Tool (Kundenwunsch 10/2026), Traffic-/Engagement-Zahlen separat
+    // für die Hauptseite und die Kosmetik-Landingpage auszuwerten (siehe
+    // GET /admin/overview, /traffic-detail, /landing-engagement). Bewusst
+    // NICHT über session_id -> page_views-Join aufgelöst: session_id ist
+    // dauerhaft (siehe Kommentar oben) und könnte theoretisch Besuche auf
+    // beiden Landingpages verknüpfen - der direkt am Event mitgesendete
+    // Pfad ist eindeutig. Events von VOR diesem Feature bleiben NULL und
+    // fallen aus beiden gefilterten Tabs raus (zählen nur noch im "Gesamt"-
+    // Tab), statt fälschlich einer Seite zugeordnet zu werden.
+    addColumnIfMissing('click_events', 'path', 'TEXT');
+
     // Anonyme Rechner-Nutzung: welche Länder/Mengen wurden im Eco-Fee-
     // Rechner (Landing Page) tatsächlich durchgerechnet und welcher Plan
     // kam raus - hilft zu sehen, wonach am meisten gesucht wird, ohne

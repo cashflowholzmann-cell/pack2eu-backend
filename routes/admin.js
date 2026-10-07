@@ -79,14 +79,39 @@ function classifyChannel(row) {
   return classifyChannelShared(row.referrer, row.utm_source);
 }
 
+// ============================================================
+// SEITEN-FILTER (Kundenwunsch 10/2026): Admin-Tool soll Traffic-/
+// Engagement-Zahlen wahlweise nur für die Hauptseite (index.html) oder
+// nur für die Kosmetik-Landingpage (kosmetik.html) zeigen, per Tab oben
+// rechts im Admin-UI (?page=main|kosmetik, kein Parameter = "Gesamt").
+// Gilt NUR für reine Traffic-/Verhaltens-Zahlen (page_views/click_events) -
+// Kunden, Leads, Aufgaben, Tickets bleiben in jedem Tab vollständig
+// sichtbar/pflegbar, siehe Kommentare an den jeweiligen Stellen unten.
+// ============================================================
+function resolvePageFilter(req) {
+  const p = req.query.page;
+  return p === 'main' || p === 'kosmetik' ? p : null;
+}
+function matchesPageFilter(pathValue, filter) {
+  if (!filter) return true;
+  // Kein Pfad bekannt (Alt-Daten von vor diesem Feature, z.B. click_events
+  // ohne path) -> taucht nur im ungefilterten "Gesamt"-Tab auf, wird keiner
+  // Seite fälschlich zugeordnet.
+  if (typeof pathValue !== 'string') return false;
+  const isKosmetik = pathValue.includes('kosmetik');
+  return filter === 'kosmetik' ? isKosmetik : !isKosmetik;
+}
+
 router.get('/overview', (req, res) => {
   try {
+    const pageFilter = resolvePageFilter(req);
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-    const views30d = db.prepare('SELECT referrer, utm_source, country, created_at, visit_id, session_id FROM page_views WHERE created_at >= ?').all(since30d);
+    const views30dRaw = db.prepare('SELECT referrer, utm_source, country, created_at, visit_id, session_id, path FROM page_views WHERE created_at >= ?').all(since30d);
+    const views30d = views30dRaw.filter(v => matchesPageFilter(v.path, pageFilter));
     const viewsByChannel = {};
     views30d.forEach(v => {
       const ch = classifyChannel(v);
@@ -94,6 +119,7 @@ router.get('/overview', (req, res) => {
     });
 
     const viewsLast7d = views30d.filter(v => v.created_at >= since7d).length;
+    const viewsLast24h = views30d.filter(v => v.created_at >= since24h).length;
 
     // Vergleichswert fürs Trend-Pfeilchen neben "Seitenaufrufe (24 Std.)" im
     // Admin (Kundenwunsch 10/2026) - die 24h DAVOR (48h-24h), damit sich die
@@ -125,7 +151,8 @@ router.get('/overview', (req, res) => {
     // NEBEN der 30-Tage-Ansicht mit (nicht anstelle), damit ältere Quellen/
     // Länder nicht nach 30 Tagen aus der Statistik verschwinden, sondern
     // dauerhaft sichtbar bleiben.
-    const viewsAllTime = db.prepare('SELECT referrer, utm_source, country, visit_id, session_id FROM page_views').all();
+    const viewsAllTimeRaw = db.prepare('SELECT referrer, utm_source, country, visit_id, session_id, path FROM page_views').all();
+    const viewsAllTime = viewsAllTimeRaw.filter(v => matchesPageFilter(v.path, pageFilter));
     const viewsByChannelAllTime = {};
     const viewsByCountryAllTime = {};
     viewsAllTime.forEach(v => {
@@ -135,6 +162,7 @@ router.get('/overview', (req, res) => {
       viewsByCountryAllTime[c] = (viewsByCountryAllTime[c] || 0) + 1;
     });
     const uniqueVisitsTotal = new Set(viewsAllTime.map(v => v.visit_id || v.session_id).filter(Boolean)).size;
+    const viewsTotal = viewsAllTime.length;
 
     const leadsBySource = db.prepare(`
       SELECT source, COUNT(*) as count FROM leads GROUP BY source
@@ -181,20 +209,18 @@ router.get('/overview', (req, res) => {
                THEN (CASE WHEN t.last_completed_date = date('now') THEN 'done' ELSE 'open' END)
                ELSE t.status
           END = 'open'
-        ) as openTasks,
-        (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as views30d,
-        -- Rollierendes 24h-Fenster (nicht Kalendertag) - bewusst roh (jeder
-        -- Pageview zählt), keine "echte Besuche"-Unterscheidung wie bei den
-        -- anderen Zeiträumen (Kundenwunsch 10/2026).
-        (SELECT COUNT(*) FROM page_views WHERE created_at >= ?) as viewsLast24h,
-        (SELECT COUNT(*) FROM page_views) as viewsTotal
-    `).get(since30d, since24h);
+        ) as openTasks
+    `).get();
 
     const everPaying = totals.activeCustomers + churnTotals.churnedTotal;
     const churnRate = everPaying > 0 ? churnTotals.churnedTotal / everPaying : null;
 
     res.json({
-      totals: { ...totals, viewsLast7d, viewsPrev24h, uniqueVisits30d, uniqueVisits7d, uniqueVisitsTotal, ...churnTotals, churnRate },
+      totals: {
+        ...totals, views30d: views30d.length, viewsLast24h, viewsTotal,
+        viewsLast7d, viewsPrev24h, uniqueVisits30d, uniqueVisits7d, uniqueVisitsTotal,
+        ...churnTotals, churnRate
+      },
       viewsByChannel,
       viewsByCountry,
       viewsByChannelAllTime,
@@ -215,8 +241,10 @@ router.get('/overview', (req, res) => {
 // nachschauen, welche konkrete Seite tatsächlich verlinkt hat.
 router.get('/traffic-detail', (req, res) => {
   try {
+    const pageFilter = resolvePageFilter(req);
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const views30d = db.prepare('SELECT referrer, utm_source, created_at FROM page_views WHERE created_at >= ?').all(since30d);
+    const views30dRaw = db.prepare('SELECT referrer, utm_source, created_at, path FROM page_views WHERE created_at >= ?').all(since30d);
+    const views30d = views30dRaw.filter(v => matchesPageFilter(v.path, pageFilter));
 
     const byChannel = {};
     views30d.forEach(v => {
@@ -429,20 +457,21 @@ router.get('/funnel-attribution', (req, res) => {
 // ============================================================
 router.get('/checkout-funnel', (req, res) => {
   try {
+    // checkout_sessions trägt keinen Landingpage-Pfad (eine Kasse wird oft
+    // erst im Dashboard nach der Registrierung erzeugt, nicht direkt auf
+    // index.html/kosmetik.html) - "created"/"completed"/"abandoned" bleiben
+    // deshalb in JEDEM Seiten-Tab gleich (nicht sauber einer Landingpage
+    // zuordenbar). Nur buttonClicks (click_events, trägt seit diesem
+    // Feature den Pfad) wird nach Seiten-Tab gefiltert.
     const rows = db.prepare(`
       SELECT origin_country, is_eu, status, type FROM checkout_sessions
     `).all();
 
-    // Zeigt zusätzlich die Stufe VOR "Kasse erreicht": wie oft wurde
-    // überhaupt auf einen Zahlungs-Button geklickt (siehe
-    // trackCheckoutButtonClick() in dashboard.html/index.html)? Eine
-    // deutliche Lücke zwischen diesem Wert und "created" unten bedeutet,
-    // dass der Klick zwar ankam, aber das Anlegen der Stripe-Session
-    // fehlgeschlagen ist (z. B. JS-Fehler, 500er) - das wäre sonst
-    // komplett unsichtbar gewesen.
-    const buttonClicks = db.prepare(`
-      SELECT COUNT(*) as n FROM click_events WHERE event_name = 'checkout_button_click'
-    `).get().n;
+    const pageFilter = resolvePageFilter(req);
+    const buttonClickRows = db.prepare(`
+      SELECT path FROM click_events WHERE event_name = 'checkout_button_click'
+    `).all();
+    const buttonClicks = buttonClickRows.filter(r => matchesPageFilter(r.path, pageFilter)).length;
 
     const totals = { buttonClicks, created: rows.length, completed: 0 };
     rows.forEach(r => { if (r.status === 'completed') totals.completed++; });
@@ -512,7 +541,9 @@ router.get('/checkout-funnel', (req, res) => {
 // ============================================================
 router.get('/landing-engagement', (req, res) => {
   try {
-    const pageviews = db.prepare(`SELECT session_id, country, referrer, utm_source, device_type, created_at FROM page_views ORDER BY created_at ASC`).all();
+    const pageFilter = resolvePageFilter(req);
+    const pageviewsRaw = db.prepare(`SELECT session_id, country, referrer, utm_source, device_type, created_at, path FROM page_views ORDER BY created_at ASC`).all();
+    const pageviews = pageviewsRaw.filter(v => matchesPageFilter(v.path, pageFilter));
     const countryBySession = {};
     // Erste page_views-Zeile pro Session merken - liefert Quelle/Gerät
     // für den heroBounce-Breakdown weiter unten.
@@ -534,10 +565,11 @@ router.get('/landing-engagement', (req, res) => {
       return { n: sorted.length, avgSeconds, medianSeconds };
     }
 
-    const durationRows = db.prepare(`
-      SELECT session_id, event_value FROM click_events
+    const durationRowsRaw = db.prepare(`
+      SELECT session_id, event_value, path FROM click_events
       WHERE event_name = 'landing_duration' AND event_value IS NOT NULL
     `).all();
+    const durationRows = durationRowsRaw.filter(r => matchesPageFilter(r.path, pageFilter));
 
     const totals = stats(durationRows.map(r => r.event_value));
 
@@ -556,9 +588,10 @@ router.get('/landing-engagement', (req, res) => {
     // Pageview) - ergibt einen groben "wie weit kommen Besucher"-Funnel.
     const sectionOrder = ['view_hero', 'view_pain_point', 'view_how_it_works', 'view_weeebat', 'view_about', 'view_usp', 'view_faq', 'view_pricing', 'view_final_cta'];
     const placeholders = sectionOrder.map(() => '?').join(',');
-    const sectionEvents = db.prepare(`
-      SELECT event_name, session_id FROM click_events WHERE event_name IN (${placeholders})
+    const sectionEventsRaw = db.prepare(`
+      SELECT event_name, session_id, path FROM click_events WHERE event_name IN (${placeholders})
     `).all(...sectionOrder);
+    const sectionEvents = sectionEventsRaw.filter(e => matchesPageFilter(e.path, pageFilter));
     const sectionSessionSets = {};
     sectionEvents.forEach(e => {
       if (!sectionSessionSets[e.event_name]) sectionSessionSets[e.event_name] = new Set();
@@ -618,9 +651,10 @@ router.get('/landing-engagement', (req, res) => {
     // oben, nur für aktive Klicks statt reinem Sichtbar-Werden.
     const navClickOrder = ['hero_price_badge_click', 'hero_weeebat_badge_click', 'nav_about_click', 'nav_faq_click', 'gpsr_cta_click', 'discovery_call_click'];
     const navPlaceholders = navClickOrder.map(() => '?').join(',');
-    const navClickEvents = db.prepare(`
-      SELECT event_name, session_id FROM click_events WHERE event_name IN (${navPlaceholders})
+    const navClickEventsRaw = db.prepare(`
+      SELECT event_name, session_id, path FROM click_events WHERE event_name IN (${navPlaceholders})
     `).all(...navClickOrder);
+    const navClickEvents = navClickEventsRaw.filter(e => matchesPageFilter(e.path, pageFilter));
     const navClickSessionSets = {};
     navClickEvents.forEach(e => {
       if (!navClickSessionSets[e.event_name]) navClickSessionSets[e.event_name] = new Set();

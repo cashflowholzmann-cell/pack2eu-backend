@@ -88,7 +88,7 @@ const MAX_LANDING_DURATION_SECONDS = 30 * 60;
 
 router.post('/event', trackLimiter, (req, res) => {
   try {
-    const { event_name, session_id, event_value, visit_id } = req.body || {};
+    const { event_name, session_id, event_value, visit_id, path } = req.body || {};
     if (!ALLOWED_EVENTS.includes(event_name) || !session_id) {
       return res.status(400).json({ error: 'Ungültiges Event.' });
     }
@@ -104,9 +104,15 @@ router.post('/event', trackLimiter, (req, res) => {
     }
 
     db.prepare(`
-      INSERT INTO click_events (event_name, session_id, event_value, visit_id)
-      VALUES (?, ?, ?, ?)
-    `).run(event_name, String(session_id).slice(0, 100), value, visit_id ? String(visit_id).slice(0, 100) : null);
+      INSERT INTO click_events (event_name, session_id, event_value, visit_id, path)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      event_name,
+      String(session_id).slice(0, 100),
+      value,
+      visit_id ? String(visit_id).slice(0, 100) : null,
+      typeof path === 'string' ? path.slice(0, 500) : null
+    );
 
     res.json({ ok: true });
   } catch (error) {
