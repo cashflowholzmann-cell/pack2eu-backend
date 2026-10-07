@@ -1,4 +1,8 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const Anthropic = require('@anthropic-ai/sdk');
+const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
+const { z } = require('zod/v4');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 const { findAnomalousSkus } = require('../lib/sku-anomalies');
@@ -192,6 +196,108 @@ router.get('/material-costs', (req, res) => {
   } catch (error) {
     console.error('❌ Fehler bei der Material-Kostenberechnung:', error);
     res.status(500).json({ error: 'Kostenberechnung fehlgeschlagen.' });
+  }
+});
+
+// ============================================================
+// KI-VERPACKUNGSSCHÄTZUNG (Kundenwunsch 10/2026)
+//
+// Liefert eine grobe Materialien-/Gewichtsschätzung für ein per Produkt-
+// name benanntes Produkt, als Ergänzung zu den statischen Kategorie-
+// Presets (NICHE_DEFAULT_MATERIALS in dashboard.html). WICHTIG: Das ist
+// bewusst KEINE "Websuche nach dem echten Produkt" - eine Recherche-Session
+// hat gezeigt, dass eine KI dabei überzeugend klingende, aber erfundene
+// "Herstellerdaten" (inkl. Fake-Zitaten und Pseudo-Präzision auf zwei
+// Nachkommastellen) produzieren kann, sobald sie versucht, konkrete Quellen
+// zu belegen. Stattdessen schätzt das Modell rein aus allgemeinem Wissen
+// über typische Verpackungen dieser Produktart (wie ein erfahrener
+// Verpackungs-Berater übers Knie schätzen würde) und das Ergebnis wird
+// IMMER mit einem Unsicherheits-Hinweis ausgeliefert - nie als verifizierte
+// Tatsache. Kein web_search-Tool, damit das Modell gar nicht erst versucht,
+// (unbelegbare) Quellen vorzutäuschen. Ergebnis wird NICHT gespeichert -
+// der Kunde muss es im Formular aktiv übernehmen/anpassen, genau wie bei
+// den Kategorie-Presets.
+// ============================================================
+const PackagingEstimateSchema = z.object({
+  components: z.array(z.object({
+    material: z.enum(['glas', 'kunststoff', 'karton', 'papier', 'metall', 'holz']),
+    material_subtype: z.string().max(40),
+    weight_grams: z.number().int().positive().max(5000),
+    component_label: z.string().max(40)
+  })).min(1).max(6),
+  confidence_note: z.string().max(300)
+});
+
+const PACKAGING_ESTIMATE_SYSTEM_PROMPT = `
+Du schätzt die typische Verpackungszusammensetzung eines genannten Produkts,
+für die Vorbefüllung eines Formulars zur EU-Verpackungsregistrierung (EPR)
+in einem Kosmetik-/Beauty-Online-Shop.
+
+WICHTIG: Du hast KEINEN Zugriff auf echte Hersteller- oder Produktdatenblätter
+und sollst auch nicht so tun, als hättest du welche. Gib eine ehrliche,
+auf allgemeinem Wissen über typische Verpackungen dieser Produktart
+basierende SCHÄTZUNG ab - keine erfundenen "recherchierten" Fakten,
+keine Herstellerquellen, keine Chargen-/Losangaben, keine Nachkommastellen-
+Präzision. Runde jedes Gewicht auf ganze Gramm aus einer einzigen
+plausiblen Zahl (keine Spannen wie "24-26g").
+
+Nenne 2-5 plausible Verpackungsbestandteile (z.B. Behälter/Flakon,
+Verschluss/Deckel, Pumpe/Applikator, Umverpackung/Faltschachtel) mit
+jeweils einem Gewicht und einem erkennbaren Materialtyp.
+
+confidence_note: ein kurzer, ehrlicher Satz auf Deutsch, der klarmacht,
+dass dies eine ungeprüfte Schätzung ist, kein recherchiertes Faktum (z.B.
+"Richtwert basierend auf typischen Verpackungen dieser Produktkategorie -
+bitte mit dem tatsächlichen Produkt abgleichen oder beim Lieferanten
+nachfragen").
+
+Falls der Produktname zu vage ist, um eine sinnvolle Schätzung
+abzugeben, schätze trotzdem anhand der erkennbaren Produktkategorie
+(z.B. "Nagellack" ist auch ohne genaue Marke erkennbar).
+`.trim();
+
+// Kostet pro Aufruf einen echten KI-Request - großzügig, aber begrenzt
+// gegen Missbrauch als kostenlosen Text-Generator.
+const packagingEstimateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Zu viele Schätzungs-Anfragen. Bitte in ein paar Minuten erneut versuchen.' }
+});
+
+router.post('/estimate-packaging', packagingEstimateLimiter, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'KI-Schätzung ist noch nicht eingerichtet (ANTHROPIC_API_KEY fehlt).' });
+  }
+
+  const productName = typeof req.body?.productName === 'string' ? req.body.productName.trim().slice(0, 200) : '';
+  if (!productName) {
+    return res.status(400).json({ error: 'Bitte zuerst einen Produktnamen eingeben.' });
+  }
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.parse({
+      model: 'claude-opus-5-5',
+      max_tokens: 1024,
+      output_config: {
+        format: zodOutputFormat(PackagingEstimateSchema),
+        effort: 'low'
+      },
+      system: PACKAGING_ESTIMATE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Produktname: ${productName}` }]
+    });
+
+    const parsed = response.parsed_output;
+    if (!parsed) {
+      return res.status(502).json({ error: 'Schätzung konnte nicht verarbeitet werden.' });
+    }
+
+    res.json({ components: parsed.components, confidenceNote: parsed.confidence_note });
+  } catch (error) {
+    console.error('❌ KI-Verpackungsschätzung-Fehler:', error);
+    res.status(503).json({ error: 'KI-Schätzung gerade nicht verfügbar. Bitte später erneut versuchen.' });
   }
 });
 
