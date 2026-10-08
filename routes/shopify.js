@@ -78,6 +78,23 @@ function normalizeShopifyShop(raw) {
 // bereits unter diesem Namen bei Render hinterlegt (Audit-Fund 10/2026:
 // Code suchte nach SHOPIFY_CLIENT_ID, das es nie gab - deshalb lief die
 // Verbindung trotz vorhandener, korrekter Zugangsdaten nie).
+
+// Trennt die Verbindung, ohne die bereits importierte Bestellhistorie
+// (shopify_orders) zu löschen - gleiches Prinzip wie bei jedem anderen
+// Connector (siehe z.B. routes/woocommerce.js /disconnect). Fehlte bisher
+// komplett: ein einmal verbundener Shopify-Shop ließ sich über die
+// Oberfläche nie wieder trennen oder neu autorisieren (Audit-Fund, siehe
+// Dashboard-Rückmeldung - wichtig z.B. nach der Umstellung auf ablaufende
+// Access Tokens, wenn ein Kunde neu autorisieren muss).
+router.post('/disconnect', requireAuth, (req, res) => {
+  db.prepare(`
+    UPDATE customers
+    SET shopify_shop_domain = NULL, shopify_access_token = NULL, shopify_refresh_token = NULL, shopify_token_expires_at = NULL, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(req.auth.userId);
+  res.json({ ok: true });
+});
+
 router.get('/auth', requireAuth, (req, res) => {
   const shop = normalizeShopifyShop(req.query.shop);
   if (!shop) return res.status(400).json({ error: 'Shop-Parameter fehlt.' });
