@@ -2804,8 +2804,7 @@ function init() {
     // stark bandbreiten- oder mengenstaffel-abhängigen Sätzen (z. B. sehr
     // große Recyclingfähigkeits-Spannen), strukturell andersartigen
     // Systemen (z. B. Australiens freiwillige Mitgliedsbeiträge, Indiens
-    // handelbare EPR-Zertifikate, Polens Straf-Produktabgabe statt echter
-    // Lizenzgebühr) oder wenn schlicht keine verlässliche aktuelle Quelle
+    // handelbare EPR-Zertifikate) oder wenn schlicht keine verlässliche aktuelle Quelle
     // gefunden wurde, bleibt das Land bewusst ohne Satz (NULL) - das
     // Dashboard zeigt dann "Satz noch nicht recherchiert" statt einer
     // irreführenden Zahl. Bei mehreren Teilmaterialien mit stark
@@ -2870,7 +2869,22 @@ function init() {
       DK: { karton: 0.401, kunststoff: 0.692, glas: 0.495, metall: 0.930 },
       FI: { papier: 0.102, karton: 0.102, kunststoff: 0.238, glas: 0.076, metall: 0.030 },
       IS: { papier: 0.462, karton: 0.462, kunststoff: 0.462, glas: 0.178, metall: 0.178 },
-      MT: { papier: 0.203, karton: 0.203, kunststoff: 0.205, glas: 0.147, metall: 0.205 }
+      MT: { papier: 0.203, karton: 0.203, kunststoff: 0.205, glas: 0.147, metall: 0.205 },
+      // PL 10/2026: bewusste Ausnahme von der obigen "kein Satz ohne
+      // verlässliche Quelle"-Regel, auf expliziten Kundenwunsch. Anders als
+      // bei den übrigen Ländern ist dies NICHT der echte Lizenztarif einer
+      // PRO, sondern der MITTELWERT der vom Kunden recherchierten, von
+      // Pack2EU NICHT unabhängig verifizierten PRO-Marktpreis-Spannen
+      // (Quelle: Kanzlei Poźniak, siehe requirements_json-Bullet
+      // "PRO-MARKTPREISE" bei code='PL'): Papier/Karton 110-200 PLN/t,
+      // Aluminium 350-600 PLN/t, Kunststoff 900-1.500 PLN/t (Wechselkurs
+      // 1 PLN = 0,23 €). Die gesetzliche Straf-Produktgebühr (bei
+      // Nicht-Erreichen der Recyclingquote, bis zu 2,70 PLN/kg für
+      // Kunststoff) ist deutlich höher und bewusst NICHT hier verwendet,
+      // da sie für die meisten Kunden (die über eine PRO/De-minimis gehen)
+      // nicht die tatsächliche Kostenrealität abbildet. Glas, Holz und
+      // Verbundstoffe fehlen weiterhin mangels Marktpreis-Daten.
+      PL: { papier: 0.036, karton: 0.036, metall: 0.109, kunststoff: 0.276 }
     };
 
     const updateEcoFeeRates =
