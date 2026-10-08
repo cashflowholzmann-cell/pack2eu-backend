@@ -2107,7 +2107,7 @@ function init() {
       UPDATE countries
       SET
         register_body = 'NISO (National Waste Information System) über ExEA (Executive Environment Agency); Systembeteiligung z. B. über Ecopak oder andere lizenzierte Organisationen',
-        registration_url = 'https://eea.government.bg/bg/nsmos/waste/niso/',
+        registration_url = 'https://eea.government.bg/bg/nsmos/waste/registri-spravki.html',
         requirements_json = ?,
         reporting_frequency = 'monthly',
         data_status = 'needs_verification'
@@ -2117,7 +2117,8 @@ function init() {
         'Registrierung und Meldung bei den vom bulgarischen Umweltministerium lizenzierten Rückgewinnungsorganisationen (z. B. Ecopak) erforderlich.',
         'Konformitätsbewertung, technische Dokumentation und EU-Konformitätserklärung ab 12.08.2026 vorgeschrieben.',
         'Kein belastbarer Bevollmächtigten-Anbieter für Bulgarien gefunden – Interzeros "alle 27 Mitgliedstaaten"-Werbeaussage nannte Bulgarien in den gefundenen Länderlisten auffällig NICHT namentlich, im Gegensatz zu Kroatien/Italien/Spanien. Vor Kundenaussage direkt prüfen.',
-        'Materialgranularität unklar: Ecopaks Kunststoff-Gebühr scheint eine Sammelposition zu sein (~0,175 BGN/kg), keine bestätigte Polymer-Aufschlüsselung wie bei CONAI (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
+        'Materialgranularität unklar: Ecopaks Kunststoff-Gebühr scheint eine Sammelposition zu sein (~0,175 BGN/kg), keine bestätigte Polymer-Aufschlüsselung wie bei CONAI (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).',
+        'LINK KORRIGIERT 10/2026: der vorherige registration_url (.../waste/niso/) war nur ein nackter Verzeichnis-Index mit einer FAQ- und einer Video-Tutorial-Datei, kein echter Zugang zum System (per Screenshot verifiziert). Auf .../waste/registri-spravki.html (Kundenfund) umgestellt - Inhalt konnte Pack2EU wegen fehlendem Netzwerkzugriff auf eea.government.bg nicht direkt verifizieren, aber jede Seite ist informativer als der vorherige leere Index.'
       ])
     );
 
