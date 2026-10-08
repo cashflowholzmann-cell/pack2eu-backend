@@ -1035,6 +1035,15 @@ function init() {
     // order-import.js processOrderItems) wie bei allen anderen Marktplätzen
     // genutzt - dafür braucht shopify_orders dieselbe Spalte.
     addColumnIfMissing('shopify_orders', 'has_unclassified_items', 'INTEGER NOT NULL DEFAULT 0');
+
+    // Shopify verlangt seit 2026 "expiring offline access tokens" statt der
+    // alten, nie ablaufenden Tokens (Admin API lehnt neue OAuth-Verbindungen
+    // mit dem alten Token-Typ inzwischen ab) - dafür braucht es zusätzlich
+    // zum Access Token noch einen Refresh Token und dessen Ablaufzeitpunkt,
+    // gleiches Prinzip wie bei Etsy/eBay (siehe routes/etsy.js,
+    // routes/ebay.js ensureFreshToken()).
+    addColumnIfMissing('customers', 'shopify_refresh_token', 'TEXT');
+    addColumnIfMissing('customers', 'shopify_token_expires_at', 'TEXT');
     addColumnIfMissing('marketplace_orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
 
     // submissions war bisher implizit nur für den Verpackungs-Stream
