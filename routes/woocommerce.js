@@ -184,4 +184,39 @@ router.get('/orders', requireAuth, (req, res) => {
   }
 });
 
+// ============================================================
+// 4. WooCommerce-Produkte fürs Dashboard (Produkt-Picker)
+// ============================================================
+// Normalisiertes Format {id, name, sku, image} - identisch zu routes/
+// shopify.js, damit das Dashboard EINE generische Produkt-Verknüpfen-
+// Oberfläche für alle Produkt-Picker-fähigen Plattformen nutzen kann.
+router.get('/products', requireAuth, async (req, res) => {
+  try {
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
+    if (!customer?.woocommerce_store_url || !customer?.woocommerce_consumer_key || !customer?.woocommerce_consumer_secret) {
+      return res.status(400).json({ error: 'WooCommerce nicht verbunden.' });
+    }
+
+    const response = await woocommerceRequest({
+      storeUrl: customer.woocommerce_store_url,
+      consumerKey: customer.woocommerce_consumer_key,
+      consumerSecret: customer.woocommerce_consumer_secret,
+      path: '/products',
+      params: { per_page: 100 }
+    });
+
+    const products = (response.data || []).map(p => ({
+      id: String(p.id),
+      name: p.name,
+      sku: p.sku || '',
+      image: p.images?.[0]?.src || null
+    }));
+
+    res.json(products);
+  } catch (err) {
+    console.error('❌ WooCommerce Produkte Fehler:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Fehler beim Abrufen der WooCommerce-Produkte.' });
+  }
+});
+
 module.exports = router;
