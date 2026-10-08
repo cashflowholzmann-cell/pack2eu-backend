@@ -118,28 +118,67 @@ router.get('/callback', async (req, res) => {
       return res.status(400).send('❌ Verbindung abgelaufen oder ungültig - bitte erneut versuchen.');
     }
 
+    // expiring: 1 ist seit 2026 Pflicht - die Admin API lehnt die alten,
+    // nie ablaufenden Offline-Tokens inzwischen ab ("Non-expiring access
+    // tokens are no longer accepted"). Dafür liefert Shopify jetzt
+    // zusätzlich einen refresh_token + expires_in (1h Gültigkeit des
+    // Access Tokens, siehe ensureFreshShopifyToken unten).
     const response = await axios.post(`https://${shop}/admin/oauth/access_token`, {
       client_id: process.env.SHOPIFY_API_KEY,
       client_secret: process.env.SHOPIFY_API_SECRET,
       code: code,
+      expiring: 1
     });
 
-    const { access_token } = response.data;
+    const { access_token, refresh_token, expires_in } = response.data;
+    const expiresAt = expires_in
+      ? new Date(Date.now() + expires_in * 1000).toISOString()
+      : null;
 
     db.prepare(`
       UPDATE customers
-      SET shopify_shop_domain = ?, shopify_access_token = ?, updated_at = datetime('now')
+      SET shopify_shop_domain = ?, shopify_access_token = ?, shopify_refresh_token = ?, shopify_token_expires_at = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(shop, encrypt(access_token), stateRow.customer_id);
+    `).run(shop, encrypt(access_token), encrypt(refresh_token || null), expiresAt, stateRow.customer_id);
 
     db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
 
     res.send('✅ Shopify erfolgreich verbunden! Du kannst dieses Fenster jetzt schließen.');
   } catch (err) {
-    console.error('Shopify Auth Fehler:', err.message);
+    console.error('Shopify Auth Fehler:', err.response?.data || err.message);
     res.status(500).send('❌ Fehler bei der Shopify-Verbindung.');
   }
 });
+
+// Liefert einen gültigen Access Token zurück, erneuert ihn vorher per
+// Refresh Token, falls er abgelaufen oder bald fällig ist (Access Token
+// lebt laut Shopify nur 1h) - exakt dasselbe Muster wie bei Etsy/eBay
+// (siehe routes/etsy.js, routes/ebay.js ensureFreshToken()). "customer"
+// muss bereits per decryptCustomerCredentials() entschlüsselt sein.
+async function ensureFreshShopifyToken(customer) {
+  if (!customer.shopify_refresh_token) return customer.shopify_access_token;
+  if (customer.shopify_token_expires_at && new Date(customer.shopify_token_expires_at) > new Date(Date.now() + 60000)) {
+    return customer.shopify_access_token;
+  }
+
+  const response = await axios.post(`https://${customer.shopify_shop_domain}/admin/oauth/access_token`, {
+    client_id: process.env.SHOPIFY_API_KEY,
+    client_secret: process.env.SHOPIFY_API_SECRET,
+    grant_type: 'refresh_token',
+    refresh_token: customer.shopify_refresh_token
+  });
+
+  const { access_token, refresh_token, expires_in } = response.data;
+  const expiresAt = expires_in
+    ? new Date(Date.now() + expires_in * 1000).toISOString()
+    : null;
+
+  db.prepare(`
+    UPDATE customers SET shopify_access_token = ?, shopify_refresh_token = ?, shopify_token_expires_at = ? WHERE id = ?
+  `).run(encrypt(access_token), encrypt(refresh_token || customer.shopify_refresh_token), expiresAt, customer.id);
+
+  return access_token;
+}
 
 // ============================================================
 // 3. Shopify Webhook – Neue Bestellung
@@ -318,7 +357,7 @@ router.post('/webhook/shop/redact', verifyShopifyWebhook, (req, res) => {
     db.prepare('DELETE FROM shopify_orders WHERE customer_id = ?').run(customer.id);
     db.prepare(`
       UPDATE customers
-      SET shopify_shop_domain = NULL, shopify_access_token = NULL
+      SET shopify_shop_domain = NULL, shopify_access_token = NULL, shopify_refresh_token = NULL, shopify_token_expires_at = NULL
       WHERE id = ?
     `).run(customer.id);
 
@@ -352,11 +391,12 @@ router.post('/sync', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Shopify nicht verbunden.' });
     }
     decryptCustomerCredentials(customer);
+    const accessToken = await ensureFreshShopifyToken(customer);
 
     const skuMap = buildSkuMap(db, customer.id, 'shopify_product_id');
 
     const response = await axios.get(`https://${customer.shopify_shop_domain}/admin/api/2024-07/orders.json`, {
-      headers: { 'X-Shopify-Access-Token': customer.shopify_access_token },
+      headers: { 'X-Shopify-Access-Token': accessToken },
       params: { status: 'any', limit: 50 }
     });
 
@@ -428,14 +468,15 @@ router.get('/orders', requireAuth, (req, res) => {
 // ============================================================
 router.get('/products', requireAuth, async (req, res) => {
   try {
-    const customer = db.prepare('SELECT shopify_access_token, shopify_shop_domain FROM customers WHERE id = ?').get(req.auth.userId);
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
     if (!customer?.shopify_access_token) {
       return res.status(400).json({ error: 'Shopify nicht verbunden.' });
     }
     decryptCustomerCredentials(customer);
+    const accessToken = await ensureFreshShopifyToken(customer);
 
     const response = await axios.get(`https://${customer.shopify_shop_domain}/admin/api/2024-07/products.json`, {
-      headers: { 'X-Shopify-Access-Token': customer.shopify_access_token }
+      headers: { 'X-Shopify-Access-Token': accessToken }
     });
 
     // Normalisiertes Format {id, name, sku, image} - gleiche Form wie bei
