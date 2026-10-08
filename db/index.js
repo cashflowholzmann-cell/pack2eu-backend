@@ -515,6 +515,48 @@ const EU_CODES = new Set(
 );
 
 
+// Verschlüsselt alle noch im Klartext gespeicherten Marktplatz-Zugangsdaten
+// bestehender Kunden (siehe lib/credential-crypto.js) - läuft bei jedem
+// Serverstart, ist aber idempotent: encrypt() erkennt bereits verschlüsselte
+// Werte am "enc:v1:"-Präfix und lässt sie unverändert, UPDATE läuft also nur
+// für Zeilen mit tatsächlich noch unverschlüsselten Werten. Fehlt
+// CREDENTIALS_ENCRYPTION_KEY, geben encrypt()-Aufrufe den Klartext einfach
+// unverändert zurück (siehe dortiger Kommentar) - kein Startup-Fehler.
+function migrateEncryptCredentials() {
+  const { encrypt, CREDENTIAL_FIELDS } = require('../lib/credential-crypto');
+
+  const rows = db.prepare(
+    `SELECT id, ${CREDENTIAL_FIELDS.join(', ')} FROM customers`
+  ).all();
+
+  let updatedCount = 0;
+
+  rows.forEach(row => {
+    const sets = [];
+    const values = [];
+
+    CREDENTIAL_FIELDS.forEach(field => {
+      const value = row[field];
+      if (value === null || value === undefined || value === '') return;
+
+      const encrypted = encrypt(value);
+      if (encrypted !== value) {
+        sets.push(`${field} = ?`);
+        values.push(encrypted);
+      }
+    });
+
+    if (sets.length > 0) {
+      db.prepare(`UPDATE customers SET ${sets.join(', ')} WHERE id = ?`).run(...values, row.id);
+      updatedCount++;
+    }
+  });
+
+  if (updatedCount > 0) {
+    console.log(`✅ Zugangsdaten verschlüsselt: ${updatedCount} Kunde(n)`);
+  }
+}
+
 // ============================================================
 // INITIALISIERUNG
 // ============================================================
@@ -4595,6 +4637,8 @@ function init() {
     // Anlage aus country_code abgeleitet (siehe lib/lang-by-country.js),
     // da es (Stand 10/2026) kein eigenes Sprachfeld im Anlage-Formular gibt.
     addColumnIfMissing('representatives', 'preferred_lang', 'TEXT');
+
+    migrateEncryptCredentials();
 
     console.log(
       '=============================================='

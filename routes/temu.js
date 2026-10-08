@@ -26,9 +26,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -127,7 +127,7 @@ router.get('/callback', requireTemuConfigured, async (req, res) => {
     db.prepare(`
       UPDATE customers SET temu_access_token = ?, temu_shop_id = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(accessToken, shopId ? String(shopId) : null, stateRow.customer_id);
+    `).run(encrypt(accessToken), shopId ? String(shopId) : null, stateRow.customer_id);
 
     db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
 
@@ -155,10 +155,9 @@ router.post('/sync', requireAuth, requireTemuConfigured, async (req, res) => {
     if (!customer?.temu_access_token) {
       return res.status(400).json({ error: 'Temu nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ? AND temu_product_id IS NOT NULL').all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.temu_product_id] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'temu_product_id');
 
     const data = await temuRequest({
       method: 'bg.order.list.get',
@@ -170,35 +169,11 @@ router.post('/sync', requireAuth, requireTemuConfigured, async (req, res) => {
     let imported = 0;
 
     for (const order of orders) {
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      let hasUnclassifiedItem = false;
-      const weeeBatteryItemSets = [];
-
-      (order.order_item_list || order.orderItemList || []).forEach(item => {
-        const externalId = String(item.product_id ?? item.productId ?? '');
-        const sku = skuMap[externalId];
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-        if (sku) {
-          const qty = item.quantity || 1;
-          const weight = sku.total_weight_grams * qty;
-          totalWeight += weight;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
-            packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * qty,
-              is_recyclable: m.is_recyclable
-            });
-          });
-        } else if (externalId) {
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'temu_product_id',
-            externalId,
-            name: item.product_name || item.productName
-          });
-        }
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: order.order_item_list || order.orderItemList, skuField: 'temu_product_id', skuMap,
+        getExternalId: item => String(item.product_id ?? item.productId ?? ''),
+        getQuantity: item => item.quantity,
+        getName: item => item.product_name || item.productName
       });
 
       const destinationCountry = normalizeCountryCode(
@@ -209,21 +184,15 @@ router.post('/sync', requireAuth, requireTemuConfigured, async (req, res) => {
 
       const orderId = String(order.parent_order_sn || order.parentOrderSn || order.order_sn || order.orderSn);
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
-        VALUES (?, 'temu', ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        orderId,
-        JSON.stringify(order),
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'temu',
+        externalOrderId: orderId,
+        orderData: order,
         destinationCountry,
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0,
-        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-      );
-      if (result.changes > 0) imported++;
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
+      if (inserted) imported++;
     }
 
     res.json({ ok: true, imported, total: orders.length });

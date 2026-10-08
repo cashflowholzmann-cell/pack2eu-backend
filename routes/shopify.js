@@ -5,6 +5,7 @@ const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -128,7 +129,7 @@ router.get('/callback', async (req, res) => {
       UPDATE customers
       SET shopify_shop_domain = ?, shopify_access_token = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(shop, access_token, stateRow.customer_id);
+    `).run(shop, encrypt(access_token), stateRow.customer_id);
 
     db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
 
@@ -355,7 +356,8 @@ router.get('/products', requireAuth, async (req, res) => {
     if (!customer?.shopify_access_token) {
       return res.status(400).json({ error: 'Shopify nicht verbunden.' });
     }
-    
+    decryptCustomerCredentials(customer);
+
     const response = await axios.get(`https://${customer.shopify_shop_domain}/admin/api/2024-07/products.json`, {
       headers: { 'X-Shopify-Access-Token': customer.shopify_access_token }
     });

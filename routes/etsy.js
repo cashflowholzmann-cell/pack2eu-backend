@@ -11,9 +11,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -112,7 +112,7 @@ router.get('/callback', async (req, res) => {
       UPDATE customers
       SET etsy_shop_id = ?, etsy_access_token = ?, etsy_refresh_token = ?, etsy_token_expires_at = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(shopId ? String(shopId) : null, access_token, refresh_token, expiresAt, stateRow.customer_id);
+    `).run(shopId ? String(shopId) : null, encrypt(access_token), encrypt(refresh_token), expiresAt, stateRow.customer_id);
 
     db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
 
@@ -140,7 +140,7 @@ async function ensureFreshToken(customer) {
 
   db.prepare(`
     UPDATE customers SET etsy_access_token = ?, etsy_refresh_token = ?, etsy_token_expires_at = ? WHERE id = ?
-  `).run(access_token, refresh_token, expiresAt, customer.id);
+  `).run(encrypt(access_token), encrypt(refresh_token), expiresAt, customer.id);
 
   return access_token;
 }
@@ -154,12 +154,11 @@ router.post('/sync', requireAuth, async (req, res) => {
     if (!customer?.etsy_shop_id || !customer?.etsy_access_token) {
       return res.status(400).json({ error: 'Etsy nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
     const accessToken = await ensureFreshToken(customer);
 
-    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ? AND etsy_listing_id IS NOT NULL').all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.etsy_listing_id] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'etsy_listing_id');
 
     const receiptsResponse = await axios.get(`${ETSY_API_BASE}/shops/${customer.etsy_shop_id}/receipts`, {
       headers: { Authorization: `Bearer ${accessToken}`, 'x-api-key': process.env.ETSY_CLIENT_ID },
@@ -170,52 +169,22 @@ router.post('/sync', requireAuth, async (req, res) => {
     let imported = 0;
 
     for (const receipt of receipts) {
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      let hasUnclassifiedItem = false;
-      const weeeBatteryItemSets = [];
-
-      (receipt.transactions || []).forEach(tx => {
-        const sku = skuMap[String(tx.listing_id)];
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-        if (sku) {
-          const weight = sku.total_weight_grams * (tx.quantity || 1);
-          totalWeight += weight;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, tx.quantity || 1));
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
-            packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * (tx.quantity || 1),
-              is_recyclable: m.is_recyclable
-            });
-          });
-        } else {
-          // Noch kein Pack2EU-Artikel für dieses Etsy-Listing - einen
-          // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'etsy_listing_id',
-            externalId: tx.listing_id,
-            name: tx.title
-          });
-        }
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: receipt.transactions, skuField: 'etsy_listing_id', skuMap,
+        getExternalId: tx => String(tx.listing_id),
+        getQuantity: tx => tx.quantity,
+        getName: tx => tx.title
       });
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
-        VALUES (?, 'etsy', ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        String(receipt.receipt_id),
-        JSON.stringify(receipt),
-        normalizeCountryCode(receipt.country_iso) || 'DE',
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0,
-        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-      );
-      if (result.changes > 0) imported++;
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'etsy',
+        externalOrderId: String(receipt.receipt_id),
+        orderData: receipt,
+        destinationCountry: normalizeCountryCode(receipt.country_iso) || 'DE',
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
+      if (inserted) imported++;
     }
 
     res.json({ ok: true, imported, total: receipts.length });
