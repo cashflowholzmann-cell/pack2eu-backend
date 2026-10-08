@@ -1541,17 +1541,17 @@ function init() {
         representative_provider_name = 'EUROMANDAT',
         representative_provider_url = 'https://euromandat.net/en/open-a-case/?laender=se&stroeme=verpackung',
         representative_data_status = 'needs_verification',
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'SE'
     `).run(
       JSON.stringify([
         'Registrierung und Meldung bei der schwedischen Umweltbehörde Naturvårdsverket im "Producentansvarsregistret" erforderlich, VOR Inverkehrbringen der Verpackung.',
         'Anschluss an eine anerkannte Produzentenverantwortungsorganisation, z. B. Näringslivets Producentansvar (NPA) oder Tailor-Made Responsibility (TMR). Hinweis: Die frühere Organisation FTI (Förpacknings- och Tidningsinsamlingen) wurde zum 1.1.2024 in NPA eingegliedert – wer nach "FTI Schweden" sucht, landet heute bei NPA; die Registrierung selbst bleibt aber direkt bei Naturvårdsverket.',
-        'Jährliche Abstimmung der Verpackungsvolumina bei Naturvårdsverket, üblicherweise fällig bis 31.3. des Folgejahres für das Vorjahr (Quelle: Branchenleitfaden Certivo, Stand 09/2026, mittlere Sicherheit, nicht anwaltlich geprüft).',
-        'Verspätete Registrierung wird in Schweden als sanktionsbewehrter Verstoß behandelt: Naturvårdsverket kann seit 1.1.2024 eine Umweltsanktionsgebühr (miljösanktionsavgift) sowie Zwangsgeld (vite) zur Durchsetzung verhängen.',
+        'KONKRETISIERT 10/2026 (Kundenrecherche, mehrere unabhängige Quellen übereinstimmend, nicht anwaltlich geprüft): Der gesetzliche Jahresbericht an Naturvårdsverket ist verbindlich für ALLE Kunden bis 31.3. des Folgejahres fällig (als reporting_frequency "jährlich" hinterlegt, da dies die einzige für jeden Kunden gleichermaßen geltende Frist ist). ZUSÄTZLICH dazu läuft eine unterjährige Meldung an die PRO (NPA/TMR), gestaffelt nach Jahresgebühr: quartalsweise unter 120.000 SEK, monatlich darüber – jeweils fällig bis zum 25. Tag des Monats nach Ablauf des Zeitraums (z. B. Q1 bis 25.4.). Anders als zuvor angenommen gibt es laut dieser Quelle KEINE dritte "jährliche" PRO-Stufe für sehr kleine Vertreiber.',
+        'KEINE MINDESTGRENZE: Im Gegensatz zu z. B. Litauen oder Italien gibt es in Schweden keine Freigrenze für Verpackungen – Registrierungs- und Meldepflicht gelten ab dem ersten Gramm.',
+        'Verspätete Registrierung wird in Schweden als sanktionsbewehrter Verstoß behandelt: Naturvårdsverket kann seit 1.1.2024 eine Umweltsanktionsgebühr (miljösanktionsavgift) sowie Zwangsgeld (vite) zur Durchsetzung verhängen - verschuldensunabhängig (strict liability laut Kundenrecherche 10/2026).',
         'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.',
-        'Meldefrequenz an die PRO gestaffelt nach Jahresgebühr: monatlich über 120.000 SEK, quartalsweise ab ca. 20.000 SEK, jährlich für sehr kleine Vertreiber – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
         'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: NPA-Tarife unterscheiden zwar "formstabiler Kunststoff" von anderem Kunststoff und gewähren Boni für unpigmentierte Monomaterialien (z. B. reines PP/PE), das wirkt aber eher wie eine Recycling-Bonus-Regelung innerhalb einer Kunststoff-Kategorie als eine echte Polymer-Aufschlüsselungspflicht (Quelle: naturvardsverket.se, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).',
         'KORREKTUR 10/2026: Seit 12.08.2026 (PPWR Art. 45 Abs. 3, EU-Verordnung, unmittelbar geltend) verlangt Naturvårdsverket laut eigener Webseite von JEDEM Hersteller, der nicht in Schweden niedergelassen ist (also auch EU-ansässigen, nicht nur Nicht-EU), einen in Schweden ansässigen Bevollmächtigten ("producentombud") per schriftlicher Vollmacht - unabhängig von der vorherigen schwedischen Eigenregel. Ein Vorschlag der EU-Kommission (Omnibus-Paket 10.12.2025), diese Pflicht für EU-ansässige Hersteller bis 2035 auszusetzen, wurde laut Rat im Juni 2026 NICHT angenommen (Verhandlungen wegen Widerstands der Mitgliedstaaten eingestellt) - die Pflicht gilt also aktuell uneingeschränkt. Konkreter Anbieter für Schweden: siehe EUROMANDAT-Bullet unten.',
         'WICHTIG: PPWR Art. 45 ist eine EU-VERORDNUNG mit unmittelbarer Geltung in allen 27 Mitgliedstaaten ab 12.08.2026 - diese Bevollmächtigtenpflicht gilt vermutlich nicht nur für Schweden, sondern grundsätzlich EU-weit für jedes Land, in dem ein Hersteller nicht niedergelassen ist. Die Länderdaten für ALLE anderen EU-Länder sollten auf dieselbe Frage hin geprüft werden (z. B. auch Finnland - dort wurde bislang nur das ältere nationale Abfallgesetz geprüft, nicht Art. 45 PPWR selbst) - noch nicht systematisch durchgeführt, dringend empfohlen über legal-watch.js nachzuholen.',
@@ -2039,18 +2039,20 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'Aplinkos apsaugos agentūra (Umweltschutzagentur)',
-        registration_url = 'https://aaa.lrv.lt',
+        register_body = 'Aplinkos apsaugos agentūra (Umweltschutzagentur) – Meldung über das staatliche IT-System GPAIS (Vieninga gaminių, pakuočių ir atliekų apskaitos informacinė sistema)',
+        registration_url = 'https://www.gpais.eu',
         requirements_json = ?,
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'quarterly',
         data_status = 'needs_verification'
       WHERE code = 'LT'
     `).run(
       JSON.stringify([
         'Registrierungspflicht bei der litauischen Umweltschutzagentur (Aplinkos apsaugos agentūra) für jedes Unternehmen, das Verpackungen erstmals in Litauen in Verkehr bringt.',
         'Ausländische Unternehmen ohne Sitz in Litauen benötigen einen Bevollmächtigten für die erweiterte Herstellerverantwortung (EPR).',
-        'Quellen widersprechen sich zur Meldefrequenz über GPAIS (nur jährlich vs. zusätzlich quartalsweise) – vor verlässlicher Aussage noch zu klären.',
-        'Wichtige operative Lücke: mindestens eine Quelle besagt, dass GPAIS (das litauische Melde-/Registersystem) Stand 09/2026 noch keine Funktion bietet, mit der ausländische Produzenten sich über einen Bevollmächtigten registrieren können – die Bevollmächtigten-Route könnte also aktuell noch nicht technisch nutzbar sein. Kein konkreter Bevollmächtigten-Anbieter für Litauen bestätigt. Materialgranularität (Polymer-Aufschlüsselung wie CONAI) konnte nicht bestätigt oder ausgeschlossen werden (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
+        'KONKRETISIERT 10/2026 (Kundenrecherche, mehrere unabhängige Quellen, nicht anwaltlich geprüft): GPAIS verlangt DREI gestaffelte Fristen statt einer einzigen. (1) Laufende Protokollierung: Verpackungsmengen müssen innerhalb von 5 Werktagen nach Ablauf jedes Kalendermonats im System erfasst werden – gilt für JEDEN Kunden unabhängig von der Menge. (2) Quartalsbestätigung: die monatlichen Journale müssen je Quartal zusammengefasst und freigegeben werden, Stichtage 30.4. (Q1), 30.7. (Q2), 30.10. (Q3), 30.1. (Q4, für das Vorjahresquartal) – hier als reporting_frequency "quartalsweise" hinterlegt, da dies der nächste konkrete Melde-Checkpoint ist. (3) Finale Jahresmeldung: muss bis 30.1. im System final erstellt und bis spätestens 19./20.2. des Folgejahres im GPAIS-Portal endgültig eingereicht/bestätigt sein.',
+        'FREIGRENZE MIT FALLE: Unter 500 kg (0,5 t) Verpackungen/Jahr entfällt nur die Verpackungssteuer (Pollution Tax) – die Registrierungs- und Protokollierungspflicht in GPAIS gilt trotzdem ab dem ersten Kilo. Ab 500 kg zusätzlich Pflichtbeitritt zu einer Rücknahmeorganisation (PRO) wie Žaliasis taškas oder Gamtos ateitis zur Finanzierung der Verwertung.',
+        'Getrenntes Modul für reine betriebliche Abfallerzeugung/-entsorgung (z. B. an einem lokalen Firmenstandort) mit eigener Frist zum 1.4. des Folgejahres – für Pack2EU-Kunden als reine Vertreiber (Produkte/Verpackungen nach Litauen, i. d. R. per E-Commerce) nicht einschlägig, nur relevant falls ein Kunde selbst Abfall vor Ort in Litauen erzeugt.',
+        'Wichtige operative Lücke: mindestens eine Quelle besagt, dass GPAIS Stand 09/2026 noch keine Funktion bietet, mit der ausländische Produzenten sich über einen Bevollmächtigten registrieren können – die Bevollmächtigten-Route könnte also aktuell noch nicht technisch nutzbar sein. Kein konkreter Bevollmächtigten-Anbieter für Litauen bestätigt. Materialgranularität (Polymer-Aufschlüsselung wie CONAI) konnte nicht bestätigt oder ausgeschlossen werden (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
@@ -2866,7 +2868,15 @@ function init() {
       // quartalsweise (20. des Monats nach Quartalsende) - siehe
       // requirements_json. Etablierte Kunden mit niedrigem Vorjahresbeitrag
       // können auf jährlich wechseln, das bildet dieser Default nicht ab.
-      IT: { type: 'periodic', period: 'quarter', offsetDays: 20 }
+      IT: { type: 'periodic', period: 'quarter', offsetDays: 20 },
+      // LT/GPAIS: Quartalsbestätigung 30 Tage nach Quartalsende (30.4./30.7./
+      // 30.10./30.1.) - der nächste konkrete Melde-Checkpoint, auch wenn
+      // GPAIS zusätzlich eine monatliche Protokollierung (5 Werktage) und
+      // eine finale Jahresfrist (19./20.2.) kennt, siehe requirements_json.
+      LT: { type: 'periodic', period: 'quarter', offsetDays: 30 },
+      // SE: gesetzlicher Jahresbericht an Naturvårdsverket, gilt für ALLE
+      // Kunden gleich (anders als die volumenabhängige PRO-Meldung).
+      SE: { type: 'annual', month: 3, day: 31 }
     };
 
     const updateNextFilingRule =
