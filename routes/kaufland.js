@@ -12,9 +12,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -59,7 +59,7 @@ router.post('/connect', requireAuth, (req, res) => {
   db.prepare(`
     UPDATE customers SET kaufland_client_key = ?, kaufland_secret_key = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(clientKey.trim(), secretKey.trim(), req.auth.userId);
+  `).run(encrypt(clientKey.trim()), encrypt(secretKey.trim()), req.auth.userId);
 
   res.json({ ok: true });
 });
@@ -81,10 +81,9 @@ router.post('/sync', requireAuth, async (req, res) => {
     if (!customer?.kaufland_client_key || !customer?.kaufland_secret_key) {
       return res.status(400).json({ error: 'Kaufland nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ? AND kaufland_product_id IS NOT NULL').all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.kaufland_product_id] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'kaufland_product_id');
 
     const response = await kauflandRequest({
       method: 'GET',
@@ -97,54 +96,22 @@ router.post('/sync', requireAuth, async (req, res) => {
     let imported = 0;
 
     for (const order of orders) {
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      let hasUnclassifiedItem = false;
-      const weeeBatteryItemSets = [];
-
-      (order.units || order.order_units || []).forEach(unit => {
-        const externalId = String(unit.storefront_product_id || unit.product_id);
-        const sku = skuMap[externalId];
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-        if (sku) {
-          const qty = unit.quantity || 1;
-          const weight = sku.total_weight_grams * qty;
-          totalWeight += weight;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
-            packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * qty,
-              is_recyclable: m.is_recyclable
-            });
-          });
-        } else {
-          // Noch kein Pack2EU-Artikel für dieses Kaufland-Produkt - einen
-          // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'kaufland_product_id',
-            externalId,
-            name: unit.title || unit.name
-          });
-        }
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: order.units || order.order_units, skuField: 'kaufland_product_id', skuMap,
+        getExternalId: unit => String(unit.storefront_product_id || unit.product_id),
+        getQuantity: unit => unit.quantity,
+        getName: unit => unit.title || unit.name
       });
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
-        VALUES (?, 'kaufland', ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        String(order.id || order.order_id),
-        JSON.stringify(order),
-        normalizeCountryCode(order.shipping_address?.country_iso, order.delivery_address?.country_code) || 'DE',
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0,
-        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-      );
-      if (result.changes > 0) imported++;
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'kaufland',
+        externalOrderId: String(order.id || order.order_id),
+        orderData: order,
+        destinationCountry: normalizeCountryCode(order.shipping_address?.country_iso, order.delivery_address?.country_code) || 'DE',
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
+      if (inserted) imported++;
     }
 
     res.json({ ok: true, imported, total: orders.length });

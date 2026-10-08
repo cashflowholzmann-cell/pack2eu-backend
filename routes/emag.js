@@ -19,9 +19,9 @@ const express = require('express');
 const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -82,7 +82,7 @@ router.post('/connect', requireAuth, async (req, res) => {
   db.prepare(`
     UPDATE customers SET emag_username = ?, emag_password = ?, emag_country = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(username, password, country, req.auth.userId);
+  `).run(username, encrypt(password), country, req.auth.userId);
 
   res.json({ ok: true });
 });
@@ -104,10 +104,9 @@ router.post('/sync', requireAuth, async (req, res) => {
     if (!customer?.emag_username || !customer?.emag_password || !customer?.emag_country) {
       return res.status(400).json({ error: 'eMAG nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ? AND emag_product_id IS NOT NULL').all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.emag_product_id] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'emag_product_id');
 
     // Keine Paginierungs-Schleife (gleicher Umfang wie Kaufland/
     // WooCommerce) - die letzte Seite (100 Bestellungen) reicht für einen
@@ -124,37 +123,11 @@ router.post('/sync', requireAuth, async (req, res) => {
     let imported = 0;
 
     for (const order of orders) {
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      let hasUnclassifiedItem = false;
-      const weeeBatteryItemSets = [];
-
-      (order.products || []).forEach(item => {
-        const externalId = String(item.product_id ?? item.part_number ?? '');
-        const sku = skuMap[externalId];
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-        if (sku) {
-          const qty = item.quantity || 1;
-          const weight = sku.total_weight_grams * qty;
-          totalWeight += weight;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
-            packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * qty,
-              is_recyclable: m.is_recyclable
-            });
-          });
-        } else if (externalId) {
-          // Noch kein Pack2EU-Artikel für dieses eMAG-Produkt - einen
-          // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'emag_product_id',
-            externalId,
-            name: item.name
-          });
-        }
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: order.products, skuField: 'emag_product_id', skuMap,
+        getExternalId: item => String(item.product_id ?? item.part_number ?? ''),
+        getQuantity: item => item.quantity,
+        getName: item => item.name
       });
 
       const destinationCountry = normalizeCountryCode(
@@ -163,21 +136,15 @@ router.post('/sync', requireAuth, async (req, res) => {
         customer.emag_country
       ) || customer.emag_country;
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
-        VALUES (?, 'emag', ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        String(order.id),
-        JSON.stringify(order),
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'emag',
+        externalOrderId: String(order.id),
+        orderData: order,
         destinationCountry,
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0,
-        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-      );
-      if (result.changes > 0) imported++;
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
+      if (inserted) imported++;
     }
 
     res.json({ ok: true, imported, total: orders.length });

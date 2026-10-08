@@ -9,9 +9,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -91,7 +91,7 @@ router.get('/callback', requireEbayConfigured, async (req, res) => {
       UPDATE customers
       SET ebay_access_token = ?, ebay_refresh_token = ?, ebay_token_expires_at = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(access_token, refresh_token, expiresAt, stateRow.customer_id);
+    `).run(encrypt(access_token), encrypt(refresh_token), expiresAt, stateRow.customer_id);
 
     db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
 
@@ -123,7 +123,7 @@ async function ensureFreshToken(customer) {
 
   db.prepare(`
     UPDATE customers SET ebay_access_token = ?, ebay_token_expires_at = ? WHERE id = ?
-  `).run(access_token, expiresAt, customer.id);
+  `).run(encrypt(access_token), expiresAt, customer.id);
 
   return access_token;
 }
@@ -137,10 +137,9 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
     if (!customer?.ebay_refresh_token) {
       return res.status(400).json({ error: 'eBay nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ? AND ebay_item_id IS NOT NULL').all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.ebay_item_id] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'ebay_item_id');
 
     const accessToken = await ensureFreshToken(customer);
 
@@ -156,53 +155,22 @@ router.post('/sync', requireAuth, requireEbayConfigured, async (req, res) => {
     let imported = 0;
 
     for (const order of orders) {
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      let hasUnclassifiedItem = false;
-      const weeeBatteryItemSets = [];
-
-      (order.lineItems || []).forEach(item => {
-        const sku = skuMap[item.legacyItemId];
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-        if (sku) {
-          const qty = item.quantity || 1;
-          const weight = sku.total_weight_grams * qty;
-          totalWeight += weight;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
-            packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * qty,
-              is_recyclable: m.is_recyclable
-            });
-          });
-        } else {
-          // Noch kein Pack2EU-Artikel für diese eBay-Artikelnummer - einen
-          // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'ebay_item_id',
-            externalId: item.legacyItemId,
-            name: item.title
-          });
-        }
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: order.lineItems, skuField: 'ebay_item_id', skuMap,
+        getExternalId: item => item.legacyItemId,
+        getQuantity: item => item.quantity,
+        getName: item => item.title
       });
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
-        VALUES (?, 'ebay', ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        order.orderId,
-        JSON.stringify(order),
-        normalizeCountryCode(order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode) || 'DE',
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0,
-        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-      );
-      if (result.changes > 0) imported++;
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'ebay',
+        externalOrderId: order.orderId,
+        orderData: order,
+        destinationCountry: normalizeCountryCode(order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode) || 'DE',
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
+      if (inserted) imported++;
     }
 
     res.json({ ok: true, imported, total: orders.length });

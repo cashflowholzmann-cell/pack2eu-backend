@@ -26,9 +26,9 @@ const express = require('express');
 const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -58,7 +58,7 @@ router.post('/connect', requireAuth, (req, res) => {
   db.prepare(`
     UPDATE customers SET skroutz_api_token = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(apiToken.trim(), req.auth.userId);
+  `).run(encrypt(apiToken.trim()), req.auth.userId);
 
   const appUrl = process.env.APP_URL || 'https://www.pack2eu.global';
   res.json({
@@ -111,12 +111,9 @@ router.post('/webhook/:customerId', async (req, res) => {
     if (!customer?.skroutz_api_token) {
       return res.status(200).json({ ok: true, ignored: true });
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare(`
-      SELECT * FROM product_packaging WHERE customer_id = ? AND skroutz_shop_uid IS NOT NULL
-    `).all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.skroutz_shop_uid] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'skroutz_shop_uid');
 
     // Bestelldaten NICHT aus dem Webhook-Body übernehmen (keine
     // Signaturprüfung möglich), sondern authentifiziert neu abrufen.
@@ -127,55 +124,25 @@ router.post('/webhook/:customerId', async (req, res) => {
     });
     const fullOrder = response.data?.order || response.data;
 
-    let totalWeight = 0;
-    const packagingMaterials = [];
-    let hasUnclassifiedItem = false;
-    const weeeBatteryItemSets = [];
-    (fullOrder.line_items || []).forEach(item => {
-      const sku = skuMap[String(item.shop_uid)];
-      if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-      if (sku) {
-        const qty = item.quantity || 1;
-        const weight = sku.total_weight_grams * qty;
-        totalWeight += weight;
-        weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
-        const materials = JSON.parse(sku.materials_json || '[]');
-        materials.forEach(m => {
-          packagingMaterials.push({
-            material: m.material,
-            weight_grams: m.weight_grams * qty,
-            is_recyclable: m.is_recyclable
-          });
-        });
-      } else {
-        // Noch kein Pack2EU-Artikel für diese Skroutz-shop_uid - einen
-        // leeren Artikel anlegen (siehe lib/marketplace-auto-sku.js).
-        ensureUnclassifiedProduct(db, customer.id, {
-          field: 'skroutz_shop_uid',
-          externalId: item.shop_uid,
-          name: item.title || item.name
-        });
-      }
+    const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+      db, customerId: customer.id, items: fullOrder.line_items, skuField: 'skroutz_shop_uid', skuMap,
+      getExternalId: item => String(item.shop_uid),
+      getQuantity: item => item.quantity,
+      getName: item => item.title || item.name
     });
 
-    db.prepare(`
-      INSERT OR IGNORE INTO marketplace_orders
-      (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, fulfillment_type, has_unclassified_items, weee_battery_items_json)
-      VALUES (?, 'skroutz', ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      customer.id,
-      String(fullOrder.code),
-      JSON.stringify(fullOrder),
-      normalizeCountryCode(fullOrder.customer?.address?.country_code) || 'GR',
-      totalWeight,
-      JSON.stringify(packagingMaterials),
+    insertMarketplaceOrder(db, {
+      customerId: customer.id,
+      platform: 'skroutz',
+      externalOrderId: String(fullOrder.code),
+      orderData: fullOrder,
+      destinationCountry: normalizeCountryCode(fullOrder.customer?.address?.country_code) || 'GR',
       // order.fulfilled_by_skroutz laut offiziellem Order-Objekt-Schema
       // (developer.skroutz.gr/smart_cart/_order_object) - FBS: Skroutz
       // übernimmt Lagerung/Versand, sonst versendet der Händler selbst.
-      fullOrder.fulfilled_by_skroutz ? 'fbs' : 'direct',
-      hasUnclassifiedItem ? 1 : 0,
-      JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-    );
+      fulfillmentType: fullOrder.fulfilled_by_skroutz ? 'fbs' : 'direct',
+      totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+    });
 
     res.status(200).json({ ok: true });
   } catch (err) {

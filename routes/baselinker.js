@@ -14,8 +14,8 @@ const axios = require('axios');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 const { linkSkuRow } = require('./skus');
 
 const router = express.Router();
@@ -67,7 +67,7 @@ router.post('/connect', requireAuth, (req, res) => {
     UPDATE customers
     SET baselinker_api_token = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(apiToken.trim(), req.auth.userId);
+  `).run(encrypt(apiToken.trim()), req.auth.userId);
 
   res.json({ ok: true });
 });
@@ -94,23 +94,9 @@ async function syncBaselinkerOrdersForCustomer(customer) {
     if (!customer?.baselinker_api_token) {
       throw new Error('Base.com nicht verbunden.');
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare(`
-      SELECT *
-      FROM product_packaging
-      WHERE customer_id = ?
-        AND baselinker_sku IS NOT NULL
-    `).all(customer.id);
-
-    const skuMap = {};
-
-    skus.forEach((sku) => {
-      const key = String(sku.baselinker_sku || '').trim();
-
-      if (key) {
-        skuMap[key] = sku;
-      }
-    });
+    const skuMap = buildSkuMap(db, customer.id, 'baselinker_sku');
 
     // Importiert Bestellungen der letzten 30 Tage.
     const dateFrom = Math.floor((Date.now() - 30 * 86400000) / 1000);
@@ -135,88 +121,28 @@ async function syncBaselinkerOrdersForCustomer(customer) {
     let skipped = 0;
 
     for (const order of orders) {
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      // Kundenwunsch: Bestellungen mit mindestens einem noch nicht
-      // klassifizierten Artikel sollen in der Liste rot auffallen (siehe
-      // marketplace_orders.has_unclassified_items).
-      let hasUnclassifiedItem = false;
-      // Kundenwunsch: Elektro-/Batterieprodukte in derselben Bestellung
-      // (z.B. ein batteriebetriebenes Gerät neben Shampoo/Nagellack)
-      // werden zusätzlich als Stückzahl je WEEE-Kategorie/Batterietyp
-      // erfasst - siehe lib/weee-battery-items.js.
-      const weeeBatteryItemSets = [];
-
-      (order.products || []).forEach((item) => {
-        const itemSku = String(item.sku || '').trim();
-        // Audit-Fund: viele über Base/BaseLinker aggregierte Bestellungen
-        // (z.B. aus Shops ohne eigene SKU-Pflege) liefern GAR KEIN item.sku
-        // - itemSku war dann immer '', ensureUnclassifiedProduct() bricht
-        // bei leerem externalId sofort ab (kein Dedupe-Schlüssel möglich),
-        // und für diese Bestellungen wurde NIE ein Pack2EU-Artikel angelegt.
-        // Ergebnis: sie blieben dauerhaft nur als anonymer "sonstige"-Posten
-        // hängen, ganz ohne Möglichkeit, sie im SKU-Editor zu klassifizieren
-        // (siehe Kundenwunsch weiter oben: "dann muss man doch einfach den
-        // Namen bei uns hinterlegen können"). Fallback auf den Artikelnamen
-        // als Schlüssel, wenn keine SKU vorhanden ist - matcht künftige
-        // Bestellungen desselben Artikelnamens genauso automatisch wie eine
-        // echte SKU (siehe skuMap-Lookup unten).
-        const matchKey = itemSku || String(item.name || '').trim();
-        const sku = skuMap[matchKey];
-        const quantity = Number(item.quantity) > 0
-          ? Number(item.quantity)
-          : 1;
-
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-
-        if (sku) {
-          // Pack2EU-Verpackungsdaten haben Vorrang.
-          totalWeight += Number(sku.total_weight_grams || 0) * quantity;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, quantity));
-
-          let materials = [];
-
-          try {
-            materials = JSON.parse(sku.materials_json || '[]');
-          } catch {
-            materials = [];
-          }
-
-          materials.forEach((material) => {
-            packagingMaterials.push({
-              material: material.material,
-              weight_grams: Number(material.weight_grams || 0) * quantity,
-              is_recyclable: material.is_recyclable
-            });
-          });
-        } else {
-          // Kein Pack2EU-SKU vorhanden: einen echten (noch leeren)
-          // Pack2EU-Artikel für diese Base-SKU anlegen, statt den Artikel
-          // anonym als "sonstige" zu verbuchen - Kundenwunsch: der Artikel
-          // soll im SKU-Editor auftauchen (mit dem "⚠️ Material fehlt"-
-          // Hinweis) und nur EINMAL mit einem Material befüllt werden
-          // müssen. Jede künftige Bestellung dieses Artikels matcht dann
-          // automatisch die echten Materialien (siehe skuMap oben).
-          //
-          // WICHTIG (Kundenmeldung): Base liefert hier ein Gewicht, das
-          // sich i.d.R. auf das PRODUKT bezieht, nicht auf die Verpackung
-          // - es darf deshalb NICHT als "sonstige"-Verpackungsgewicht in
-          // diese Bestellung übernommen werden (würde die Öko-Gebühr-/
-          // Meldepflicht auf Basis des falschen Gewichts verzerren). Bis
-          // der Nutzer den Artikel klassifiziert, trägt diese Bestellung
-          // für dieses Item also bewusst 0g bei - ensureUnclassifiedProduct()
-          // speichert das Base-Gewicht nur als unverbindliche Referenz
-          // (source_weight_grams), nie als Verpackungsgewicht.
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'baselinker_sku',
-            externalId: matchKey,
-            name: item.name,
-            // Pro-Stück-Gewicht (nicht mit quantity multipliziert) - der
-            // SKU-Editor bildet ein einzelnes Stück ab, nicht die ganze
-            // Bestellposition.
-            totalWeightGrams: baseWeightToGrams(item.weight)
-          });
-        }
+      // Audit-Fund: viele über Base/BaseLinker aggregierte Bestellungen
+      // (z.B. aus Shops ohne eigene SKU-Pflege) liefern GAR KEIN item.sku -
+      // Fallback auf den Artikelnamen als Schlüssel, matcht künftige
+      // Bestellungen desselben Artikelnamens genauso automatisch wie eine
+      // echte SKU.
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: order.products, skuField: 'baselinker_sku', skuMap,
+        getExternalId: item => String(item.sku || '').trim() || String(item.name || '').trim(),
+        getQuantity: item => Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+        getName: item => item.name,
+        // WICHTIG (Kundenmeldung): Base liefert hier ein Gewicht, das sich
+        // i.d.R. auf das PRODUKT bezieht, nicht auf die Verpackung - es
+        // darf deshalb NICHT als "sonstige"-Verpackungsgewicht in diese
+        // Bestellung übernommen werden (würde die Öko-Gebühr-/Meldepflicht
+        // auf Basis des falschen Gewichts verzerren). Bis der Nutzer den
+        // Artikel klassifiziert, trägt diese Bestellung für dieses Item
+        // also bewusst 0g bei - die Funktion speichert das Base-Gewicht nur
+        // als unverbindliche Referenz (source_weight_grams), nie als
+        // Verpackungsgewicht. Pro-Stück-Gewicht (nicht mit quantity
+        // multipliziert) - der SKU-Editor bildet ein einzelnes Stück ab,
+        // nicht die ganze Bestellposition.
+        getFallbackWeightGrams: item => baseWeightToGrams(item.weight)
       });
 
       // delivery_country_code ist bei Base i.d.R. schon ein ISO-Code,
@@ -230,60 +156,26 @@ async function syncBaselinkerOrdersForCustomer(customer) {
         order.delivery_country
       );
 
-      const externalOrderId = String(order.order_id);
-
       // Kundenentscheidung (nach einem Vorfall, bei dem ein erneuter Sync
       // eine manuell korrigierte Bestellung wieder auf den falschen Stand
-      // aus Base zurückgesetzt hat - das vorherige manually_corrected-Flag
-      // half nur für Korrekturen NACH dessen Einführung, nicht für bereits
-      // vorher korrigierte Bestellungen): ein Sync fasst eine bereits
+      // aus Base zurückgesetzt hat): ein Sync fasst eine bereits
       // importierte Bestellung GAR NICHT MEHR an, auch nicht ihre Metadaten
       // - er ergänzt ausschließlich neue, noch nicht bekannte Bestellungen
-      // (Dedupe-Schlüssel: external_order_id). Identisch zum Verhalten
-      // aller anderen Marktplatz-Integrationen (Etsy, Kaufland, Amazon,
-      // eBay, Skroutz), die ebenfalls nie nachträglich überschreiben.
+      // (Dedupe-Schlüssel: external_order_id, siehe insertMarketplaceOrder).
+      // Identisch zum Verhalten aller anderen Marktplatz-Integrationen.
       // Ein falsches Anfangsgewicht/-Zielland wird über die Korrektur-
       // Maske behoben, nicht implizit durch einen künftigen Sync.
-      const existingOrder = db.prepare(`
-        SELECT id
-        FROM marketplace_orders
-        WHERE customer_id = ?
-          AND platform = 'baselinker'
-          AND external_order_id = ?
-      `).get(customer.id, externalOrderId);
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'baselinker',
+        externalOrderId: String(order.order_id),
+        orderData: order,
+        destinationCountry,
+        fulfillmentType: order.order_source || null,
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
 
-      if (existingOrder) {
-        skipped++;
-      } else {
-        db.prepare(`
-          INSERT INTO marketplace_orders
-          (
-            customer_id,
-            platform,
-            external_order_id,
-            order_data_json,
-            destination_country,
-            total_weight_grams,
-            packaging_data,
-            fulfillment_type,
-            has_unclassified_items,
-            weee_battery_items_json
-          )
-          VALUES (?, 'baselinker', ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          customer.id,
-          externalOrderId,
-          JSON.stringify(order),
-          destinationCountry,
-          totalWeight,
-          JSON.stringify(packagingMaterials),
-          order.order_source || null,
-          hasUnclassifiedItem ? 1 : 0,
-          JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-        );
-
-        imported++;
-      }
+      if (inserted) imported++; else skipped++;
     }
 
     return { ok: true, imported, skipped, total: orders.length };
@@ -362,6 +254,7 @@ router.post('/sync-catalog-links', requireAuth, async (req, res) => {
     if (!customer?.baselinker_api_token) {
       return res.status(400).json({ error: 'Base.com nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
     const inventoriesResponse = await baselinkerRequest({
       method: 'getInventories',

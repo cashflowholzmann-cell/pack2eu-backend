@@ -15,9 +15,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ensureUnclassifiedProduct, isSkuUnclassified } = require('../lib/marketplace-auto-sku');
-const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { buildSkuMap, processOrderItems, insertMarketplaceOrder } = require('../lib/marketplace-order-import');
 const { normalizeCountryCode } = require('../lib/country-normalize');
+const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
 
 const router = express.Router();
 
@@ -97,7 +97,7 @@ router.get('/callback', requireAmazonConfigured, async (req, res) => {
       UPDATE customers
       SET amazon_selling_partner_id = ?, amazon_refresh_token = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(sellingPartnerId || null, refresh_token, stateRow.customer_id);
+    `).run(sellingPartnerId || null, encrypt(refresh_token), stateRow.customer_id);
 
     db.prepare('DELETE FROM oauth_states WHERE id = ?').run(stateRow.id);
 
@@ -127,10 +127,9 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
     if (!customer?.amazon_refresh_token) {
       return res.status(400).json({ error: 'Amazon nicht verbunden.' });
     }
+    decryptCustomerCredentials(customer);
 
-    const skus = db.prepare('SELECT * FROM product_packaging WHERE customer_id = ? AND amazon_sku IS NOT NULL').all(customer.id);
-    const skuMap = {};
-    skus.forEach(s => { skuMap[s.amazon_sku] = s; });
+    const skuMap = buildSkuMap(db, customer.id, 'amazon_sku');
 
     const accessToken = await getAccessToken(customer.amazon_refresh_token);
 
@@ -160,56 +159,23 @@ router.post('/sync', requireAuth, requireAmazonAddon, requireAmazonConfigured, a
         continue;
       }
 
-      let totalWeight = 0;
-      const packagingMaterials = [];
-      let hasUnclassifiedItem = false;
-      const weeeBatteryItemSets = [];
       const items = itemsResponse.data?.payload?.OrderItems || [];
-
-      items.forEach(item => {
-        const sku = skuMap[item.SellerSKU];
-        if (isSkuUnclassified(sku)) hasUnclassifiedItem = true;
-        if (sku) {
-          const qty = parseInt(item.QuantityOrdered, 10) || 1;
-          const weight = sku.total_weight_grams * qty;
-          totalWeight += weight;
-          weeeBatteryItemSets.push(extractWeeeBatteryItems(sku, qty));
-          const materials = JSON.parse(sku.materials_json || '[]');
-          materials.forEach(m => {
-            packagingMaterials.push({
-              material: m.material,
-              weight_grams: m.weight_grams * qty,
-              is_recyclable: m.is_recyclable
-            });
-          });
-        } else {
-          // Noch kein Pack2EU-Artikel für diese Amazon-SKU - einen
-          // leeren Artikel anlegen, damit er im SKU-Editor auftaucht und
-          // nur einmal mit einem Material befüllt werden muss (siehe
-          // lib/marketplace-auto-sku.js).
-          ensureUnclassifiedProduct(db, customer.id, {
-            field: 'amazon_sku',
-            externalId: item.SellerSKU,
-            name: item.Title
-          });
-        }
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items, skuField: 'amazon_sku', skuMap,
+        getExternalId: item => item.SellerSKU,
+        getQuantity: item => parseInt(item.QuantityOrdered, 10),
+        getName: item => item.Title
       });
 
-      const result = db.prepare(`
-        INSERT OR IGNORE INTO marketplace_orders
-        (customer_id, platform, external_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
-        VALUES (?, 'amazon', ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.id,
-        order.AmazonOrderId,
-        JSON.stringify(order),
-        normalizeCountryCode(order.ShippingAddress?.CountryCode) || 'DE',
-        totalWeight,
-        JSON.stringify(packagingMaterials),
-        hasUnclassifiedItem ? 1 : 0,
-        JSON.stringify(mergeWeeeBatteryItems(...weeeBatteryItemSets))
-      );
-      if (result.changes > 0) imported++;
+      const inserted = insertMarketplaceOrder(db, {
+        customerId: customer.id,
+        platform: 'amazon',
+        externalOrderId: order.AmazonOrderId,
+        orderData: order,
+        destinationCountry: normalizeCountryCode(order.ShippingAddress?.CountryCode) || 'DE',
+        totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson
+      });
+      if (inserted) imported++;
     }
 
     res.json({ ok: true, imported, total: orders.length });
