@@ -645,12 +645,19 @@ router.post(
       // BEREITS AKTIVIERT?
       // --------------------------------------------------------
 
+      // activations hat seit der stream-Unique-Migration (siehe db/index.js
+      // migrateActivationsStreamUnique) UNIQUE(customer_id, country_code,
+      // stream) - dieser Legacy-Endpoint ist implizit immer stream=
+      // 'packaging', filtert also explizit danach. Ein Kunde kann dasselbe
+      // Land jetzt zusätzlich für WEEE/Batterie aktiviert haben, ohne dass
+      // das hier als Konflikt zählt.
       const existingActivation =
         db.prepare(`
           SELECT *
           FROM activations
           WHERE customer_id = ?
             AND country_code = ?
+            AND stream = 'packaging'
         `).get(
 
           req.auth.userId,
@@ -662,23 +669,9 @@ router.post(
 
       if (existingActivation) {
 
-        // activations hat UNIQUE(customer_id, country_code) OHNE stream (siehe
-        // gleicher Kommentar bei der stream-bewussten Route weiter unten) -
-        // dieser Treffer kann also auch von einer WEEE-/Batterie-Aktivierung
-        // desselben Landes stammen, nicht nur von einer bereits bestehenden
-        // Verpackungs-Aktivierung. Ohne diese Unterscheidung zeigte das
-        // Frontend fälschlich "bereits aktiviert" für Verpackung, obwohl nur
-        // WEEE/Batterie aktiviert war.
-        const isOtherStream = existingActivation.stream && existingActivation.stream !== 'packaging';
-
         return res.status(409).json({
 
-          error: isOtherStream
-            ? `Dieses Land ist bereits für "${existingActivation.stream}" aktiviert. Mehrere Pflichtenströme gleichzeitig pro Land werden aktuell noch nicht unterstützt.`
-            : 'Dieses Land ist bereits aktiviert.',
-
-          error_code: isOtherStream ? 'ALREADY_ACTIVATED_OTHER_STREAM' : undefined,
-          details: isOtherStream ? { stream: existingActivation.stream } : undefined,
+          error: 'Dieses Land ist bereits aktiviert.',
 
           activation:
             existingActivation
@@ -914,7 +907,8 @@ router.post(
 
         ON CONFLICT(
           customer_id,
-          country_code
+          country_code,
+          stream
         )
 
         DO UPDATE SET
@@ -1240,7 +1234,8 @@ router.put(
 
         ON CONFLICT(
           customer_id,
-          country_code
+          country_code,
+          stream
         )
 
         DO UPDATE SET
@@ -1705,23 +1700,12 @@ router.post('/:stream/:countryCode', (req, res) => {
       return res.status(409).json({ error: 'Dieses Land ist für diesen Pflichtenstrom bereits aktiviert.', activation: existingActivation });
     }
 
-    // activations/compliance_cases haben aktuell noch den ursprünglichen
-    // UNIQUE(customer_id, country_code) OHNE stream (siehe Kommentar in
-    // db/schema.sql - Constraint-Rebuild gegen echte Produktionsdaten
-    // bewusst nicht in dieser Runde). Ohne diese Prüfung würde der INSERT
-    // unten bei einer bereits bestehenden Aktivierung eines ANDEREN
-    // Stroms für dasselbe Land mit einer rohen SQLite-Fehlermeldung
-    // abstürzen, statt einer verständlichen Antwort.
-    const activationOtherStream = db.prepare(`
-      SELECT stream FROM activations WHERE customer_id = ? AND country_code = ?
-    `).get(req.auth.userId, countryCode);
-    if (activationOtherStream) {
-      return res.status(409).json({
-        error: `Dieses Land ist bereits für "${activationOtherStream.stream}" aktiviert. Mehrere Pflichtenströme gleichzeitig pro Land werden aktuell noch nicht unterstützt.`,
-        error_code: 'ALREADY_ACTIVATED_OTHER_STREAM',
-        details: { stream: activationOtherStream.stream }
-      });
-    }
+    // activations hat seit der stream-Unique-Migration (siehe db/index.js
+    // migrateActivationsStreamUnique) UNIQUE(customer_id, country_code,
+    // stream) - ein Kunde kann dasselbe Land jetzt für mehrere
+    // Pflichtenströme gleichzeitig aktivieren (z.B. Verpackung UND WEEE
+    // für Deutschland), der frühere Cross-Stream-Konflikt-Check entfällt
+    // damit.
 
     const existingNumber = clean(req.body?.existing_number);
     const representative = readRepresentative(req.body);
@@ -1761,7 +1745,7 @@ router.post('/:stream/:countryCode', (req, res) => {
         customer_id, country_code, stream, compliance_status, registration_status,
         representative_status, snapshot_json, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-      ON CONFLICT(customer_id, country_code) DO UPDATE SET
+      ON CONFLICT(customer_id, country_code, stream) DO UPDATE SET
         compliance_status = excluded.compliance_status,
         registration_status = excluded.registration_status,
         representative_status = excluded.representative_status,

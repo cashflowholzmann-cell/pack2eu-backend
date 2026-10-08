@@ -63,6 +63,7 @@ router.post('/register', async (req, res) => {
       FROM activations
       WHERE customer_id = ?
         AND country_code = ?
+        AND stream = 'packaging'
     `).get(
       customerId,
       countryCode
@@ -127,6 +128,7 @@ router.post('/register', async (req, res) => {
 
       WHERE customer_id = ?
         AND country_code = ?
+        AND stream = 'packaging'
     `).run(
 
       'lappa',
@@ -203,6 +205,7 @@ router.post('/book-representative', async (req, res) => {
       FROM activations
       WHERE customer_id = ?
         AND country_code = ?
+        AND stream = 'packaging'
     `).get(
       customerId,
       countryCode
@@ -253,6 +256,7 @@ router.post('/book-representative', async (req, res) => {
 
       WHERE customer_id = ?
         AND country_code = ?
+        AND stream = 'packaging'
     `).run(
 
       JSON.stringify(representativeResponse),

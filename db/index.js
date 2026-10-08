@@ -124,6 +124,149 @@ function migrateCustomerRepresentativeRequestsStreamUnique() {
   console.log('✅ customer_representative_requests: UNIQUE-Constraint um stream erweitert');
 }
 
+// Kundenwunsch 10/2026: ein Kunde soll ein Land gleichzeitig für
+// Verpackung UND WEEE/Batterie aktivieren können (z.B. ein
+// Elektronik-Händler braucht in Deutschland beides parallel) - die
+// UNIQUE(customer_id, country_code) OHNE stream verhinderte das bisher
+// technisch, siehe die zwei 409-Konflikt-Checks in routes/activations.js.
+// Der obige Kommentar bei migrateCustomerRepresentativeRequestsStreamUnique()
+// hat genau diesen Rebuild für activations/compliance_cases bewusst
+// zurückgestellt, weil beide Tabellen (anders als die brandneue
+// customer_representative_requests) Jahre an echten Kundendaten
+// enthalten - ein Fehler hier (fehlende Spalte, falscher Typ) würde beim
+// nächsten Boot echte, bereits bezahlte Aktivierungen beschädigen, nicht
+// nur Test-Daten. Deshalb hier besonders sorgfältig: alle Spalten 1:1
+// aus der aktuellen Live-Struktur übernommen (per PRAGMA table_info
+// gegengeprüft, siehe PR-Beschreibung), in einer Transaktion (Rollback
+// bei jedem Fehler statt einer halb migrierten Tabelle), plus ein
+// dedizierter Test mit synthetischen Zeilen für ALLE Spalten vor dem
+// Merge (siehe scratchpad-Testscript).
+function migrateActivationsStreamUnique() {
+  if (!tableExists('activations')) return;
+  if (!columnExists('activations', 'stream')) return;
+
+  const currentSql = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'activations'
+  `).get()?.sql || '';
+
+  if (currentSql.includes('UNIQUE(customer_id, country_code, stream)')) return;
+
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE activations_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        country_code TEXT NOT NULL REFERENCES countries(code),
+        status TEXT NOT NULL DEFAULT 'pending',
+        existing_number TEXT,
+        representative_name TEXT,
+        representative_company TEXT,
+        representative_email TEXT,
+        provider_id TEXT,
+        provider_epr_number TEXT,
+        provider_status TEXT DEFAULT 'pending',
+        provider_data TEXT,
+        provider_case_id TEXT,
+        provider_error TEXT,
+        lappa_representative_id TEXT,
+        lappa_status TEXT DEFAULT 'pending',
+        lappa_data TEXT,
+        compliance_status TEXT,
+        registration_status TEXT DEFAULT 'not_started',
+        representative_status TEXT DEFAULT 'not_required',
+        compliance_snapshot TEXT DEFAULT '{}',
+        local_establishment INTEGER NOT NULL DEFAULT 0,
+        mode TEXT DEFAULT 'grauzone',
+        mode_updated_at TEXT,
+        signed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        stream TEXT NOT NULL DEFAULT 'packaging',
+        UNIQUE(customer_id, country_code, stream)
+      );
+
+      INSERT INTO activations_new
+        (id, customer_id, country_code, status, existing_number, representative_name, representative_company, representative_email,
+         provider_id, provider_epr_number, provider_status, provider_data, provider_case_id, provider_error,
+         lappa_representative_id, lappa_status, lappa_data,
+         compliance_status, registration_status, representative_status, compliance_snapshot, local_establishment,
+         mode, mode_updated_at, signed_at, created_at, stream)
+      SELECT
+        id, customer_id, country_code, status, existing_number, representative_name, representative_company, representative_email,
+        provider_id, provider_epr_number, provider_status, provider_data, provider_case_id, provider_error,
+        lappa_representative_id, lappa_status, lappa_data,
+        compliance_status, registration_status, representative_status, compliance_snapshot, local_establishment,
+        mode, mode_updated_at, signed_at, created_at, stream
+      FROM activations;
+
+      DROP TABLE activations;
+      ALTER TABLE activations_new RENAME TO activations;
+
+      CREATE INDEX IF NOT EXISTS idx_activations_mode ON activations(mode);
+      CREATE INDEX IF NOT EXISTS idx_activations_country ON activations(country_code);
+      CREATE INDEX IF NOT EXISTS idx_activations_customer ON activations(customer_id);
+    `);
+  });
+  migrate();
+
+  console.log('✅ activations: UNIQUE-Constraint um stream erweitert (mehrere Pflichtenströme pro Land jetzt möglich)');
+}
+
+function migrateComplianceCasesStreamUnique() {
+  if (!tableExists('compliance_cases')) return;
+  if (!columnExists('compliance_cases', 'stream')) return;
+
+  const currentSql = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'compliance_cases'
+  `).get()?.sql || '';
+
+  if (currentSql.includes('UNIQUE(customer_id, country_code, stream)')) return;
+
+  const migrate = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE compliance_cases_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        country_code TEXT NOT NULL REFERENCES countries(code),
+        compliance_status TEXT NOT NULL DEFAULT 'needs_review',
+        registration_status TEXT NOT NULL DEFAULT 'not_started',
+        representative_status TEXT NOT NULL DEFAULT 'not_required',
+        stream TEXT NOT NULL DEFAULT 'packaging',
+        provider_id TEXT,
+        provider_case_id TEXT,
+        external_number TEXT,
+        external_status TEXT,
+        snapshot_json TEXT NOT NULL DEFAULT '{}',
+        last_error TEXT,
+        submitted_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(customer_id, country_code, stream)
+      );
+
+      INSERT INTO compliance_cases_new
+        (id, customer_id, country_code, compliance_status, registration_status, representative_status, stream,
+         provider_id, provider_case_id, external_number, external_status, snapshot_json, last_error,
+         submitted_at, completed_at, created_at, updated_at)
+      SELECT
+        id, customer_id, country_code, compliance_status, registration_status, representative_status, stream,
+        provider_id, provider_case_id, external_number, external_status, snapshot_json, last_error,
+        submitted_at, completed_at, created_at, updated_at
+      FROM compliance_cases;
+
+      DROP TABLE compliance_cases;
+      ALTER TABLE compliance_cases_new RENAME TO compliance_cases;
+
+      CREATE INDEX IF NOT EXISTS idx_compliance_cases_compliance ON compliance_cases(compliance_status);
+      CREATE INDEX IF NOT EXISTS idx_compliance_cases_status ON compliance_cases(registration_status, representative_status);
+      CREATE INDEX IF NOT EXISTS idx_compliance_cases_customer ON compliance_cases(customer_id);
+    `);
+  });
+  migrate();
+
+  console.log('✅ compliance_cases: UNIQUE-Constraint um stream erweitert (mehrere Pflichtenströme pro Land jetzt möglich)');
+}
+
 // marketplace_orders hatte einen CHECK-Constraint, der nur 'etsy',
 // 'kaufland', 'amazon', 'ebay' erlaubte - beim Hinzufügen von Skroutz
 // (routes/skroutz.js) wurde übersehen, dass SQLite CHECK-Constraints
@@ -991,15 +1134,18 @@ function init() {
     // Stream-Dimension (siehe country_stream_rules-Kommentar in
     // schema.sql): additiv, default 'packaging' - keine Verhaltensänderung
     // für die bestehenden, ausschließlich Verpackungs-Aktivierungen aller
-    // heutigen Kunden. Der bestehende UNIQUE(customer_id, country_code)
-    // bleibt bewusst unverändert (siehe Kommentar oben) - ein Kunde kann
-    // aktuell weiterhin nur eine Aktivierung pro Land haben; echte
-    // Mehrfach-Stream-Aktivierung pro Land folgt erst mit einer eigenen,
-    // sorgfältig getesteten Constraint-Migration, sobald WEEE/Batterie
-    // tatsächlich Länderdaten haben.
+    // heutigen Kunden.
     addColumnIfMissing('activations', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
     addColumnIfMissing('compliance_cases', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
     addColumnIfMissing('monthly_reports', 'stream', "TEXT NOT NULL DEFAULT 'packaging'");
+    // Kundenwunsch 10/2026: jetzt die oben lange aufgeschobene, sorgfältig
+    // getestete Constraint-Migration - UNIQUE(customer_id, country_code)
+    // wird um stream erweitert, ein Kunde kann ab jetzt dasselbe Land für
+    // mehrere Pflichtenströme gleichzeitig aktivieren (z.B. Verpackung UND
+    // WEEE für Deutschland). Siehe ausführlicher Kommentar bei den beiden
+    // Funktionen oben.
+    migrateActivationsStreamUnique();
+    migrateComplianceCasesStreamUnique();
     // compliance_rules existiert erst ab Abschnitt 7 weiter unten - die
     // stream-Spalte dafür steht bei den anderen addColumnIfMissing-Aufrufen
     // dieser Tabelle.
