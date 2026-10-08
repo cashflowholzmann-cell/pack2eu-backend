@@ -1879,7 +1879,7 @@ function init() {
       UPDATE countries
       SET
         register_body = 'EMPA (Εθνικό Μητρώο Παραγωγών / Nationales Produzentenregister) über EOAN; Systembeteiligung über HERRCO',
-        registration_url = 'http://empa.eoan.gr',
+        registration_url = 'https://empa.eoan.gr/login.php',
         requirements_json = ?,
         reporting_frequency = 'annually',
         data_status = 'needs_verification'
