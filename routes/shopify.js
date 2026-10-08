@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { normalizeCountryCode } = require('../lib/country-normalize');
 const { extractWeeeBatteryItems, mergeWeeeBatteryItems } = require('../lib/weee-battery-items');
 const { encrypt, decryptCustomerCredentials } = require('../lib/credential-crypto');
+const { buildSkuMap, processOrderItems } = require('../lib/marketplace-order-import');
 
 const router = express.Router();
 
@@ -326,6 +327,81 @@ router.post('/webhook/shop/redact', verifyShopifyWebhook, (req, res) => {
   } catch (err) {
     console.error('❌ Shopify shop/redact Fehler:', err.message);
     res.status(500).send('Fehler');
+  }
+});
+
+// ============================================================
+// Manueller Bestell-Sync (Übergangslösung)
+//
+// Shopify-Bestellungen sollen eigentlich automatisch per Webhook reinkommen
+// (siehe POST /webhook/orders/create oben) - aber der Webhook lässt sich
+// erst registrieren, sobald Shopify die "Protected customer data access"-
+// Freigabe erteilt hat (Name/Adresse zählen als geschützte Kundendaten).
+// Bis dahin holt dieser manuelle Sync dieselben Bestelldaten direkt per
+// REST-Admin-API ab - exakt dasselbe Übergangsmuster wie bei jedem
+// anderen Marktplatz-Connector (siehe lib/marketplace-order-import.js).
+// Ob die Adressfelder ohne die Freigabe überhaupt befüllt zurückkommen
+// oder von Shopify redigiert werden, ist zum Zeitpunkt der Implementierung
+// NICHT verifiziert - erst der erste echte Sync gegen ein verbundenes
+// Konto zeigt das.
+// ============================================================
+router.post('/sync', requireAuth, async (req, res) => {
+  try {
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
+    if (!customer?.shopify_access_token || !customer?.shopify_shop_domain) {
+      return res.status(400).json({ error: 'Shopify nicht verbunden.' });
+    }
+    decryptCustomerCredentials(customer);
+
+    const skuMap = buildSkuMap(db, customer.id, 'shopify_product_id');
+
+    const response = await axios.get(`https://${customer.shopify_shop_domain}/admin/api/2024-07/orders.json`, {
+      headers: { 'X-Shopify-Access-Token': customer.shopify_access_token },
+      params: { status: 'any', limit: 50 }
+    });
+
+    const orders = response.data?.orders || [];
+    let imported = 0;
+
+    for (const order of orders) {
+      const { totalWeight, packagingMaterials, hasUnclassifiedItem, weeeBatteryItemsJson } = processOrderItems({
+        db, customerId: customer.id, items: order.line_items, skuField: 'shopify_product_id', skuMap,
+        getExternalId: item => String(item.product_id),
+        getQuantity: item => item.quantity,
+        getName: item => item.name
+      });
+
+      const result = db.prepare(`
+        INSERT OR IGNORE INTO shopify_orders
+        (customer_id, shopify_order_id, order_data_json, destination_country, total_weight_grams, packaging_data, has_unclassified_items, weee_battery_items_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        customer.id,
+        String(order.id),
+        JSON.stringify(order),
+        normalizeCountryCode(order.shipping_address?.country_code) || 'DE',
+        totalWeight,
+        JSON.stringify(packagingMaterials),
+        hasUnclassifiedItem ? 1 : 0,
+        weeeBatteryItemsJson
+      );
+      if (result.changes > 0) imported++;
+    }
+
+    res.json({
+      ok: true,
+      imported,
+      total: orders.length,
+      // Diagnose-Info fürs Dashboard/die Konsole: zeigt, ob Shopify für die
+      // zuletzt gesehene Bestellung tatsächlich eine Lieferadresse
+      // geliefert hat - fehlt sie bei JEDER Bestellung, deutet das auf die
+      // fehlende Protected-Customer-Data-Freigabe hin (Felder werden dann
+      // redigiert/leer geliefert statt eines Fehlers).
+      addressDataReceived: orders.some(o => o.shipping_address?.country_code)
+    });
+  } catch (err) {
+    console.error('❌ Shopify Sync Fehler:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Fehler beim Shopify-Sync.' });
   }
 });
 
