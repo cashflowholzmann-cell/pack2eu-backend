@@ -662,10 +662,23 @@ router.post(
 
       if (existingActivation) {
 
+        // activations hat UNIQUE(customer_id, country_code) OHNE stream (siehe
+        // gleicher Kommentar bei der stream-bewussten Route weiter unten) -
+        // dieser Treffer kann also auch von einer WEEE-/Batterie-Aktivierung
+        // desselben Landes stammen, nicht nur von einer bereits bestehenden
+        // Verpackungs-Aktivierung. Ohne diese Unterscheidung zeigte das
+        // Frontend fälschlich "bereits aktiviert" für Verpackung, obwohl nur
+        // WEEE/Batterie aktiviert war.
+        const isOtherStream = existingActivation.stream && existingActivation.stream !== 'packaging';
+
         return res.status(409).json({
 
-          error:
-            'Dieses Land ist bereits aktiviert.',
+          error: isOtherStream
+            ? `Dieses Land ist bereits für "${existingActivation.stream}" aktiviert. Mehrere Pflichtenströme gleichzeitig pro Land werden aktuell noch nicht unterstützt.`
+            : 'Dieses Land ist bereits aktiviert.',
+
+          error_code: isOtherStream ? 'ALREADY_ACTIVATED_OTHER_STREAM' : undefined,
+          details: isOtherStream ? { stream: existingActivation.stream } : undefined,
 
           activation:
             existingActivation
@@ -1704,7 +1717,9 @@ router.post('/:stream/:countryCode', (req, res) => {
     `).get(req.auth.userId, countryCode);
     if (activationOtherStream) {
       return res.status(409).json({
-        error: `Dieses Land ist bereits für "${activationOtherStream.stream}" aktiviert. Mehrere Pflichtenströme gleichzeitig pro Land werden aktuell noch nicht unterstützt.`
+        error: `Dieses Land ist bereits für "${activationOtherStream.stream}" aktiviert. Mehrere Pflichtenströme gleichzeitig pro Land werden aktuell noch nicht unterstützt.`,
+        error_code: 'ALREADY_ACTIVATED_OTHER_STREAM',
+        details: { stream: activationOtherStream.stream }
       });
     }
 
