@@ -246,8 +246,13 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId);
     if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.', error_code: 'NOT_FOUND' });
 
+    // stream-Filter: seit der UNIQUE(customer_id, country_code, stream)-
+    // Migration kann ein Kunde ein Land für mehrere Ströme aktiviert haben
+    // - Premium-Upgrade ist bislang nur für Verpackung im Frontend
+    // verfügbar (kein stream-Parameter in diesem Request), also explizit
+    // auf packaging eingrenzen statt irgendeine/alle Zeilen zu treffen.
     const activation = db.prepare(
-      'SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ?'
+      "SELECT id, mode FROM activations WHERE customer_id = ? AND country_code = ? AND stream = 'packaging'"
     ).get(customerId, country);
 
     if (!activation) {
@@ -463,10 +468,14 @@ router.post('/webhooks/stripe', async (req, res) => {
       if (type === 'premium_upgrade' || type === 'representative_booking') {
         if (country && user_id) {
           // 1. Datenbank updaten
+          // stream-Filter: ohne den würde ein Premium-Upgrade für
+          // Verpackung jetzt auch eine eventuell separat aktivierte
+          // WEEE-/Batterie-Zeile desselben Landes mit auf premium setzen
+          // (UPDATE trifft sonst ALLE passenden Zeilen, nicht nur eine).
           db.prepare(`
-            UPDATE activations 
+            UPDATE activations
             SET mode = 'premium', mode_updated_at = datetime('now')
-            WHERE customer_id = ? AND country_code = ?
+            WHERE customer_id = ? AND country_code = ? AND stream = 'packaging'
           `).run(parseInt(user_id), country);
           console.log(`✅ Premium-Modus für ${country} aktiviert (User ${user_id})`);
 

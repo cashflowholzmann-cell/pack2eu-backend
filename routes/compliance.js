@@ -351,12 +351,18 @@ router.get(
         );
 
 
+      // stream-Filter: diese Route ist packaging-only (kein stream-Konzept
+      // in diesem - älteren - Compliance-Endpoint) - seit der
+      // UNIQUE(customer_id, country_code, stream)-Migration sonst
+      // potenziell eine WEEE-/Batterie-Aktivierung statt der
+      // Verpackungs-Aktivierung treffend.
       const activation =
         db.prepare(`
           SELECT *
           FROM activations
           WHERE customer_id = ?
             AND country_code = ?
+            AND stream = 'packaging'
         `).get(
 
           customer.id,
@@ -478,12 +484,14 @@ router.get(
         );
 
 
+      // stream-Filter: siehe gleicher Kommentar bei /check oben.
       const activation =
         db.prepare(`
           SELECT *
           FROM activations
           WHERE customer_id = ?
             AND country_code = ?
+            AND stream = 'packaging'
         `).get(
 
           customer.id,
@@ -634,11 +642,15 @@ router.get(
         `).all();
 
 
+      // stream-Filter: siehe gleicher Kommentar bei /check oben - ohne ihn
+      // würde eine WEEE-/Batterie-Aktivierung in der unten gebauten
+      // activationMap die Verpackungs-Aktivierung desselben Landes
+      // überschreiben können.
       const activations =
         db.prepare(`
           SELECT *
           FROM activations
-          WHERE customer_id = ?
+          WHERE customer_id = ? AND stream = 'packaging'
         `).all(
           customer.id
         );

@@ -72,11 +72,16 @@ router.get('/', (req, res) => {
       ORDER BY name
     `).all();
 
+    // stream-Filter: diese Route ist implizit packaging-only (die
+    // stream-bewusste Variante ist GET /stream/:stream weiter unten) -
+    // seit der UNIQUE(customer_id, country_code, stream)-Migration könnte
+    // ein Land sonst fälschlich als "aktiviert" erscheinen, wenn der
+    // Kunde es nur für WEEE/Batterie aktiviert hat.
     const activatedCodes = new Set(
       db.prepare(`
         SELECT country_code
         FROM activations
-        WHERE customer_id = ?
+        WHERE customer_id = ? AND stream = 'packaging'
       `).all(req.auth.userId).map(a => a.country_code)
     );
 
