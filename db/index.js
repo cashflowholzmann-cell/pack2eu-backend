@@ -1566,7 +1566,7 @@ function init() {
         registration_url = 'https://producentansvar.dk',
         requirements_json = ?,
         eco_fee = 'Beitrag an Dansk Producentansvar (DPA), material- und mengenabhängig.',
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'annually',
         data_status = 'verified'
       WHERE code = 'DK'
     `).run(
@@ -1590,7 +1590,7 @@ function init() {
         representative_provider_name = 'ERP Ireland (European Recycling Platform)',
         representative_provider_url = 'https://erp-recycling.org/ie/',
         representative_data_status = 'needs_verification',
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'semi_annually',
         data_status = 'verified'
       WHERE code = 'IE'
     `).run(
@@ -1672,7 +1672,7 @@ function init() {
         register_body = 'PackUK (Scheme Administrator) – Registrierung über den Report-Packaging-Data-Dienst der zuständigen Umweltbehörde (Environment Agency / SEPA / NRW / NIEA)',
         requirements_json = ?,
         eco_fee = 'pEPR-Gebühr an PackUK; Basisgebühr in der Einführungsphase 2025/26, ab 2026/27 nach Recyclingfähigkeit ökomoduliert gestaffelt.',
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'GB'
     `).run(
@@ -1873,7 +1873,7 @@ function init() {
         register_body = 'EMPA (Εθνικό Μητρώο Παραγωγών / Nationales Produzentenregister) über EOAN; Systembeteiligung über HERRCO',
         registration_url = 'http://empa.eoan.gr',
         requirements_json = ?,
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'GR'
     `).run(
@@ -2058,7 +2058,7 @@ function init() {
         register_body = 'Valsts vides dienests (Staatlicher Umweltdienst)',
         registration_url = 'https://www.vvd.gov.lv',
         requirements_json = ?,
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'annually',
         data_status = 'needs_verification'
       WHERE code = 'LV'
     `).run(
@@ -2845,7 +2845,20 @@ function init() {
       SK: { type: 'periodic', period: 'quarter', offsetDays: 10 },
       RO: { type: 'periodic', period: 'month', offsetDays: 25 },
       BG: { type: 'periodic', period: 'month', offsetDays: 15 },
-      HR: { type: 'periodic', period: 'month', offsetDays: 20 }
+      HR: { type: 'periodic', period: 'month', offsetDays: 20 },
+      // GR/GB: konkret recherchierte, bestätigte Stichtage (siehe
+      // requirements_json). DK/LV: Frequenz ist bestätigt jährlich, der
+      // exakte Tag aber nicht - Kundenwunsch 10/2026 war hier, PPWR Art.
+      // 45 folgend, bis zur nationalen Konkretisierung generell vom
+      // 01.01. des Folgejahres auszugehen statt weiter "needs_verification"
+      // zu zeigen (siehe freq_needs_verification_note in dashboard.html).
+      GR: { type: 'annual', month: 6, day: 1 },
+      GB: { type: 'annual', month: 4, day: 1 },
+      DK: { type: 'annual', month: 1, day: 1 },
+      LV: { type: 'annual', month: 1, day: 1 },
+      // IE/Repak: zwei bestätigte feste Stichtage pro Jahr (21.2./21.8.),
+      // kein Jahres- oder Quartalsraster - neuer rule.type für diesen Fall.
+      IE: { type: 'fixed_dates', dates: [{ month: 2, day: 21 }, { month: 8, day: 21 }] }
     };
 
     const updateNextFilingRule =
