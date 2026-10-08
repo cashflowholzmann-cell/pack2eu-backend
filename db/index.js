@@ -2106,19 +2106,21 @@ function init() {
     db.prepare(`
       UPDATE countries
       SET
-        register_body = 'NISO (National Waste Information System) über ExEA (Executive Environment Agency); Systembeteiligung z. B. über Ecopak oder andere lizenzierte Organisationen',
-        registration_url = 'https://eea.government.bg/bg/nsmos/waste/registri-spravki.html',
+        register_body = 'NISO/NWMS (National Waste Information System) über ExEA (Executive Environment Agency); Systembeteiligung zusätzlich über eine lizenzierte Rückgewinnungsorganisation (z. B. ECOPACK Bulgaria, Bulecopack, Eco Partners)',
+        registration_url = 'https://nwms.eea.government.bg/app/base/home',
         requirements_json = ?,
         reporting_frequency = 'monthly',
         data_status = 'needs_verification'
       WHERE code = 'BG'
     `).run(
       JSON.stringify([
-        'Registrierung und Meldung bei den vom bulgarischen Umweltministerium lizenzierten Rückgewinnungsorganisationen (z. B. Ecopak) erforderlich.',
+        'KONKRETISIERT 10/2026 (Kundenrecherche, mehrere unabhängige Quellen, nicht anwaltlich geprüft): zwei getrennte Schritte nötig. (1) Staatliche Registrierung: jedes Unternehmen, das verpackte Waren auf den bulgarischen Markt bringt, muss im NISO/NWMS-Portal der ExEA eingetragen sein (komplett bulgarischsprachig, erfordert eine qualifizierte elektronische Signatur/KEP, die in Bulgarien oder der EU anerkannt ist). (2) Vertrag mit einer lizenzierten Rückgewinnungsorganisation (PRO) zur eigentlichen Erfüllung der Recycling-Pflicht - Marktführer ist ECOPACK Bulgaria, weitere etablierte Anbieter sind Bulecopack und Eco Partners (korrigiert: vorherige Schreibweise "Ecopak" war falsch, korrekt ECOPACK).',
+        'LINK KORRIGIERT 10/2026: registration_url zeigt jetzt direkt auf das NWMS-Anwendungsportal (nwms.eea.government.bg) statt auf eine Info-/FAQ-Unterseite der Hauptdomain (eea.government.bg) - die vorherigen zwei Versuche waren ein leerer Verzeichnis-Index bzw. eine FAQ-Seite zum falschen/allgemeinen Abfallsystem, kein direkter Portal-Zugang. Pack2EU konnte den neuen Link mangels Netzwerkzugriff auf .bg-Domains aus dieser Session nicht selbst öffnen, Kunde hat ihn jedoch direkt im Browser bestätigt.',
+        'WICHTIG für ausländische Online-Händler ohne physischen Sitz in Bulgarien: die NISO-Selbstregistrierung gilt laut mehreren Quellen als "extrem kompliziert" wegen der bulgarischen Bürokratie und der KEP-Anforderung - für diesen Fall wird ein Bevollmächtigter Vertreter in Bulgarien empfohlen, der Registrierung und monatliche Meldungen im Namen des Kunden übernimmt. Noch KEIN konkreter, geprüfter Anbieter für diese Rolle bestätigt (siehe nächster Punkt) - oft laut Quellen über generische Compliance-Dienstleister abgewickelt.',
         'Konformitätsbewertung, technische Dokumentation und EU-Konformitätserklärung ab 12.08.2026 vorgeschrieben.',
         'Kein belastbarer Bevollmächtigten-Anbieter für Bulgarien gefunden – Interzeros "alle 27 Mitgliedstaaten"-Werbeaussage nannte Bulgarien in den gefundenen Länderlisten auffällig NICHT namentlich, im Gegensatz zu Kroatien/Italien/Spanien. Vor Kundenaussage direkt prüfen.',
-        'Materialgranularität unklar: Ecopaks Kunststoff-Gebühr scheint eine Sammelposition zu sein (~0,175 BGN/kg), keine bestätigte Polymer-Aufschlüsselung wie bei CONAI (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).',
-        'LINK KORRIGIERT 10/2026: der vorherige registration_url (.../waste/niso/) war nur ein nackter Verzeichnis-Index mit einer FAQ- und einer Video-Tutorial-Datei, kein echter Zugang zum System (per Screenshot verifiziert). Auf .../waste/registri-spravki.html (Kundenfund) umgestellt - Inhalt konnte Pack2EU wegen fehlendem Netzwerkzugriff auf eea.government.bg nicht direkt verifizieren, aber jede Seite ist informativer als der vorherige leere Index.'
+        'Keine Mindestmenge: die Pflicht gilt ab dem ersten Gramm Verpackungsmaterial.',
+        'Materialgranularität unklar: ECOPACKs Kunststoff-Gebühr scheint eine Sammelposition zu sein (~0,175 BGN/kg), keine bestätigte Polymer-Aufschlüsselung wie bei CONAI (Quelle: KI-Recherche Stand 09/2026, niedrige Sicherheit, nicht anwaltlich geprüft).'
       ])
     );
 
