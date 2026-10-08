@@ -1396,7 +1396,7 @@ function init() {
         representative_provider_url = 'https://www.get-e-right.at/en/authorised-representative-packaging/',
         representative_data_status = 'needs_verification',
         notary_required = 1,
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'quarterly',
         data_status = 'verified'
       WHERE code = 'AT'
     `).run(
@@ -1405,7 +1405,9 @@ function init() {
         'Systembeteiligung/Lizenzierung über ein genehmigtes Sammel- und Verwertungssystem wie ARA.',
         'Bevollmächtigter in Österreich bereits vor PPWR für ausländische Erstinverkehrbringer verpflichtend - seit 1.1.2023 auch für Direktversand-/Fernabsatzhändler ohne Sitz/Niederlassung in Österreich, KEINE Bagatellgrenze (gilt schon ab dem ersten Paket).',
         'Die Vollmacht für den Bevollmächtigten muss notariell beglaubigt werden (Unterschriftsbeglaubigung durch einen Notar, auf Deutsch oder Englisch möglich) - verursacht zusätzliche einmalige Kosten und Vorlaufzeit, die bei der Kostenschätzung eingeplant werden sollten (Quelle: it-recht-kanzlei.de, IHK, deutsche-recycling.de, Stand 09/2026 per KI-Recherche, mehrere unabhängige Quellen übereinstimmend, nicht anwaltlich geprüft).',
-        'Meldefrequenz bei ARA gestaffelt nach erwarteter Jahreslizenzgebühr: jährlich unter 1.500 €, ansonsten quartalsweise, ab 20.000 € monatlich – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.'
+        'KONKRETISIERT 10/2026 (Kundenrecherche, mehrere unabhängige Quellen, nicht anwaltlich geprüft): Meldefrequenz bei ARA gestaffelt nach erwarteter Jahreslizenzgebühr - quartalsweise ist der Standardfall für die meisten Unternehmen (Fristen 25.4./25.7./25.10./25.1.), monatlich verpflichtend ab ca. 20.000 € Lizenzsumme/Jahr (ebenfalls fällig zum 25. des Folgemonats), eine reine Jahresmeldung ist nur bei sehr kleinen Mengen/Gebühren möglich (Frist 15.1. des Folgejahres). Da quartalsweise der Regelfall ist, hier als Standard-Frequenz hinterlegt statt weiter "needs_verification" zu zeigen - Kunden mit sehr niedriger oder sehr hoher Menge weichen davon ab.',
+        'Zusätzlich zur ARA-Meldung: der gesetzliche Stichtag für den finalen Abgleich der Jahresmengen im staatlichen EDM-Portal (Stammdaten + jährliche Entlastungsbestätigung) ist meist der 15.3. des Folgejahres - eine separate behördliche Frist on top der ARA-Meldungen.',
+        'Keine Freigrenze für ausländische Direktversand-/E-Commerce-Händler (B2C): Lizenzierungspflicht gilt ab dem ersten Gramm Verpackung.'
       ])
     );
 
@@ -1847,7 +1849,9 @@ function init() {
         'Die Recyclinggebühr wird beim Zoll vom isländischen Importeur erhoben; ein ausländischer Verkäufer ohne eigene Niederlassung in Island erfüllt seine Pflicht in der Praxis über diesen Importeur.',
         'Wer selbst gebührenpflichtig wird, muss sich spätestens 15 Tage vor Aufnahme der Tätigkeit bei der Steuerbehörde (Skatturinn) registrieren.',
         'Ob und wie die EU-PPWR-Fristen (12.08.2026) für Island übernommen werden, war Stand 08/2026 noch nicht abschließend bestätigt.',
-        'Wer selbst meldepflichtig ist, meldet zweimonatlich (Frist jeweils der 28. des zweiten Folgemonats) – das passt in kein einfaches Monats-/Quartals-/Jahresraster.'
+        'KONKRETISIERT 10/2026 (Kundenrecherche, nicht anwaltlich geprüft): Bewusst WEITER "needs_verification" statt eines festen Werts, weil sich die Meldepflicht grundlegend nach Vertriebsweg unterscheidet. (A) Für Importeure (der Pack2EU-Normalfall: Waren werden nach Island importiert/verschickt): KEINE nachträgliche periodische Meldung - die Mengen werden direkt bei der Zollabfertigung deklariert und automatisch mit der Steuerbehörde (Skatturinn) verrechnet, d. h. es gibt für diesen Fall gar keinen wiederkehrenden Termin, den Pack2EU ankündigen müsste. (B) Für inländische Produzenten/Befüller in Island: zweimonatlicher Rhythmus, Frist jeweils 28. des zweiten Folgemonats (Jan/Feb→28.4., Mär/Apr→28.6., Mai/Jun→28.8., Jul/Aug→28.10., Sep/Okt→28.12., Nov/Dez→28.2. des Folgejahres) - passt in kein Monats-/Quartals-/Jahresraster. Da (A) der für Pack2EU-Kunden typische Fall ist und dafür KEIN periodischer Termin existiert, wäre weder ein konkretes next_filing_rule-Datum noch "not_applicable" (das würde fälschlich "keine Pflicht" suggerieren, obwohl die Gebühr sehr wohl anfällt, nur eben pro Sendung statt periodisch) zutreffend - bräuchte eine eigene Kategorie, falls das UI das sauber abbilden soll.',
+        'Keine Mindestgrenze: die Recyclinggebühr erreicht jeden Marktteilnehmer ab dem ersten Gramm Verpackungsmaterial.',
+        'Strafzuschlag bei Verzug (nur für Fall B, inländische Produzenten): 1 % pro verspätetem Tag, gedeckelt bei 10 %, plus Verzugszinsen - gekoppelt an das Finanzamt, da das System steuerrechtlich behandelt wird.'
       ])
     );
 
@@ -1858,14 +1862,15 @@ function init() {
         register_body = 'Amt für Umwelt (Office of Environment), Liechtensteinische Landesverwaltung – kein eigenständiges Verpackungsregister bekannt; enge Zoll- und Wirtschaftsunion mit der Schweiz',
         registration_url = 'https://www.llv.li/en/national-administration/office-of-environment',
         requirements_json = ?,
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'not_applicable',
         data_status = 'needs_verification'
       WHERE code = 'LI'
     `).run(
       JSON.stringify([
         'Liechtenstein ist EWR-Mitglied, gleichzeitig aber über den Zollvertrag von 1923 wirtschaftlich eng mit der Schweiz verbunden, die selbst kein gesetzliches Pflichtsystem für Verpackungen kennt.',
         'Stand 08/2026 konnte keine eigenständige, bestätigte Verpackungs-Registrierungspflicht oder -stelle für Liechtenstein identifiziert werden; einige Compliance-Quellen zählen Liechtenstein pauschal zu den EWR-Staaten, für die die PPWR ab 12.08.2026 gilt – das ist jedoch unbestätigt und steht im Widerspruch zur engen Anlehnung an das Schweizer System.',
-        'Bis zur Klärung wird empfohlen, die Entwicklung über das Amt für Umwelt zu beobachten, bevor von einer Registrierungspflicht ausgegangen wird.'
+        'KONKRETISIERT 10/2026 (Kundenrecherche, nicht anwaltlich geprüft): für normale Versand-/Transportverpackungen (Karton, Kunststoff - der Pack2EU-Normalfall) gibt es KEINE gesetzliche, behördliche Meldepflicht mit fester Frist, nur freiwillige Branchenorganisationen (z. B. MIG) mit vertraglich vereinbarten Fristen (meist jährlich bis Ende Februar) - daher hier auf "not_applicable" gesetzt. AUSNAHME: für Getränkeverpackungen (PET, Aluminium, Glas) gilt ein gesetzlicher vorgezogener Recyclingbeitrag (vRB) über Schweizer Organisationen (PRS Pet Recycling Schweiz, Vetro-Swiss-Meldestelle) mit quartalsweiser Meldung, Frist jeweils 15. des Folgemonats nach Quartalsende (15.4./15.7./15.10./15.1.) - betrifft nur Kunden, die Getränke in diesen Verpackungen verkaufen, für die meisten Pack2EU-Kunden nicht einschlägig.',
+        'Separate Pflicht nur bei physischer Geschäftstätigkeit/Sonderabfall-Erzeugung in Liechtenstein selbst (für reine Vertreiber per E-Commerce nicht einschlägig): jährliche Meldung von Sonderabfallmengen beim Amt für Umwelt, Frist 1.3. des Folgejahres.'
       ])
     );
 
@@ -2876,7 +2881,10 @@ function init() {
       LT: { type: 'periodic', period: 'quarter', offsetDays: 30 },
       // SE: gesetzlicher Jahresbericht an Naturvårdsverket, gilt für ALLE
       // Kunden gleich (anders als die volumenabhängige PRO-Meldung).
-      SE: { type: 'annual', month: 3, day: 31 }
+      SE: { type: 'annual', month: 3, day: 31 },
+      // AT/ARA: quartalsweise ist der bestätigte Standardfall für die
+      // meisten Unternehmen, Fristen 25. des Monats nach Quartalsende.
+      AT: { type: 'periodic', period: 'quarter', offsetDays: 25 }
     };
 
     const updateNextFilingRule =
