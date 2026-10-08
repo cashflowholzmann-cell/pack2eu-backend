@@ -359,8 +359,21 @@ router.get('/products', requireAuth, async (req, res) => {
     const response = await axios.get(`https://${customer.shopify_shop_domain}/admin/api/2024-07/products.json`, {
       headers: { 'X-Shopify-Access-Token': customer.shopify_access_token }
     });
-    
-    res.json(response.data.products);
+
+    // Normalisiertes Format {id, name, sku, image} - gleiche Form wie bei
+    // jedem anderen Produkt-Picker-fähigen Connector (siehe routes/
+    // woocommerce.js), damit das Dashboard EINE generische Liste/Verknüpfen-
+    // Oberfläche für alle Plattformen nutzen kann, statt pro Plattform eine
+    // eigene. Bei mehreren Varianten wird die erste SKU genommen (Pack2EU
+    // kennt pro Artikel nur eine externe ID, keine Varianten-Hierarchie).
+    const products = (response.data.products || []).map(p => ({
+      id: String(p.id),
+      name: p.title,
+      sku: p.variants?.[0]?.sku || '',
+      image: p.images?.[0]?.src || null
+    }));
+
+    res.json(products);
   } catch (err) {
     console.error('Shopify Produkte Fehler:', err.message);
     res.status(500).json({ error: 'Fehler beim Abrufen der Produkte.' });

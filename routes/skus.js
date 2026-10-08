@@ -442,6 +442,57 @@ router.put('/:id', (req, res) => {
   }
 });
 
+// ============================================================
+// EXTERNE PRODUKT-ID SETZEN (Produkt-Picker, siehe dashboard.html)
+//
+// Kundenwunsch 10/2026: statt die Shop-Produkt-ID manuell ins SKU-Formular
+// einzutippen, soll man sie aus einer geholten Produktliste des jeweils
+// verbundenen Shops auswählen können (zuerst Shopify/WooCommerce, weitere
+// Plattformen folgen). Eine Spalte pro Plattform (siehe db/index.js) -
+// Mapping bewusst hart codiert (keine dynamische Spalten-Namen aus
+// Nutzereingaben), gleiches Sicherheitsprinzip wie MARKETPLACE_SKU_FIELDS
+// in lib/marketplace-auto-sku.js.
+const EXTERNAL_LINK_FIELDS = {
+  shopify: 'shopify_product_id',
+  woocommerce: 'woocommerce_product_id',
+  kaufland: 'kaufland_product_id',
+  emag: 'emag_product_id',
+  baselinker: 'baselinker_sku',
+  skroutz: 'skroutz_shop_uid',
+  etsy: 'etsy_listing_id',
+  amazon: 'amazon_sku',
+  ebay: 'ebay_item_id',
+  shein: 'shein_product_id',
+  temu: 'temu_product_id'
+};
+
+router.post('/:id/external-link', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { platform, externalId } = req.body || {};
+    const customer_id = req.customer.sub;
+
+    const column = EXTERNAL_LINK_FIELDS[platform];
+    if (!column) {
+      return res.status(400).json({ error: 'Unbekannte Plattform.' });
+    }
+
+    const existing = db.prepare('SELECT id FROM product_packaging WHERE id = ? AND customer_id = ?').get(id, customer_id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Produkt nicht gefunden.' });
+    }
+
+    const value = String(externalId || '').trim() || null;
+    db.prepare(`UPDATE product_packaging SET ${column} = ?, updated_at = datetime('now') WHERE id = ? AND customer_id = ?`)
+      .run(value, id, customer_id);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Fehler beim Verknüpfen der externen Produkt-ID:', error);
+    res.status(500).json({ error: 'Fehler beim Verknüpfen.' });
+  }
+});
+
 // Aktualisiert alle Varianten, die über linked_to_sku_id auf sourceId
 // verweisen (siehe Kommentar bei product_packaging.linked_to_sku_id in
 // db/index.js) - hält z.B. alle Farbvarianten eines Nagellacks bei einer
