@@ -1026,6 +1026,15 @@ function init() {
     // Verpackungsgewicht-Logik.
     addColumnIfMissing('orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
     addColumnIfMissing('shopify_orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
+    // Bislang hatte nur shopify_orders (anders als marketplace_orders) kein
+    // has_unclassified_items-Flag - der Webhook-Handler legte unbekannte
+    // Shopify-Produkte bisher auch nie automatisch als leeren Pack2EU-
+    // Artikel an. Für den neuen manuellen Shopify-Sync (POST /shopify/sync,
+    // Übergangslösung bis die Protected-Customer-Data-Freigabe von Shopify
+    // da ist) wird dieselbe gemeinsame Verarbeitungslogik (lib/marketplace-
+    // order-import.js processOrderItems) wie bei allen anderen Marktplätzen
+    // genutzt - dafür braucht shopify_orders dieselbe Spalte.
+    addColumnIfMissing('shopify_orders', 'has_unclassified_items', 'INTEGER NOT NULL DEFAULT 0');
     addColumnIfMissing('marketplace_orders', 'weee_battery_items_json', 'TEXT NOT NULL DEFAULT \'{"weee":[],"battery":[]}\'');
 
     // submissions war bisher implizit nur für den Verpackungs-Stream
