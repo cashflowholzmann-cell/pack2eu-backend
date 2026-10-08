@@ -1421,7 +1421,7 @@ function init() {
         representative_provider_url = 'https://www.econ.bz.it/dienstleistungen/',
         representative_provider_email = 'info@econ.bz.it',
         representative_data_status = 'verified',
-        reporting_frequency = 'needs_verification',
+        reporting_frequency = 'quarterly',
         data_status = 'verified'
       WHERE code = 'IT'
     `).run(
@@ -1429,7 +1429,10 @@ function init() {
         'Stand 08/2026: Die EPR-Pflichten für Verpackungen laufen weiterhin über CONAI; ein eigenständiges PPWR-Produzentenregister (RENAP) ist für Verpackungen noch nicht vollständig in Betrieb.',
         'Paralleler Weiterbetrieb von CONAI und PPWR-System voraussichtlich bis 11.08.2028 vorgesehen.',
         'Nationale Durchführungsbestimmungen zu Registrierung und Bevollmächtigten werden im Laufe 2026 erwartet – noch nicht final.',
-        'Meldefrequenz bei CONAI gestaffelt nach der Höhe des im Vorjahr gemeldeten Umweltbeitrags je Material (jährlich/quartalsweise/monatlich) – eine pauschale Frequenz lässt sich ohne Kenntnis der individuellen Mengen nicht angeben.',
+        'NICHT mit CONAI zu verwechseln: Die allgemeine MUD-Abfallerklärung (Modello Unico di Dichiarazione ambientale) ist eine separate Pflicht für Unternehmen, die selbst Abfall erzeugen/bewirtschaften, und betrifft NICHT die Verpackungs-EPR - für Pack2EU-Kunden als reine Vertreiber in aller Regel nicht einschlägig, daher hier nicht weiter verfolgt.',
+        'KONKRETISIERT 10/2026 (Kundenrecherche, mehrere unabhängige Quellen, nicht anwaltlich geprüft): CONAI-Meldungen sind unabhängig vom Rhythmus immer bis zum 20. Tag des auf den Berichtszeitraum folgenden Monats fällig. Der Rhythmus selbst richtet sich nach dem im Vorjahr erklärten CONAI-Umweltbeitrag je Material: bis 3.000 €/Jahr → jährlich (Frist 20.1. des Folgejahres); 3.001–31.000 €/Jahr → quartalsweise (Fristen 20.4./20.7./20.10./20.1.); über 31.000 €/Jahr → monatlich (Frist jeweils 20. des Folgemonats). Unter einer Bagatellgrenze von ca. 2.000–3.000 €/Material entfällt die aktive Meldepflicht ganz (Gebühr läuft dann über die Rechnungen der italienischen Lieferanten).',
+        'WICHTIG für neue Pack2EU-Kunden: Erstimporteure müssen im ersten Jahr ihrer CONAI-Registrierung IMMER quartalsweise melden, unabhängig von der Beitragshöhe - deshalb hier als Standard-Frequenz hinterlegt (quartalsweise, 20.4./20.7./20.10./20.1.) statt "needs_verification", auch wenn etablierte Kunden mit niedrigem Beitrag im Folgejahr auf jährlich wechseln können.',
+        'Kulanzfrist bei verspäteter Meldung: 60 Tage nach der eigentlichen Frist, mit nur stark reduzierter Verwaltungsgebühr (ca. 26-160 €); danach drohen Bußgelder von 2.000-10.000 €.',
         'Verifiziert 09/2026 über ein echtes, personalisiertes Angebot von econ Consulting: CONAI-Eintragung inkl. Domizil (1. Jahr) 350€ einmalig, Domizil (Folgejahre) 160€/Jahr, periodische Meldungen je nach Frequenz 100€ (jährlich) / 280€ (vierteljährlich) / 500€ (monatlich), Selbstanzeige bei versäumten Meldungen (bis 5 Jahre rückwirkend) 150€ einmalig - alle Preise netto zzgl. MwSt.',
         'CONAI-Kunststoff-Umweltbeitrag ist seit 01/2026 nach Recyclingfähigkeit in 9 Fasce gestaffelt (40-790 €/t) statt eines Einheitssatzes, Papier in 8 Fasce (45-285 €/t) - siehe eco_fee_material_bands_json für die vollen Tabellen. Die hier hinterlegten eco_fee_rates_json-Werte (Kunststoff 0,79 €/kg, Papier/Karton 0,045 €/kg) entsprechen bewusst der teuersten Kunststoff- bzw. der günstigsten Papier-Fascia als jeweils konservative Schätzung für Kunststoff und Best-Case-Annahme für Papier - laut Econ Consultings Angebot verursacht die konkrete Fascia-Zuordnung pro Kunde ohne saubere Vorab-Klassifizierung zusätzliche Beratungskosten.'
       ])
@@ -2858,7 +2861,12 @@ function init() {
       LV: { type: 'annual', month: 1, day: 1 },
       // IE/Repak: zwei bestätigte feste Stichtage pro Jahr (21.2./21.8.),
       // kein Jahres- oder Quartalsraster - neuer rule.type für diesen Fall.
-      IE: { type: 'fixed_dates', dates: [{ month: 2, day: 21 }, { month: 8, day: 21 }] }
+      IE: { type: 'fixed_dates', dates: [{ month: 2, day: 21 }, { month: 8, day: 21 }] },
+      // IT/CONAI: Erstimporteure melden im ersten Jahr gesetzlich immer
+      // quartalsweise (20. des Monats nach Quartalsende) - siehe
+      // requirements_json. Etablierte Kunden mit niedrigem Vorjahresbeitrag
+      // können auf jährlich wechseln, das bildet dieser Default nicht ab.
+      IT: { type: 'periodic', period: 'quarter', offsetDays: 20 }
     };
 
     const updateNextFilingRule =
