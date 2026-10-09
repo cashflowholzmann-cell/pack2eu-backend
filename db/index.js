@@ -1029,6 +1029,15 @@ function init() {
     addColumnIfMissing('product_packaging', 'emag_product_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'shein_product_id', 'TEXT');
     addColumnIfMissing('product_packaging', 'temu_product_id', 'TEXT');
+    // Kundenwunsch 10/2026: Beim Verknüpfen eines Artikels mit einem
+    // Shop-Produkt (siehe POST /:id/external-link) soll - sofern der
+    // Connector eins liefert (aktuell Shopify/WooCommerce, siehe routes/
+    // shopify.js und routes/woocommerce.js) - auch dessen Produktbild
+    // übernommen werden, egal aus welchem Shop. Bewusst EIN generisches
+    // Feld statt je Plattform eins, da es rein informativ ist (Anzeige in
+    // der Produktliste/im Editor) und nicht wie die externen IDs als
+    // Sync-Schlüssel dient.
+    addColumnIfMissing('product_packaging', 'image_url', 'TEXT');
     normalizeStoredDestinationCountries();
     backfillBaselinkerFallbackMaterials();
     normalizeNonArrayPackagingData();

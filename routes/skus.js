@@ -469,7 +469,7 @@ const EXTERNAL_LINK_FIELDS = {
 router.post('/:id/external-link', (req, res) => {
   try {
     const { id } = req.params;
-    const { platform, externalId } = req.body || {};
+    const { platform, externalId, imageUrl } = req.body || {};
     const customer_id = req.customer.sub;
 
     const column = EXTERNAL_LINK_FIELDS[platform];
@@ -483,8 +483,17 @@ router.post('/:id/external-link', (req, res) => {
     }
 
     const value = String(externalId || '').trim() || null;
-    db.prepare(`UPDATE product_packaging SET ${column} = ?, updated_at = datetime('now') WHERE id = ? AND customer_id = ?`)
-      .run(value, id, customer_id);
+    // Produktbild nur übernehmen, wenn tatsächlich verknüpft wird (value
+    // gesetzt) UND der Connector eins mitgeschickt hat - beim Entlinken
+    // (value === null) bleibt ein bereits übernommenes Bild bewusst
+    // stehen, es ist kein Bestandteil der Verknüpfung selbst.
+    if (value && imageUrl) {
+      db.prepare(`UPDATE product_packaging SET ${column} = ?, image_url = ?, updated_at = datetime('now') WHERE id = ? AND customer_id = ?`)
+        .run(value, String(imageUrl).trim() || null, id, customer_id);
+    } else {
+      db.prepare(`UPDATE product_packaging SET ${column} = ?, updated_at = datetime('now') WHERE id = ? AND customer_id = ?`)
+        .run(value, id, customer_id);
+    }
 
     res.json({ ok: true });
   } catch (error) {
