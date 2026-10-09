@@ -14,7 +14,14 @@ if (!JWT_SECRET) {
 // TOKEN ERSTELLEN
 // ============================================================
 
-function signToken(identity = {}) {
+// options.expiresIn / options.extra: nur für Admin-Impersonation genutzt
+// (siehe routes/admin.js POST /customers/:id/impersonate) - ein kürzeres
+// Ablaufdatum und eine zusätzliche impersonatedBy-Markierung im Token,
+// damit ein Impersonation-Token im Zweifel (z.B. in Logs) von einem
+// normalen Kunden-Login unterscheidbar bleibt. Alle bestehenden Aufrufer
+// übergeben kein options-Objekt und bekommen exakt das bisherige
+// Verhalten (7 Tage, keine Zusatzclaims).
+function signToken(identity = {}, options = {}) {
 
   const role =
     identity.role ||
@@ -39,11 +46,12 @@ function signToken(identity = {}) {
     {
       sub: Number(subject),
       role,
-      customerNumber
+      customerNumber,
+      ...(options.extra || {})
     },
     JWT_SECRET,
     {
-      expiresIn: '7d'
+      expiresIn: options.expiresIn || '7d'
     }
   );
 }
@@ -102,6 +110,14 @@ function requireAuth(req, res, next) {
 
       customerNumber:
         payload.customerNumber ||
+        null,
+
+      // Nur gesetzt, wenn dieses Token von POST /admin/customers/:id/
+      // impersonate ausgestellt wurde (siehe signToken()) - Routen/Frontend
+      // können daran eine Admin-Impersonation-Sitzung erkennen, ohne dafür
+      // eine eigene Session-Tabelle führen zu müssen.
+      impersonatedBy:
+        payload.impersonatedBy ||
         null
 
     };
