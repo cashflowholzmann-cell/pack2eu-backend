@@ -148,6 +148,11 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
       mode: 'subscription',
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
+      // Kundenwunsch 10/2026: unsere Kunden sind Unternehmen (B2B) - zeigt
+      // an der Kasse ein optionales USt-ID-Feld, Stripe übernimmt die
+      // eingegebene ID dann auf die automatisch generierte Rechnung
+      // (wichtig fürs Reverse-Charge-Verfahren bei EU-Auslandskunden).
+      tax_id_collection: { enabled: true },
       // Zeigt an der Kasse ein Gutschein-/Rabattcode-Feld an - ohne das gibt
       // es aktuell KEINEN Weg, einen Code (z.B. für eine Reel-Aktion)
       // einzulösen. Der Code selbst wird als Promotion Code im Stripe-
@@ -289,6 +294,15 @@ router.post('/create-upgrade-session', requireAuth, async (req, res) => {
         },
         quantity: 1,
       }],
+      // Kundenwunsch 10/2026: bei mode:'payment' (anders als bei
+      // mode:'subscription') generiert Stripe OHNE das hier explizit
+      // KEINE Rechnung, nur eine formlose Zahlungsbestätigung - für
+      // B2B-Kunden reicht das nicht. Lässt Stripe nach erfolgreicher
+      // Zahlung automatisch eine echte, finalisierte Rechnung erstellen
+      // und per E-Mail verschicken (inkl. eingegebener USt-ID, siehe
+      // tax_id_collection unten).
+      invoice_creation: { enabled: true },
+      tax_id_collection: { enabled: true },
       success_url: `${process.env.APP_URL}/Dashboard.html?upgrade=success&country=${country}`,
       cancel_url: `${process.env.APP_URL}/Dashboard.html?upgrade=cancel`,
       metadata: {
@@ -350,6 +364,8 @@ router.post('/create-amazon-addon-session', requireAuth, async (req, res) => {
     mode: 'subscription',
     customer: stripeCustomerId,
     line_items: [{ price: priceId, quantity: 1 }],
+    // Siehe Kommentar bei /create-checkout-session.
+    tax_id_collection: { enabled: true },
     success_url: `${process.env.APP_URL}/Dashboard.html?amazon_addon=success`,
     cancel_url: `${process.env.APP_URL}/Dashboard.html?amazon_addon=cancel`,
     metadata: {
@@ -406,6 +422,8 @@ router.post('/create-gpsr-addon-session', requireAuth, async (req, res) => {
     mode: 'subscription',
     customer: stripeCustomerId,
     line_items: [{ price: priceId, quantity: 1 }],
+    // Siehe Kommentar bei /create-checkout-session.
+    tax_id_collection: { enabled: true },
     success_url: `${process.env.APP_URL}/Dashboard.html?gpsr_addon=success`,
     cancel_url: `${process.env.APP_URL}/Dashboard.html?gpsr_addon=cancel`,
     metadata: {
