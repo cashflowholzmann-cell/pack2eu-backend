@@ -97,6 +97,19 @@ app.use(
   express.raw({ type: 'application/octet-stream', limit: '100mb' })
 );
 
+// Live-Bug (Bella Rosa, 10.318 Artikel): der Cluster-Batch-Import
+// (siehe lib/cluster-import.js) schickt die komplette Zeilenliste als
+// JSON-Body an /preview bzw. /start - bei einem großen Katalog allein
+// schon ~1,7MB, weit über dem 500kb-Limit von express.json() weiter
+// unten. Führte live zu einem nichtssagenden "Interner Serverfehler"
+// (der globale Error-Handler in server.js fängt den PayloadTooLarge-
+// Fehler aus der Body-Parser-Middleware ab, bevor die Route selbst
+// überhaupt läuft). Admin-authentifiziert, daher vertretbar großzügig.
+app.use(
+  '/api/admin/customers/:id/cluster-import',
+  express.json({ limit: '15mb' })
+);
+
 // Shopify-Webhooks brauchen ebenfalls den rohen Body, um die
 // X-Shopify-Hmac-Sha256-Signatur zu verifizieren (siehe
 // routes/shopify.js) - exakt dasselbe Muster wie beim Stripe-Webhook.
