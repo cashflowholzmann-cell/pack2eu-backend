@@ -1,12 +1,10 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const Anthropic = require('@anthropic-ai/sdk');
-const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
-const { z } = require('zod/v4');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
 const { findAnomalousSkus } = require('../lib/sku-anomalies');
 const { getRates, computeSkuCost, simulateAlternative } = require('../lib/material-savings');
+const { estimatePackaging } = require('../lib/packaging-estimate');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -204,57 +202,13 @@ router.get('/material-costs', (req, res) => {
 //
 // Liefert eine grobe Materialien-/Gewichtsschätzung für ein per Produkt-
 // name benanntes Produkt, als Ergänzung zu den statischen Kategorie-
-// Presets (NICHE_DEFAULT_MATERIALS in dashboard.html). WICHTIG: Das ist
-// bewusst KEINE "Websuche nach dem echten Produkt" - eine Recherche-Session
-// hat gezeigt, dass eine KI dabei überzeugend klingende, aber erfundene
-// "Herstellerdaten" (inkl. Fake-Zitaten und Pseudo-Präzision auf zwei
-// Nachkommastellen) produzieren kann, sobald sie versucht, konkrete Quellen
-// zu belegen. Stattdessen schätzt das Modell rein aus allgemeinem Wissen
-// über typische Verpackungen dieser Produktart (wie ein erfahrener
-// Verpackungs-Berater übers Knie schätzen würde) und das Ergebnis wird
-// IMMER mit einem Unsicherheits-Hinweis ausgeliefert - nie als verifizierte
-// Tatsache. Kein web_search-Tool, damit das Modell gar nicht erst versucht,
-// (unbelegbare) Quellen vorzutäuschen. Ergebnis wird NICHT gespeichert -
-// der Kunde muss es im Formular aktiv übernehmen/anpassen, genau wie bei
-// den Kategorie-Presets.
+// Presets (NICHE_DEFAULT_MATERIALS in dashboard.html). Prompt/Schema/Aufruf
+// leben in lib/packaging-estimate.js - dieselbe Logik nutzt auch der
+// Cluster-Batch-Import (lib/cluster-import.js, siehe Bella-Rosa-
+// Katalogimport), um nicht zweimal gepflegt werden zu müssen. Ergebnis
+// wird hier NICHT gespeichert - der Kunde muss es im Formular aktiv
+// übernehmen/anpassen, genau wie bei den Kategorie-Presets.
 // ============================================================
-const PackagingEstimateSchema = z.object({
-  components: z.array(z.object({
-    material: z.enum(['glas', 'kunststoff', 'karton', 'papier', 'metall', 'holz']),
-    material_subtype: z.string().max(40),
-    weight_grams: z.number().int().positive().max(5000),
-    component_label: z.string().max(40)
-  })).min(1).max(6),
-  confidence_note: z.string().max(300)
-});
-
-const PACKAGING_ESTIMATE_SYSTEM_PROMPT = `
-Du schätzt die typische Verpackungszusammensetzung eines genannten Produkts,
-für die Vorbefüllung eines Formulars zur EU-Verpackungsregistrierung (EPR)
-in einem Kosmetik-/Beauty-Online-Shop.
-
-WICHTIG: Du hast KEINEN Zugriff auf echte Hersteller- oder Produktdatenblätter
-und sollst auch nicht so tun, als hättest du welche. Gib eine ehrliche,
-auf allgemeinem Wissen über typische Verpackungen dieser Produktart
-basierende SCHÄTZUNG ab - keine erfundenen "recherchierten" Fakten,
-keine Herstellerquellen, keine Chargen-/Losangaben, keine Nachkommastellen-
-Präzision. Runde jedes Gewicht auf ganze Gramm aus einer einzigen
-plausiblen Zahl (keine Spannen wie "24-26g").
-
-Nenne 2-5 plausible Verpackungsbestandteile (z.B. Behälter/Flakon,
-Verschluss/Deckel, Pumpe/Applikator, Umverpackung/Faltschachtel) mit
-jeweils einem Gewicht und einem erkennbaren Materialtyp.
-
-confidence_note: ein kurzer, ehrlicher Satz auf Deutsch, der klarmacht,
-dass dies eine ungeprüfte Schätzung ist, kein recherchiertes Faktum (z.B.
-"Richtwert basierend auf typischen Verpackungen dieser Produktkategorie -
-bitte mit dem tatsächlichen Produkt abgleichen oder beim Lieferanten
-nachfragen").
-
-Falls der Produktname zu vage ist, um eine sinnvolle Schätzung
-abzugeben, schätze trotzdem anhand der erkennbaren Produktkategorie
-(z.B. "Nagellack" ist auch ohne genaue Marke erkennbar).
-`.trim();
 
 // Kostet pro Aufruf einen echten KI-Request - großzügig, aber begrenzt
 // gegen Missbrauch als kostenlosen Text-Generator.
@@ -277,24 +231,8 @@ router.post('/estimate-packaging', packagingEstimateLimiter, async (req, res) =>
   }
 
   try {
-    const client = new Anthropic();
-    const response = await client.messages.parse({
-      model: 'claude-opus-5-5',
-      max_tokens: 1024,
-      output_config: {
-        format: zodOutputFormat(PackagingEstimateSchema),
-        effort: 'low'
-      },
-      system: PACKAGING_ESTIMATE_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Produktname: ${productName}` }]
-    });
-
-    const parsed = response.parsed_output;
-    if (!parsed) {
-      return res.status(502).json({ error: 'Schätzung konnte nicht verarbeitet werden.' });
-    }
-
-    res.json({ components: parsed.components, confidenceNote: parsed.confidence_note });
+    const { components, confidenceNote } = await estimatePackaging(productName);
+    res.json({ components, confidenceNote });
   } catch (error) {
     console.error('❌ KI-Verpackungsschätzung-Fehler:', error);
     res.status(503).json({ error: 'KI-Schätzung gerade nicht verfügbar. Bitte später erneut versuchen.' });
@@ -336,41 +274,54 @@ router.post('/:id/simulate-material', (req, res) => {
   }
 });
 
+// Kern-Logik von POST / unten, ausgelagert in eine eigene Funktion, damit
+// sie auch vom Cluster-Batch-Import (lib/cluster-import.js, siehe
+// Bella-Rosa-Katalogimport) ohne Codeverdopplung genutzt werden kann -
+// derselbe Aufbau wie bei linkSkuRow weiter unten. Wirft einen
+// sprechenden Error statt eine Response zu schreiben.
+function createSkuRow(customerId, data = {}) {
+  const { sku_name, icon, shopify_product_id, baselinker_sku, destination, materials } = data;
+
+  if (!sku_name || !materials || materials.length === 0) {
+    const error = new Error('Produktname und Materialien sind erforderlich.');
+    error.status = 400;
+    throw error;
+  }
+
+  const total_weight = materials.reduce((sum, m) => sum + (m.weight_grams || 0), 0);
+  const materials_json = JSON.stringify(materials);
+  const classification = readClassification(data);
+  const estimatedAnnualUnits = readEstimatedAnnualUnits(data);
+  const productNiche = readProductNiche(data);
+  const dimensions = readDimensions(data);
+
+  const result = db.prepare(`
+    INSERT INTO product_packaging
+    (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
+     is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
+     length_cm, width_cm, height_cm)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    customerId, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
+    classification.is_electrical_equipment, classification.weee_category,
+    classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
+    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm
+  );
+
+  return db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
+}
+
 // ============================================================
 // NEUEN SKU ANLEGEN
 // ============================================================
 router.post('/', (req, res) => {
   try {
-    const { sku_name, icon, shopify_product_id, baselinker_sku, destination, materials } = req.body;
-    const customer_id = req.customer.sub;
-
-    if (!sku_name || !materials || materials.length === 0) {
-      return res.status(400).json({ error: 'Produktname und Materialien sind erforderlich.' });
-    }
-
-    const total_weight = materials.reduce((sum, m) => sum + (m.weight_grams || 0), 0);
-    const materials_json = JSON.stringify(materials);
-    const classification = readClassification(req.body);
-    const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
-    const productNiche = readProductNiche(req.body);
-    const dimensions = readDimensions(req.body);
-
-    const result = db.prepare(`
-      INSERT INTO product_packaging
-      (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
-       is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
-       length_cm, width_cm, height_cm)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      customer_id, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
-      classification.is_electrical_equipment, classification.weee_category,
-      classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
-      dimensions.length_cm, dimensions.width_cm, dimensions.height_cm
-    );
-
-    const newSku = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
+    const newSku = createSkuRow(req.customer.sub, req.body);
     res.status(201).json(newSku);
   } catch (error) {
+    if (error.status === 400) {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('❌ Fehler beim Erstellen des SKUs:', error);
     res.status(500).json({ error: 'Fehler beim Erstellen des Produkts: ' + error.message });
   }
@@ -734,3 +685,7 @@ module.exports.linkSkuRow = linkSkuRow;
 // (Base/BaseLinker-SKU oder Produktname), damit Kunden dieselbe
 // Export-Vorlage für beide CSV-Importe verwenden können.
 module.exports.resolveSkuByIdentifier = resolveSkuByIdentifier;
+// Für den Cluster-Batch-Import (siehe lib/cluster-import.js, Bella-Rosa-
+// Katalogimport) - legt den Master-SKU pro Cluster über dieselbe Logik an
+// wie POST / oben, statt das INSERT ein zweites Mal zu pflegen.
+module.exports.createSkuRow = createSkuRow;
