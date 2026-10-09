@@ -117,6 +117,17 @@ app.use(
   express.json({ limit: '15mb' })
 );
 
+// Live-Bug (Bella Rosa, manuell recherchierte Großmengen-CSV, 1.253
+// Artikel über mehrere Material-Zeilen): derselbe PayloadTooLarge-Fehler
+// wie beim Cluster-Import oben, nur beim normalen CSV-Massenimport
+// (routes/bulk-import.js) - 3.963 Zeilen ergeben als JSON-Body knapp
+// 627kb, über dem 500kb-Limit weiter unten. Führte live zum selben
+// nichtssagenden "Serverfehler" wie beim Cluster-Import-Bug.
+app.use(
+  '/api/bulk/csv',
+  express.json({ limit: '15mb' })
+);
+
 // Shopify-Webhooks brauchen ebenfalls den rohen Body, um die
 // X-Shopify-Hmac-Sha256-Signatur zu verifizieren (siehe
 // routes/shopify.js) - exakt dasselbe Muster wie beim Stripe-Webhook.

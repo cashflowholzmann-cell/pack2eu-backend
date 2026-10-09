@@ -85,6 +85,18 @@ const MATERIAL_SYNONYMS = {
     sonstige: 'sonstige', sonstiges: 'sonstige', other: 'sonstige', misc: 'sonstige', miscellaneous: 'sonstige'
 };
 
+// Deutsche/EU-Excel-Exporte schreiben Dezimalzahlen mit Komma ("6,6"
+// statt "6.6") - parseFloat() liest das als "6" und verwirft den
+// Nachkommateil stillschweigend, statt einen Fehler zu werfen (bei
+// "0,6" sogar als ungültig/0, was validateRow() korrekt ablehnt, aber
+// bei z.B. "6,6" unbemerkt 10% Gewichtsabweichung erzeugt). Einmal
+// normalisiert, von validateRow() UND saveProduct() genutzt, damit
+// beide exakt denselben Wert sehen.
+function parseWeight(raw) {
+    if (raw === undefined || raw === null) return NaN;
+    return parseFloat(String(raw).trim().replace(',', '.'));
+}
+
 function normalizeMaterial(value) {
     if (!value) return null;
     const key = String(value).trim().toLowerCase().replace(/[^a-zäöüß/]/g, '');
@@ -130,7 +142,7 @@ function validateRow(row, rowNumber) {
         errors.push(`Material '${row.material}' ist nicht erlaubt`);
     }
 
-    const weight = parseFloat(row.gewicht_g);
+    const weight = parseWeight(row.gewicht_g);
     if (isNaN(weight) || weight <= 0) {
         errors.push(`Gewicht '${row.gewicht_g}' ist keine gültige Zahl`);
     }
@@ -171,7 +183,7 @@ function saveProduct(userId, row) {
 
     const material = {
         material: normalizeMaterial(row.material),
-        weight_grams: parseFloat(row.gewicht_g),
+        weight_grams: parseWeight(row.gewicht_g),
         is_recyclable: parseYesNo(row.recycelbar) ? 1 : 0
     };
 
