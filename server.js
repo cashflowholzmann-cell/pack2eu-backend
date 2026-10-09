@@ -110,6 +110,13 @@ app.use(
   express.json({ limit: '15mb' })
 );
 
+// Gleicher Grund wie beim Admin-Pfad oben - jetzt auch für den Self-
+// Service-Cluster-Import im Kunden-Dashboard (siehe routes/skus.js).
+app.use(
+  '/api/skus/cluster-import',
+  express.json({ limit: '15mb' })
+);
+
 // Shopify-Webhooks brauchen ebenfalls den rohen Body, um die
 // X-Shopify-Hmac-Sha256-Signatur zu verifizieren (siehe
 // routes/shopify.js) - exakt dasselbe Muster wie beim Stripe-Webhook.

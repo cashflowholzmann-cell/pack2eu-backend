@@ -5,6 +5,7 @@ const { requireAuth, requireActiveSubscription } = require('../middleware/auth')
 const { findAnomalousSkus } = require('../lib/sku-anomalies');
 const { getRates, computeSkuCost, simulateAlternative } = require('../lib/material-savings');
 const { estimatePackaging } = require('../lib/packaging-estimate');
+const { buildClusters, clusterStats, runClusterImport } = require('../lib/cluster-import');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -686,6 +687,164 @@ router.delete('/:id', (req, res) => {
   }
 });
 
+// ============================================================
+// SELF-SERVICE CLUSTER-IMPORT (Kundenwunsch, Brainstorming nach Bella
+// Rosa: "wir haben doch alles gebaut, nur jetzt als Self-Service")
+//
+// Exakt dieselbe lib/cluster-import.js-Logik wie beim Admin-gesteuerten
+// Import (siehe routes/admin.js POST /customers/:id/cluster-import/*),
+// nur kundenbezogen statt admin-ausgelöst: req.customer.sub statt einer
+// Admin-übergebenen :id. Zusätzlich: kundenübergreifende "Sammel-
+// datenbank"-Wiederverwendung (lookupSharedClusterMaterials) - jeder
+// erfolgreiche Lauf, admin- oder kundenausgelöst, macht künftige Läufe
+// für ALLE Kunden potenziell billiger.
+// ============================================================
+
+// Kundenübergreifend absichtlich OHNE customer_id-Filter - der ganze
+// Witz der "Sammeldatenbank"-Idee (siehe cluster_key-Spalte,
+// Kundenwunsch-Kommentar in db/index.js) ist, dass ein bei Kunde A schon
+// recherchierter Cluster (z.B. "Schwarzkopf Haarfarbe 60ml") bei Kunde B
+// kostenlos wiederverwendet wird, statt ein zweites Mal bezahlt zu
+// werden. Nimmt bewusst die ÄLTESTE Zeile (ORDER BY created_at ASC) -
+// die zuerst recherchierte gilt als die "Quelle", nicht eine beliebige
+// spätere.
+function lookupSharedClusterMaterials(clusterKey) {
+  if (!clusterKey) return null;
+  const row = db.prepare(`
+    SELECT materials_json FROM product_packaging
+    WHERE cluster_key = ? AND materials_json IS NOT NULL AND materials_json != '[]'
+    ORDER BY created_at ASC LIMIT 1
+  `).get(clusterKey);
+  if (!row) return null;
+  try {
+    const materials = JSON.parse(row.materials_json);
+    return Array.isArray(materials) && materials.length ? materials : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Großzügig genug für einen echten Großkatalog-Import, aber begrenzt
+// gegen versehentliche/missbräuchliche Massen-KI-Kosten durch einen
+// einzelnen Self-Service-Aufruf (anders als beim admin-gesteuerten
+// Import, wo ein Mensch aus dem eigenen Team die Größenordnung vorher
+// sieht).
+const MAX_SELF_SERVICE_CLUSTERS = 5000;
+
+// Eigener, großzügigerer Rate-Limiter als der Rest von /skus - ein
+// echter Großkatalog-Import ist naturgemäß selten pro Kunde, aber die
+// übliche kurze Fenster-Begrenzung würde hier eher stören als schützen.
+const clusterImportStartLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Zu viele Import-Starts. Bitte in ein paar Stunden erneut versuchen oder den Support kontaktieren.' }
+});
+
+router.post('/cluster-import/preview', (req, res) => {
+  try {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.filter(r => r && r.name) : [];
+    if (!rows.length) return res.status(400).json({ error: 'Keine verwertbaren Zeilen (Produktname fehlt überall).' });
+
+    const clusters = buildClusters(rows);
+    res.json(clusterStats(clusters));
+  } catch (error) {
+    console.error('❌ Cluster-Vorschau-Fehler:', error.message);
+    res.status(500).json({ error: 'Vorschau fehlgeschlagen: ' + error.message });
+  }
+});
+
+router.post('/cluster-import/start', clusterImportStartLimiter, (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'KI-Schätzung ist noch nicht eingerichtet (ANTHROPIC_API_KEY fehlt).' });
+    }
+
+    const customerId = req.customer.sub;
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.filter(r => r && r.name) : [];
+    if (!rows.length) return res.status(400).json({ error: 'Keine verwertbaren Zeilen (Produktname fehlt überall).' });
+
+    const clusters = buildClusters(rows);
+    if (clusters.length > MAX_SELF_SERVICE_CLUSTERS) {
+      return res.status(400).json({
+        error: `${clusters.length} Cluster überschreiten das Self-Service-Limit von ${MAX_SELF_SERVICE_CLUSTERS}. Bitte Support kontaktieren.`
+      });
+    }
+
+    const jobResult = db.prepare(`
+      INSERT INTO cluster_import_jobs (customer_id, total_clusters, triggered_by) VALUES (?, ?, 'customer')
+    `).run(customerId, clusters.length);
+    const jobId = jobResult.lastInsertRowid;
+
+    // Kundenwunsch: Admin soll Self-Service-Läufe sehen, nicht nur still
+    // im Hintergrund ablaufen lassen - landet als normale Aufgabe in der
+    // bestehenden Admin-Aufgabenliste (siehe /admin/tasks), kein eigenes
+    // neues Panel nötig.
+    const customer = db.prepare('SELECT company_name, customer_number FROM customers WHERE id = ?').get(customerId);
+    db.prepare(`
+      INSERT INTO admin_tasks (title, status) VALUES (?, 'open')
+    `).run(`📦 Self-Service Cluster-Import gestartet: ${customer?.company_name || 'Kunde #' + customerId} (${customer?.customer_number || ''}) - ${clusters.length} Cluster`);
+
+    res.json({ jobId, totalClusters: clusters.length });
+
+    runClusterImport({
+      customerId,
+      rows,
+      estimateFn: estimatePackaging,
+      createSkuRowFn: createSkuRow,
+      linkSkuRowFn: linkSkuRow,
+      lookupSharedClusterFn: lookupSharedClusterMaterials,
+      concurrency: 5,
+      onClusterDone: ({ memberCount, wasReused }) => {
+        db.prepare(`
+          UPDATE cluster_import_jobs
+          SET clusters_processed = clusters_processed + 1,
+              products_created = products_created + ?,
+              clusters_reused = clusters_reused + ?,
+              updated_at = datetime('now')
+          WHERE id = ?
+        `).run(memberCount, wasReused ? 1 : 0, jobId);
+      }
+    }).then(result => {
+      db.prepare(`
+        UPDATE cluster_import_jobs
+        SET status = 'done', errors_json = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(JSON.stringify(result.errors), jobId);
+    }).catch(error => {
+      console.error('❌ Self-Service-Cluster-Import-Fehler:', error.message);
+      db.prepare(`
+        UPDATE cluster_import_jobs
+        SET status = 'failed', errors_json = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(JSON.stringify([{ error: error.message }]), jobId);
+    });
+  } catch (error) {
+    console.error('❌ Self-Service-Cluster-Import-Start-Fehler:', error.message);
+    res.status(500).json({ error: 'Import konnte nicht gestartet werden: ' + error.message });
+  }
+});
+
+router.get('/cluster-import/:jobId/status', (req, res) => {
+  const job = db.prepare('SELECT * FROM cluster_import_jobs WHERE id = ?').get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job nicht gefunden.' });
+  // Kein Zugriff auf fremde Jobs - anders als im Admin-Panel ist dieser
+  // Endpunkt kundenauthentifiziert, nicht admin-authentifiziert.
+  if (job.customer_id !== req.customer.sub) {
+    return res.status(404).json({ error: 'Job nicht gefunden.' });
+  }
+  res.json({
+    id: job.id,
+    status: job.status,
+    totalClusters: job.total_clusters,
+    clustersProcessed: job.clusters_processed,
+    productsCreated: job.products_created,
+    clustersReused: job.clusters_reused,
+    errors: JSON.parse(job.errors_json || '[]')
+  });
+});
+
 module.exports = router;
 // Für die Base-Katalog-Auto-Verknüpfung (siehe routes/baselinker.js) -
 // nutzt dieselbe Verknüpfungslogik wie der Einzel- und CSV-Massen-Link,
@@ -700,3 +859,7 @@ module.exports.resolveSkuByIdentifier = resolveSkuByIdentifier;
 // Katalogimport) - legt den Master-SKU pro Cluster über dieselbe Logik an
 // wie POST / oben, statt das INSERT ein zweites Mal zu pflegen.
 module.exports.createSkuRow = createSkuRow;
+// Für den admin-gesteuerten Cluster-Import (siehe routes/admin.js) -
+// dieselbe kundenübergreifende Wiederverwendung wie beim Self-Service-
+// Import, statt sie zweimal zu pflegen.
+module.exports.lookupSharedClusterMaterials = lookupSharedClusterMaterials;

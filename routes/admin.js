@@ -32,7 +32,7 @@ const { classifyChannel: classifyChannelShared } = require('../lib/acquisition-c
 const { langForCountry } = require('../lib/lang-by-country');
 const { buildClusters, clusterStats, runClusterImport } = require('../lib/cluster-import');
 const { estimatePackaging } = require('../lib/packaging-estimate');
-const { createSkuRow, linkSkuRow } = require('./skus');
+const { createSkuRow, linkSkuRow, lookupSharedClusterMaterials } = require('./skus');
 const REP_LANGS = ['de', 'en', 'fr', 'it', 'es'];
 
 const router = express.Router();
@@ -1281,7 +1281,7 @@ router.post('/customers/:id/cluster-import/start', (req, res) => {
 
     const clusters = buildClusters(rows);
     const jobResult = db.prepare(`
-      INSERT INTO cluster_import_jobs (customer_id, total_clusters) VALUES (?, ?)
+      INSERT INTO cluster_import_jobs (customer_id, total_clusters, triggered_by) VALUES (?, ?, 'admin')
     `).run(customerId, clusters.length);
     const jobId = jobResult.lastInsertRowid;
 
@@ -1297,15 +1297,17 @@ router.post('/customers/:id/cluster-import/start', (req, res) => {
       estimateFn: estimatePackaging,
       createSkuRowFn: createSkuRow,
       linkSkuRowFn: linkSkuRow,
+      lookupSharedClusterFn: lookupSharedClusterMaterials,
       concurrency: 5,
-      onClusterDone: ({ memberCount }) => {
+      onClusterDone: ({ memberCount, wasReused }) => {
         db.prepare(`
           UPDATE cluster_import_jobs
           SET clusters_processed = clusters_processed + 1,
               products_created = products_created + ?,
+              clusters_reused = clusters_reused + ?,
               updated_at = datetime('now')
           WHERE id = ?
-        `).run(memberCount, jobId);
+        `).run(memberCount, wasReused ? 1 : 0, jobId);
       }
     }).then(result => {
       db.prepare(`
@@ -1336,6 +1338,7 @@ router.get('/cluster-import/:jobId/status', (req, res) => {
     totalClusters: job.total_clusters,
     clustersProcessed: job.clusters_processed,
     productsCreated: job.products_created,
+    clustersReused: job.clusters_reused,
     errors: JSON.parse(job.errors_json || '[]')
   });
 });
