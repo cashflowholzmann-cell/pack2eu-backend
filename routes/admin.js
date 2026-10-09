@@ -32,7 +32,7 @@ const { classifyChannel: classifyChannelShared } = require('../lib/acquisition-c
 const { langForCountry } = require('../lib/lang-by-country');
 const { buildClusters, clusterStats, runClusterImport } = require('../lib/cluster-import');
 const { estimatePackaging } = require('../lib/packaging-estimate');
-const { createSkuRow, linkSkuRow, lookupSharedClusterMaterials } = require('./skus');
+const { createSkuRow, linkSkuRow, lookupSharedClusterMaterials, findExistingSkuByEan } = require('./skus');
 const REP_LANGS = ['de', 'en', 'fr', 'it', 'es'];
 
 const router = express.Router();
@@ -1298,16 +1298,18 @@ router.post('/customers/:id/cluster-import/start', (req, res) => {
       createSkuRowFn: createSkuRow,
       linkSkuRowFn: linkSkuRow,
       lookupSharedClusterFn: lookupSharedClusterMaterials,
+      findExistingByEanFn: findExistingSkuByEan,
       concurrency: 5,
-      onClusterDone: ({ memberCount, wasReused }) => {
+      onClusterDone: ({ createdCount, wasReused, duplicateCount }) => {
         db.prepare(`
           UPDATE cluster_import_jobs
           SET clusters_processed = clusters_processed + 1,
               products_created = products_created + ?,
               clusters_reused = clusters_reused + ?,
+              duplicates_skipped = duplicates_skipped + ?,
               updated_at = datetime('now')
           WHERE id = ?
-        `).run(memberCount, wasReused ? 1 : 0, jobId);
+        `).run(createdCount, wasReused ? 1 : 0, duplicateCount || 0, jobId);
       }
     }).then(result => {
       db.prepare(`
@@ -1339,6 +1341,7 @@ router.get('/cluster-import/:jobId/status', (req, res) => {
     clustersProcessed: job.clusters_processed,
     productsCreated: job.products_created,
     clustersReused: job.clusters_reused,
+    duplicatesSkipped: job.duplicates_skipped,
     errors: JSON.parse(job.errors_json || '[]')
   });
 });

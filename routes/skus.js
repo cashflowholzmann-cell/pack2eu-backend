@@ -275,6 +275,21 @@ router.post('/:id/simulate-material', (req, res) => {
   }
 });
 
+// Excel speichert EAN-Spalten oft als Zahl statt Text - dabei entstehen
+// Fließkomma-Artefakte wie "8809738316986.11" statt der echten EAN
+// "8809738316986" (beobachtet in der Bella-Rosa-Quelldatei). Nimmt nur
+// die führende Ziffernfolge, verwirft alles ab dem ersten
+// Nicht-Ziffern-Zeichen. Werte unter 8 Ziffern sind keine echte EAN
+// (z.B. Platzhalter wie "-" oder "0" in schlechten ERP-Exporten).
+// Ausgelagert, damit findExistingSkuByEan() unten dieselbe Normalisierung
+// vor dem Vergleich anwendet wie createSkuRow() vor dem Speichern -
+// sonst würde "8809738316986.11" nie auf die gespeicherte "8809738316986"
+// treffen und der Dublettenschutz im Cluster-Import liefe ins Leere.
+function normalizeEan(raw) {
+  const digits = raw ? String(raw).trim().match(/^\d+/)?.[0] : null;
+  return digits && digits.length >= 8 ? digits.slice(0, 20) : null;
+}
+
 // Kern-Logik von POST / unten, ausgelagert in eine eigene Funktion, damit
 // sie auch vom Cluster-Batch-Import (lib/cluster-import.js, siehe
 // Bella-Rosa-Katalogimport) ohne Codeverdopplung genutzt werden kann -
@@ -304,8 +319,7 @@ function createSkuRow(customerId, data = {}) {
   // die führende Ziffernfolge, verwirft alles ab dem ersten
   // Nicht-Ziffern-Zeichen. Werte unter 8 Ziffern sind keine echte EAN
   // (z.B. Platzhalter wie "-" oder "0" in schlechten ERP-Exporten).
-  const eanDigits = data.ean ? String(data.ean).trim().match(/^\d+/)?.[0] : null;
-  const ean = eanDigits && eanDigits.length >= 8 ? eanDigits.slice(0, 20) : null;
+  const ean = normalizeEan(data.ean);
 
   const result = db.prepare(`
     INSERT INTO product_packaging
@@ -724,6 +738,21 @@ function lookupSharedClusterMaterials(clusterKey) {
   }
 }
 
+// Dublettenschutz für den Cluster-Import (Kundenwunsch: "das keine
+// Dopplungen Dreifachungen vorkommen" - konkret: ein Katalog-Import darf
+// keinen zweiten Artikel für ein Produkt anlegen, das für DIESEN Kunden
+// schon existiert, egal ob es per Shop-Sync-Verknüpfung, manuell oder in
+// einem früheren Cluster-Import entstanden ist). ANDERS als
+// lookupSharedClusterMaterials() bewusst auf customerId gescoped - die
+// EAN ist zwar global eindeutig, aber ob Kunde B's Artikel mit derselben
+// EAN wie Kunde A "derselbe Artikel" ist, ist nicht unsere Entscheidung
+// (z.B. Großhändler, die an mehrere Pack2EU-Kunden verkaufen).
+function findExistingSkuByEan(customerId, rawEan) {
+  const ean = normalizeEan(rawEan);
+  if (!ean) return null;
+  return db.prepare('SELECT id FROM product_packaging WHERE customer_id = ? AND ean = ? LIMIT 1').get(customerId, ean) || null;
+}
+
 // Großzügig genug für einen echten Großkatalog-Import, aber begrenzt
 // gegen versehentliche/missbräuchliche Massen-KI-Kosten durch einen
 // einzelnen Self-Service-Aufruf (anders als beim admin-gesteuerten
@@ -795,16 +824,18 @@ router.post('/cluster-import/start', clusterImportStartLimiter, (req, res) => {
       createSkuRowFn: createSkuRow,
       linkSkuRowFn: linkSkuRow,
       lookupSharedClusterFn: lookupSharedClusterMaterials,
+      findExistingByEanFn: findExistingSkuByEan,
       concurrency: 5,
-      onClusterDone: ({ memberCount, wasReused }) => {
+      onClusterDone: ({ createdCount, wasReused, duplicateCount }) => {
         db.prepare(`
           UPDATE cluster_import_jobs
           SET clusters_processed = clusters_processed + 1,
               products_created = products_created + ?,
               clusters_reused = clusters_reused + ?,
+              duplicates_skipped = duplicates_skipped + ?,
               updated_at = datetime('now')
           WHERE id = ?
-        `).run(memberCount, wasReused ? 1 : 0, jobId);
+        `).run(createdCount, wasReused ? 1 : 0, duplicateCount || 0, jobId);
       }
     }).then(result => {
       db.prepare(`
@@ -841,6 +872,7 @@ router.get('/cluster-import/:jobId/status', (req, res) => {
     clustersProcessed: job.clusters_processed,
     productsCreated: job.products_created,
     clustersReused: job.clusters_reused,
+    duplicatesSkipped: job.duplicates_skipped,
     errors: JSON.parse(job.errors_json || '[]')
   });
 });
@@ -863,3 +895,6 @@ module.exports.createSkuRow = createSkuRow;
 // dieselbe kundenübergreifende Wiederverwendung wie beim Self-Service-
 // Import, statt sie zweimal zu pflegen.
 module.exports.lookupSharedClusterMaterials = lookupSharedClusterMaterials;
+// Dito für den EAN-Dublettenschutz - derselbe Scoping-Mechanismus soll
+// beim admin-gesteuerten Import gelten wie beim Self-Service.
+module.exports.findExistingSkuByEan = findExistingSkuByEan;
