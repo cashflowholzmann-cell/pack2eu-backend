@@ -139,6 +139,36 @@ router.put('/manual/:id', (req, res) => {
 });
 
 // ============================================================
+// MANUELLE BESTELLUNG LÖSCHEN
+//
+// Kundenwunsch: Test-/Fehlbestellungen (z.B. zum Ausprobieren des
+// Meldungs-Dialogs angelegt) sollen sich wieder entfernen lassen, statt
+// die Verpackungsstatistik und Jahresreports dauerhaft zu verfälschen.
+// Bewusst NUR für manuell angelegte Bestellungen (orders-Tabelle) - wie
+// bei PUT /manual/:id bleiben Shopify- und Marktplatz-Bestellungen
+// unangetastet, die sind echte, extern synchronisierte Historie und
+// würden beim nächsten Sync ohnehin wieder auftauchen.
+// ============================================================
+router.delete('/manual/:id', (req, res) => {
+    try {
+        const userId = req.customer.sub;
+        const { id } = req.params;
+
+        const existing = db.prepare('SELECT id FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'Bestellung nicht gefunden.' });
+        }
+
+        db.prepare('DELETE FROM orders WHERE id = ? AND user_id = ?').run(id, userId);
+
+        res.json({ success: true, message: 'Bestellung gelöscht.' });
+    } catch (error) {
+        console.error('❌ Bestellung löschen Fehler:', error);
+        res.status(500).json({ error: 'Bestellung konnte nicht gelöscht werden.', details: error.message });
+    }
+});
+
+// ============================================================
 // BESTELLUNGEN ABFRAGEN
 //
 // Vereint manuell angelegte Bestellungen (orders) und über Shopify
