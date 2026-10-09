@@ -18,6 +18,13 @@ router.post('/csv', (req, res) => {
         let successCount = 0;
         let errorRows = [];
 
+        // Merkt sich pro Produkt (sku_name+zielland), ob diese Zeile die
+        // ERSTE in diesem Import-Lauf ist (siehe saveProduct() - Kundenwunsch:
+        // dieselbe Datei nochmal hochladen soll ein sauberes Überschreiben
+        // sein, keine Verdopplung). Lebt nur für die Dauer dieses Requests,
+        // nicht in der DB.
+        const seenInThisImport = new Set();
+
         products.forEach((row, index) => {
             const errors = validateRow(row, index + 2);
 
@@ -27,7 +34,7 @@ router.post('/csv', (req, res) => {
             }
 
             try {
-                saveProduct(userId, row);
+                saveProduct(userId, row, seenInThisImport);
                 successCount++;
             } catch (dbError) {
                 errorRows.push({
@@ -172,9 +179,23 @@ function validateRow(row, rowNumber) {
 // Produkt mit mehreren Materialzeilen zusammen - praktisch für
 // mehrteilige Verpackungen (Flasche + Deckel + Etikett als eigene
 // Zeilen, gleicher Produktname).
+//
+// Kundenwunsch 10/2026 ("kann ich die nicht einfach nochmal
+// überschreiben?"): dieselbe Datei ein zweites Mal hochladen (z.B. um
+// nachträglich die Sorte zu ergänzen) soll die alten Materialzeilen
+// ERSETZEN, nicht zusätzlich anhängen - sonst würde jeder erneute
+// Upload das gespeicherte Gewicht verdoppeln. seenInThisImport (ein
+// Set, das nur für die Dauer EINES POST /csv lebt) unterscheidet
+// deshalb: die ERSTE Zeile eines Produkts in diesem Lauf startet mit
+// einer leeren Materialliste (= Überschreiben), jede weitere Zeile
+// desselben Produkts im SELBEN Lauf hängt wie bisher an (= mehrteilige
+// Verpackung in einer Datei).
 // ============================================================
-function saveProduct(userId, row) {
+function saveProduct(userId, row, seenInThisImport) {
     const destination = row.zielland && row.zielland.trim() ? row.zielland.trim().toUpperCase() : null;
+    const productKey = row.produktname + '::' + (destination || '');
+    const isFirstRowForThisProduct = !seenInThisImport.has(productKey);
+    seenInThisImport.add(productKey);
 
     const existing = db.prepare(`
         SELECT id, materials_json FROM product_packaging
@@ -202,7 +223,7 @@ function saveProduct(userId, row) {
     const batteryType = containsBattery && row.battery_type ? String(row.battery_type).trim() : null;
 
     if (existing) {
-        const materials = JSON.parse(existing.materials_json || '[]');
+        const materials = isFirstRowForThisProduct ? [] : JSON.parse(existing.materials_json || '[]');
         materials.push(material);
         const totalWeight = materials.reduce((sum, m) => sum + m.weight_grams, 0);
 
