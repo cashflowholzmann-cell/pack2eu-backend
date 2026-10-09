@@ -181,8 +181,17 @@ function saveProduct(userId, row) {
         WHERE customer_id = ? AND sku_name = ? AND destination IS ?
     `).get(userId, row.produktname, destination);
 
+    // Sorte (z.B. Metall -> Stahl/Aluminium) ist optional - genau wie beim
+    // manuellen Artikel-Editor (routes/skus.js createSkuRow()) wird sie
+    // unvalidiert übernommen, wenn vorhanden, und bleibt sonst leer (NICHT
+    // "unbekannt" - siehe Kommentar in lib/annual-report-data.js: eine nie
+    // erfasste Sorte soll beim Melden weiter als offene Lücke auffallen).
+    // Kundenwunsch: dieselben recherchierten Produktspezifikationen, die
+    // bisher nur Material+Gewicht abdeckten, sollen jetzt auch die Sorte
+    // mitbringen können, statt sie bei jeder Meldung neu nachzutragen.
     const material = {
         material: normalizeMaterial(row.material),
+        material_subtype: row.material_subtype ? String(row.material_subtype).trim() || null : null,
         weight_grams: parseWeight(row.gewicht_g),
         is_recyclable: parseYesNo(row.recycelbar) ? 1 : 0
     };
