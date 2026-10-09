@@ -1194,6 +1194,48 @@ router.get('/customers', (req, res) => {
 });
 
 // ============================================================
+// ALS KUNDE ANMELDEN (Admin-Impersonation)
+//
+// Kundenwunsch 10/2026: beim Enterprise-Onboarding (z.B. Bella Rosa, 5000
+// Artikel) muss der Produktkatalog/die Shop-Verknüpfung oft FÜR den
+// Kunden eingerichtet werden - dafür gab es bisher keine Möglichkeit
+// außer sich die Kunden-Zugangsdaten geben zu lassen. Gibt ein normales
+// Kunden-Token zurück (gleiche Form wie beim Kunden-Login, siehe
+// signToken() in middleware/auth.js), nur mit kürzerer Gültigkeit (2h
+// statt 7 Tage) und einer impersonatedBy-Markierung im Token, an der das
+// Frontend (dashboard.html) einen Hinweis-Banner zeigt. Die Shopify-
+// OAuth-Autorisierung selbst (POST /shopify/callback) bleibt davon
+// unberührt - die muss weiterhin einmalig vom Kunden selbst im
+// Shopify-Adminbereich bestätigt werden, erst danach kann hierüber mit
+// dem bereits gespeicherten Access-Token weitergearbeitet werden.
+// ============================================================
+router.post('/customers/:id/impersonate', (req, res) => {
+  try {
+    const customerId = parseInt(req.params.id, 10);
+    const customer = db.prepare(`
+      SELECT id, customer_number, company_name, email FROM customers WHERE id = ?
+    `).get(customerId);
+
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    const token = signToken(
+      { sub: customer.id, role: 'customer', customer_number: customer.customer_number },
+      { expiresIn: '2h', extra: { impersonatedBy: 'admin' } }
+    );
+
+    db.prepare('INSERT INTO admin_impersonation_log (customer_id) VALUES (?)').run(customerId);
+
+    res.json({
+      token,
+      customer: { id: customer.id, company_name: customer.company_name, email: customer.email }
+    });
+  } catch (error) {
+    console.error('❌ Impersonation-Fehler:', error.message);
+    res.status(500).json({ error: 'Anmeldung als Kunde fehlgeschlagen: ' + error.message });
+  }
+});
+
+// ============================================================
 // KUNDE LÖSCHEN (echtes Entfernen, nicht nur deaktivieren)
 //
 // Alle Fremdschlüssel auf customers(id) sind ON DELETE CASCADE (siehe

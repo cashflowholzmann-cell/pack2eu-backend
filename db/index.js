@@ -4665,6 +4665,22 @@ function init() {
       );
     `);
 
+    // Kundenwunsch 10/2026: Admin-Impersonation (siehe routes/admin.js
+    // POST /customers/:id/impersonate) - rein informatives Protokoll, wer
+    // wann als welcher Kunde im Account unterwegs war (z.B. um beim
+    // Enterprise-Onboarding Produktkatalog/Verknüpfungen für den Kunden
+    // einzurichten). Da es aktuell kein echtes Admin-Nutzerkonto gibt
+    // (ein gemeinsames ADMIN_PASSWORD, siehe routes/admin.js), lässt sich
+    // nicht protokollieren, WELCHE Person es war - nur dass und wann
+    // impersoniert wurde.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS admin_impersonation_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL REFERENCES customers(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
     // Dringlichkeit für die Aufgabenliste (siehe /admin/tasks) - erlaubt,
     // z. B. einen alten Launch-Ablaufplan in einem Rutsch einzutragen und
     // danach nach Priorität statt nur nach Fälligkeitsdatum zu sortieren.
