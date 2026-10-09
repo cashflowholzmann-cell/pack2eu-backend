@@ -360,7 +360,29 @@ router.get('/lucid-export/:year', (req, res) => {
             return res.status(400).json({ error: `Keine Bestellungen mit Zielland Deutschland im Jahr ${year} gefunden.` });
         }
 
-        const { codeTotals, warnings } = mapMaterialsToLucidCodes(germanyData.materials, year, null);
+        // Metall-Sorten (Stahl/Aluminium/unbekannt) kommen jetzt aus
+        // derselben materialsBySubtype-Aufschlüsselung, die auch die
+        // Meldungs-Vorbefüllung im Dashboard nutzt (siehe
+        // lib/annual-report-data.js) - die MATERIAL_SUBTYPES-Werte für
+        // Metall im Frontend (stahl/aluminium/unbekannt) entsprechen exakt
+        // den von mapMaterialsToLucidCodes() erwarteten Schlüsseln. Vorher
+        // war das IMMER null, wodurch Metall nie automatisch aufgeteilt
+        // wurde, sondern stets als Warnung landete, selbst wenn die Sorte
+        // am Artikel längst erfasst war.
+        //
+        // Der leere Schlüssel "" (Sorte nie erfasst, siehe
+        // materialsBySubtype-Kommentar) muss hier mit "unbekannt"
+        // zusammengefasst werden: mapMaterialsToLucidCodes() wirft ohne
+        // "unbekannt" sonst gar keine Warnung für diesen Anteil und er
+        // würde beim Export stillschweigend unter den Tisch fallen, statt
+        // wie bisher gemeldet zu werden.
+        const metalBySubtype = germanyData.materialsBySubtype?.metall || null;
+        const metalSubtypeKg = metalBySubtype ? {
+            stahl: metalBySubtype.stahl || 0,
+            aluminium: metalBySubtype.aluminium || 0,
+            unbekannt: (metalBySubtype.unbekannt || 0) + (metalBySubtype[''] || 0)
+        } : null;
+        const { codeTotals, warnings } = mapMaterialsToLucidCodes(germanyData.materials, year, metalSubtypeKg);
 
         if (!Object.keys(codeTotals).length) {
             return res.status(400).json({ error: 'Keine der Materialien konnte einem LUCID-Materialcode zugeordnet werden.', warnings });

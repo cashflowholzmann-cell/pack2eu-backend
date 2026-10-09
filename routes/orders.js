@@ -401,6 +401,7 @@ router.post('/bulk-import', (req, res) => {
             materials.forEach((material) => {
                 group.packaging_data.push({
                     material: material.material,
+                    material_subtype: material.material_subtype || null,
                     weight_grams: Number(material.weight_grams || 0) * quantity,
                     is_recyclable: material.is_recyclable
                 });
