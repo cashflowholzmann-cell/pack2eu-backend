@@ -30,6 +30,9 @@ const {
 } = require('../lib/email');
 const { classifyChannel: classifyChannelShared } = require('../lib/acquisition-channel');
 const { langForCountry } = require('../lib/lang-by-country');
+const { buildClusters, clusterStats, runClusterImport } = require('../lib/cluster-import');
+const { estimatePackaging } = require('../lib/packaging-estimate');
+const { createSkuRow, linkSkuRow } = require('./skus');
 const REP_LANGS = ['de', 'en', 'fr', 'it', 'es'];
 
 const router = express.Router();
@@ -1233,6 +1236,108 @@ router.post('/customers/:id/impersonate', (req, res) => {
     console.error('❌ Impersonation-Fehler:', error.message);
     res.status(500).json({ error: 'Anmeldung als Kunde fehlgeschlagen: ' + error.message });
   }
+});
+
+// ============================================================
+// CLUSTER-BATCH-IMPORT (Kundenwunsch 10/2026, Bella Rosa)
+//
+// Für Kunden mit sehr großen Katalogen ohne eigene Verpackungsdaten
+// (ERP-Export mit nur SKU/Name/Marke/Kategorie, siehe lib/cluster-
+// import.js für die ausführliche Begründung). Drei Schritte:
+//   1. /preview  - reine Cluster-Statistik, kein KI-Aufruf, keine
+//      DB-Schreibvorgänge (zeigt im Admin-Panel, wie viele KI-Aufrufe
+//      ein echter Lauf kosten würde, bevor er gestartet wird).
+//   2. /start    - legt eine Job-Zeile an und startet den eigentlichen
+//      Import im Hintergrund (läuft bei tausenden Clustern mehrere
+//      Minuten - die HTTP-Antwort kommt sofort mit der Job-ID zurück,
+//      das Admin-Panel pollt danach /status).
+//   3. /status   - Fortschritt für das Polling im Admin-Panel.
+// ============================================================
+router.post('/customers/:id/cluster-import/preview', (req, res) => {
+  try {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.filter(r => r && r.name) : [];
+    if (!rows.length) return res.status(400).json({ error: 'Keine verwertbaren Zeilen (Produktname fehlt überall).' });
+
+    const clusters = buildClusters(rows);
+    res.json(clusterStats(clusters));
+  } catch (error) {
+    console.error('❌ Cluster-Vorschau-Fehler:', error.message);
+    res.status(500).json({ error: 'Vorschau fehlgeschlagen: ' + error.message });
+  }
+});
+
+router.post('/customers/:id/cluster-import/start', (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'KI-Schätzung ist noch nicht eingerichtet (ANTHROPIC_API_KEY fehlt).' });
+    }
+
+    const customerId = parseInt(req.params.id, 10);
+    const customer = db.prepare('SELECT id, company_name FROM customers WHERE id = ?').get(customerId);
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.filter(r => r && r.name) : [];
+    if (!rows.length) return res.status(400).json({ error: 'Keine verwertbaren Zeilen (Produktname fehlt überall).' });
+
+    const clusters = buildClusters(rows);
+    const jobResult = db.prepare(`
+      INSERT INTO cluster_import_jobs (customer_id, total_clusters) VALUES (?, ?)
+    `).run(customerId, clusters.length);
+    const jobId = jobResult.lastInsertRowid;
+
+    // Antwort geht SOFORT raus - der eigentliche Import (ein KI-Aufruf
+    // pro Cluster, bei mehreren tausend Clustern also mehrere Minuten)
+    // läuft danach im Hintergrund weiter. Das Admin-Panel verfolgt den
+    // Fortschritt über GET .../status, nicht über diese Antwort.
+    res.json({ jobId, totalClusters: clusters.length });
+
+    runClusterImport({
+      customerId,
+      rows,
+      estimateFn: estimatePackaging,
+      createSkuRowFn: createSkuRow,
+      linkSkuRowFn: linkSkuRow,
+      concurrency: 5,
+      onClusterDone: ({ memberCount }) => {
+        db.prepare(`
+          UPDATE cluster_import_jobs
+          SET clusters_processed = clusters_processed + 1,
+              products_created = products_created + ?,
+              updated_at = datetime('now')
+          WHERE id = ?
+        `).run(memberCount, jobId);
+      }
+    }).then(result => {
+      db.prepare(`
+        UPDATE cluster_import_jobs
+        SET status = 'done', errors_json = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(JSON.stringify(result.errors), jobId);
+    }).catch(error => {
+      console.error('❌ Cluster-Import-Job-Fehler:', error.message);
+      db.prepare(`
+        UPDATE cluster_import_jobs
+        SET status = 'failed', errors_json = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(JSON.stringify([{ error: error.message }]), jobId);
+    });
+  } catch (error) {
+    console.error('❌ Cluster-Import-Start-Fehler:', error.message);
+    res.status(500).json({ error: 'Import konnte nicht gestartet werden: ' + error.message });
+  }
+});
+
+router.get('/cluster-import/:jobId/status', (req, res) => {
+  const job = db.prepare('SELECT * FROM cluster_import_jobs WHERE id = ?').get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job nicht gefunden.' });
+  res.json({
+    id: job.id,
+    status: job.status,
+    totalClusters: job.total_clusters,
+    clustersProcessed: job.clusters_processed,
+    productsCreated: job.products_created,
+    errors: JSON.parse(job.errors_json || '[]')
+  });
 });
 
 // ============================================================

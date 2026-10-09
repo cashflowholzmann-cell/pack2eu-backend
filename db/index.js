@@ -4681,6 +4681,30 @@ function init() {
       );
     `);
 
+    // Kundenwunsch 10/2026 (Bella Rosa, ~10.300 Artikel ohne eigene
+    // Verpackungsdaten): Fortschritts-Protokoll für den Cluster-Batch-
+    // Import (siehe lib/cluster-import.js + routes/admin.js
+    // POST /customers/:id/cluster-import/start). Läuft im Hintergrund
+    // über mehrere Minuten (ein KI-Aufruf pro Cluster, bei Bella Rosa
+    // ~3.700 Cluster) - diese Tabelle ist die einzige Quelle, über die das
+    // Admin-Panel per Polling den Fortschritt anzeigt UND die (anders als
+    // ein rein In-Memory-Status) einen Server-Neustart während eines
+    // laufenden Imports überlebt, statt den Fortschritt stillschweigend
+    // zu verlieren.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cluster_import_jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL REFERENCES customers(id),
+        status TEXT NOT NULL DEFAULT 'running',
+        total_clusters INTEGER NOT NULL DEFAULT 0,
+        clusters_processed INTEGER NOT NULL DEFAULT 0,
+        products_created INTEGER NOT NULL DEFAULT 0,
+        errors_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
     // Dringlichkeit für die Aufgabenliste (siehe /admin/tasks) - erlaubt,
     // z. B. einen alten Launch-Ablaufplan in einem Rutsch einzutragen und
     // danach nach Priorität statt nur nach Fälligkeitsdatum zu sortieren.
