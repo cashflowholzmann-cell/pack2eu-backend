@@ -4740,6 +4740,15 @@ function init() {
       );
     `);
 
+    // Kundenwunsch (Brainstorming, Self-Service): clusters_reused zählt,
+    // wie viele Cluster dank der kundenübergreifenden "Sammeldatenbank"-
+    // Wiederverwendung (siehe lookupSharedClusterMaterials() in
+    // routes/skus.js) OHNE neuen KI-Aufruf übernommen werden konnten.
+    // triggered_by unterscheidet Admin- von Kunden-ausgelösten Läufen für
+    // die Admin-Übersicht.
+    addColumnIfMissing('cluster_import_jobs', 'clusters_reused', 'INTEGER NOT NULL DEFAULT 0');
+    addColumnIfMissing('cluster_import_jobs', 'triggered_by', "TEXT NOT NULL DEFAULT 'admin'");
+
     // Dringlichkeit für die Aufgabenliste (siehe /admin/tasks) - erlaubt,
     // z. B. einen alten Launch-Ablaufplan in einem Rutsch einzutragen und
     // danach nach Priorität statt nur nach Fälligkeitsdatum zu sortieren.
