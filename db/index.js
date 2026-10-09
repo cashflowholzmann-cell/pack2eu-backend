@@ -4748,6 +4748,7 @@ function init() {
     // die Admin-Übersicht.
     addColumnIfMissing('cluster_import_jobs', 'clusters_reused', 'INTEGER NOT NULL DEFAULT 0');
     addColumnIfMissing('cluster_import_jobs', 'triggered_by', "TEXT NOT NULL DEFAULT 'admin'");
+    addColumnIfMissing('cluster_import_jobs', 'duplicates_skipped', 'INTEGER NOT NULL DEFAULT 0');
 
     // Dringlichkeit für die Aufgabenliste (siehe /admin/tasks) - erlaubt,
     // z. B. einen alten Launch-Ablaufplan in einem Rutsch einzutragen und
