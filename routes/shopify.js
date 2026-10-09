@@ -506,6 +506,10 @@ router.get('/products', requireAuth, async (req, res) => {
       id: String(p.id),
       name: p.title,
       sku: p.variants?.[0]?.sku || '',
+      // EAN/UPC - echtes Shopify-API-Feld, zuverlässig (anders als bei
+      // WooCommerce, siehe routes/woocommerce.js) - für den
+      // EAN-Abgleich im Produkt-Picker (siehe dashboard.html).
+      ean: p.variants?.[0]?.barcode || null,
       image: p.images?.[0]?.src || null
     }));
 

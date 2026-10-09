@@ -295,20 +295,28 @@ function createSkuRow(customerId, data = {}) {
   const productNiche = readProductNiche(data);
   const dimensions = readDimensions(data);
   // Nur vom Cluster-Batch-Import gesetzt (siehe lib/cluster-import.js) -
-  // der normale SKU-Editor kennt dieses Feld nicht, bleibt also NULL.
+  // der normale SKU-Editor kennt diese Felder nicht, bleiben also NULL.
   const clusterKey = data.cluster_key ? String(data.cluster_key).trim().slice(0, 200) : null;
+  // Excel speichert EAN-Spalten oft als Zahl statt Text - dabei entstehen
+  // Fließkomma-Artefakte wie "8809738316986.11" statt der echten EAN
+  // "8809738316986" (beobachtet in der Bella-Rosa-Quelldatei). Nimmt nur
+  // die führende Ziffernfolge, verwirft alles ab dem ersten
+  // Nicht-Ziffern-Zeichen. Werte unter 8 Ziffern sind keine echte EAN
+  // (z.B. Platzhalter wie "-" oder "0" in schlechten ERP-Exporten).
+  const eanDigits = data.ean ? String(data.ean).trim().match(/^\d+/)?.[0] : null;
+  const ean = eanDigits && eanDigits.length >= 8 ? eanDigits.slice(0, 20) : null;
 
   const result = db.prepare(`
     INSERT INTO product_packaging
     (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
      is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
-     length_cm, width_cm, height_cm, cluster_key)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     length_cm, width_cm, height_cm, cluster_key, ean)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     customerId, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
     classification.is_electrical_equipment, classification.weee_category,
     classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
-    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey
+    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey, ean
   );
 
   return db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);

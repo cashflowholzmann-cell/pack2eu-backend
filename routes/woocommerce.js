@@ -151,12 +151,33 @@ router.get('/orders', requireAuth, (req, res) => {
   }
 });
 
+// Anders als Shopify (echtes "barcode"-API-Feld) hat WooCommerce KEIN
+// einheitliches EAN-Feld - je nach Shop-Setup liegt es im WooCommerce-
+// Kernfeld "Global Unique ID" (seit 7.7, Meta-Key _global_unique_id)
+// oder in einem Plugin-eigenen Meta-Feld (z.B. WooCommerce Germanized,
+// in DACH-Shops verbreitet). Best-effort: scannt meta_data nach den
+// gängigsten Schlüsselnamen, statt sich auf einen einzigen zu verlassen -
+// findet es nichts, bleibt ean null und der Produkt-Picker fällt auf den
+// Namens-Abgleich zurück (siehe dashboard.html).
+const WOOCOMMERCE_EAN_META_KEYS = ['_global_unique_id', '_ean', '_alg_ean', '_wpm_gtin_code', '_gtin'];
+
+function extractWooCommerceEan(product) {
+  if (!Array.isArray(product.meta_data)) return null;
+  for (const key of WOOCOMMERCE_EAN_META_KEYS) {
+    const entry = product.meta_data.find(m => m.key === key);
+    const value = entry?.value ? String(entry.value).trim() : '';
+    if (value) return value;
+  }
+  return null;
+}
+
 // ============================================================
 // 4. WooCommerce-Produkte fürs Dashboard (Produkt-Picker)
 // ============================================================
-// Normalisiertes Format {id, name, sku, image} - identisch zu routes/
-// shopify.js, damit das Dashboard EINE generische Produkt-Verknüpfen-
-// Oberfläche für alle Produkt-Picker-fähigen Plattformen nutzen kann.
+// Normalisiertes Format {id, name, sku, ean, image} - identisch zu
+// routes/shopify.js, damit das Dashboard EINE generische Produkt-
+// Verknüpfen-Oberfläche für alle Produkt-Picker-fähigen Plattformen
+// nutzen kann.
 router.get('/products', requireAuth, async (req, res) => {
   try {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.auth.userId);
@@ -177,6 +198,7 @@ router.get('/products', requireAuth, async (req, res) => {
       id: String(p.id),
       name: p.name,
       sku: p.sku || '',
+      ean: extractWooCommerceEan(p),
       image: p.images?.[0]?.src || null
     }));
 
