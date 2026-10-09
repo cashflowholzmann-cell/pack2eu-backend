@@ -1114,6 +1114,17 @@ function init() {
     // SKUs (der SKU-Editor kennt das Feld nicht).
     addColumnIfMissing('product_packaging', 'cluster_key', 'TEXT');
 
+    // Kundenwunsch (Brainstorming, Shop-Katalog-Abgleich): EAN ist ein
+    // plattformübergreifend eindeutiger Produkt-Identifier (anders als
+    // SKU-Codes, die zwischen ERP/Shop/Marktplatz variieren können) -
+    // damit der Produkt-Picker (siehe dashboard.html) Shop-Produkte
+    // automatisch statt nur per Namens-Vorschlag zuordnen kann. Wird vom
+    // Cluster-Batch-Import befüllt (siehe lib/cluster-import.js), falls
+    // die Quelldatei eine EAN-Spalte mitbringt; beim normalen SKU-Editor
+    // bleibt es NULL (keine UI dafür, nicht nötig für manuell angelegte
+    // Artikel).
+    addColumnIfMissing('product_packaging', 'ean', 'TEXT');
+
     // Kundenmeldung: Base/BaseLinker übermittelt zu einem Artikel ein
     // Gewicht - das bezieht sich aber i.d.R. auf das PRODUKT selbst, nicht
     // auf seine Verpackung. lib/marketplace-auto-sku.js hat dieses
