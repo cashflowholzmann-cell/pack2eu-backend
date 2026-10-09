@@ -5,8 +5,13 @@ const path = require('path');
 const { db } = require('../db');
 const PDFDocument = require('pdfkit');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
-const { normalizeCountryCode } = require('../lib/country-normalize');
-const { parseWeeeBatteryItems } = require('../lib/weee-battery-items');
+const { fetchOrdersForYear, buildReportData, normalizedCountryOrUnknown } = require('../lib/annual-report-data');
+const {
+  SYSTEM_OPERATORS,
+  REPORT_TYPES,
+  mapMaterialsToLucidCodes,
+  buildLucidXml
+} = require('../lib/lucid-export');
 
 const router = express.Router();
 
@@ -56,113 +61,11 @@ router.use(requireAuth);
 router.use(requireActiveSubscription);
 
 // ============================================================
-// HILFSFUNKTIONEN
-//
-// Bestellungen stammen aus zwei Tabellen: manuell erfasste
-// (orders) und über Shopify synchronisierte (shopify_orders).
-// Für Reports müssen beide Quellen zusammengeführt werden.
-// ============================================================
-function fetchOrdersForYear(userId, year) {
-    return db.prepare(`
-        SELECT destination_country, packaging_data, weee_battery_items_json, created_at
-        FROM orders
-        WHERE user_id = ?
-        AND strftime('%Y', created_at) = ?
-
-        UNION ALL
-
-        SELECT destination_country, packaging_data, weee_battery_items_json, created_at
-        FROM shopify_orders
-        WHERE customer_id = ?
-        AND strftime('%Y', created_at) = ?
-
-        UNION ALL
-
-        SELECT destination_country, packaging_data, weee_battery_items_json, created_at
-        FROM marketplace_orders
-        WHERE customer_id = ?
-        AND strftime('%Y', created_at) = ?
-    `).all(userId, String(year), userId, String(year), userId, String(year));
-}
-
-// Sicherheitsnetz beim Lesen: destination_country wird seit der Base/
-// BaseLinker-Normalisierung (routes/baselinker.js + einmaliger Backfill
-// in db/index.js) bereits als sauberer ISO-Code gespeichert - dieser
-// zweite Normalisierungs-Schritt fängt nur ab, falls doch noch Klartext
-// durchrutscht (z.B. eine künftige Marktplatz-Anbindung), statt still
-// einen neuen Fehl-Bucket entstehen zu lassen.
-function normalizedCountryOrUnknown(rawCountry) {
-    return normalizeCountryCode(rawCountry) || 'Unbekannt';
-}
-
-function buildReportData(orders) {
-    const reportData = {};
-
-    orders.forEach(order => {
-        const country = normalizedCountryOrUnknown(order.destination_country);
-        let materials = [];
-        try {
-            materials = JSON.parse(order.packaging_data || '[]');
-        } catch (e) {
-            materials = [];
-        }
-        // packaging_data ist gültiges JSON, aber nicht zwingend ein Array
-        // (z.B. '{}' oder 'null') - JSON.parse wirft dafür KEINEN Fehler,
-        // das try/catch oben fängt das also nicht ab. Ohne diese Prüfung
-        // riss eine einzige solche Bestellung mit "materials.forEach is
-        // not a function" den kompletten Jahresreport (und damit auch den
-        // PDF-/CSV-Export, die dieselbe Funktion nutzen) für ALLE
-        // Bestellungen des Jahres ab, statt nur diese eine Zeile zu
-        // überspringen - live beobachtet, "Report konnte nicht generiert
-        // werden".
-        if (!Array.isArray(materials)) {
-            materials = [];
-        }
-
-        if (!reportData[country]) {
-            reportData[country] = {
-                total_kg: 0,
-                materials: {},
-                // Kundenwunsch: WEEE-/Batterieprodukte (z.B. ein batterie-
-                // betriebenes Gerät neben Shampoo/Nagellack in derselben
-                // Bestellung) werden separat nach Stückzahl je Kategorie/
-                // Batterietyp gezählt statt nach Gewicht - siehe
-                // lib/weee-battery-items.js. weeeItems/batteryItems bleiben
-                // pro Land über alle Bestellungen des Jahres aufsummiert.
-                weeeItems: {},
-                batteryItems: {}
-            };
-        }
-
-        materials.forEach(m => {
-            const weightKg = (m.weight_grams || 0) / 1000;
-            reportData[country].total_kg += weightKg;
-
-            const material = m.material || 'sonstige';
-            if (!reportData[country].materials[material]) {
-                reportData[country].materials[material] = 0;
-            }
-            reportData[country].materials[material] += weightKg;
-        });
-
-        const weeeBatteryItems = parseWeeeBatteryItems(order.weee_battery_items_json);
-        weeeBatteryItems.weee.forEach(entry => {
-            const key = entry.category;
-            if (!key) return;
-            reportData[country].weeeItems[key] = (reportData[country].weeeItems[key] || 0) + (Number(entry.quantity) || 0);
-        });
-        weeeBatteryItems.battery.forEach(entry => {
-            const key = entry.battery_type;
-            if (!key) return;
-            reportData[country].batteryItems[key] = (reportData[country].batteryItems[key] || 0) + (Number(entry.quantity) || 0);
-        });
-    });
-
-    return reportData;
-}
-
-// ============================================================
 // 1. REPORT DATEN GENERIEREN
+//
+// fetchOrdersForYear/buildReportData/normalizedCountryOrUnknown leben in
+// lib/annual-report-data.js - dieselbe Aggregation nutzt künftig auch der
+// LUCID-XML-Export (siehe lib/lucid-export.js), statt sie zu duplizieren.
 // ============================================================
 router.get('/annual/:year', (req, res) => {
     try {
@@ -403,6 +306,90 @@ router.get('/export/csv/:year', (req, res) => {
     } catch (error) {
         console.error('❌ CSV Export Fehler:', error);
         res.status(500).json({ error: 'CSV konnte nicht erstellt werden' });
+    }
+});
+
+// ============================================================
+// LUCID-XML-EXPORT (§10 VerpackG, Kundenwunsch "ich dachte, das haben
+// wir schon")
+//
+// Pack2EU kann (und darf technisch nicht, siehe lib/lucid-export.js)
+// nicht direkt bei LUCID melden - es gibt dafür keine offene Behörden-
+// API, nur Web-Login + Datei-Upload. Diese Route erzeugt die exakte
+// XML-Datei nach der offiziellen ZSVR-Anleitung, die der Kunde danach
+// selbst bei lucid.verpackungsregister.org hochlädt ("Datenmeldung" >
+// "XML-Meldung"). Nur für Deutschland relevant (LUCID ist das deutsche
+// Verpackungsregister) - filtert bewusst auf country === 'DE' statt alle
+// Länder des Jahresreports zu exportieren.
+// ============================================================
+router.get('/lucid-system-operators', (req, res) => {
+    res.json({ systemOperators: SYSTEM_OPERATORS, reportTypes: REPORT_TYPES });
+});
+
+router.put('/lucid-settings', (req, res) => {
+    try {
+        const { systemOperatorId } = req.body || {};
+        const value = systemOperatorId ? String(systemOperatorId).trim() : null;
+        if (value && !SYSTEM_OPERATORS.some(op => op.id === value)) {
+            return res.status(400).json({ error: 'Unbekannter Systembetreiber.' });
+        }
+        db.prepare('UPDATE customers SET lucid_system_operator_id = ? WHERE id = ?').run(value, req.customer.sub);
+        res.json({ ok: true, systemOperatorId: value });
+    } catch (error) {
+        console.error('❌ LUCID-Einstellungen-Fehler:', error);
+        res.status(500).json({ error: 'Einstellung konnte nicht gespeichert werden.' });
+    }
+});
+
+router.get('/lucid-export/:year', (req, res) => {
+    try {
+        const year = parseInt(req.params.year, 10) || new Date().getFullYear();
+        const typeOfReportCode = typeof req.query.reportType === 'string' && req.query.reportType ? req.query.reportType : 'HJM1';
+        const userId = req.customer.sub;
+
+        const customer = db.prepare('SELECT lucid_system_operator_id FROM customers WHERE id = ?').get(userId);
+        if (!customer?.lucid_system_operator_id) {
+            return res.status(400).json({ error: 'Bitte zuerst in den Einstellungen den Systembetreiber (duales System) hinterlegen.' });
+        }
+
+        const orders = fetchOrdersForYear(userId, year);
+        const reportData = buildReportData(orders);
+        const germanyData = reportData['DE'];
+
+        if (!germanyData || germanyData.total_kg === 0) {
+            return res.status(400).json({ error: `Keine Bestellungen mit Zielland Deutschland im Jahr ${year} gefunden.` });
+        }
+
+        const { codeTotals, warnings } = mapMaterialsToLucidCodes(germanyData.materials, year, null);
+
+        if (!Object.keys(codeTotals).length) {
+            return res.status(400).json({ error: 'Keine der Materialien konnte einem LUCID-Materialcode zugeordnet werden.', warnings });
+        }
+
+        const xml = buildLucidXml({
+            systemOperatorId: customer.lucid_system_operator_id,
+            typeOfReportCode,
+            year,
+            codeTotals
+        });
+
+        if (warnings.length) {
+            // Warnungen gehen NICHT in die XML-Datei (die muss exakt dem
+            // Schema entsprechen) - stattdessen als Header mitgeschickt,
+            // damit das Dashboard sie dem Kunden vor dem Hochladen zeigen
+            // kann, statt sie stillschweigend zu verschlucken.
+            res.setHeader('X-Lucid-Warnings', encodeURIComponent(JSON.stringify(warnings)));
+        }
+
+        const filename = `LUCID_Datenmeldung_${year}.xml`;
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        // UTF-8-BOM ist laut Anleitung (Abschnitt 1.3.1) Pflicht, sonst
+        // lehnt LUCID die Datei ab.
+        res.send('﻿' + xml);
+    } catch (error) {
+        console.error('❌ LUCID-XML-Export-Fehler:', error);
+        res.status(500).json({ error: 'XML-Export fehlgeschlagen: ' + error.message });
     }
 });
 
