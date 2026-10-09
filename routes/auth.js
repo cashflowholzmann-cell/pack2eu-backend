@@ -598,7 +598,8 @@ router.get(
             (emag_username IS NOT NULL) AS emag_connected,
             (shein_open_key_id IS NOT NULL) AS shein_connected,
             (temu_access_token IS NOT NULL) AS temu_connected,
-            amazon_addon_active
+            amazon_addon_active,
+            lucid_system_operator_id
           FROM customers
           WHERE id = ?
         `).get(

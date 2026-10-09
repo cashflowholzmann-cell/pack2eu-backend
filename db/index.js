@@ -1125,6 +1125,17 @@ function init() {
     // Artikel).
     addColumnIfMissing('product_packaging', 'ean', 'TEXT');
 
+    // Kundenwunsch ("ich dachte, das haben wir schon" - LUCID-XML-Export):
+    // welches duale System (Systembetreiber) hat der Kunde einen
+    // Systembeteiligungsvertrag? Pflichtangabe in der offiziellen LUCID-
+    // XML-Datenmeldung (SystemOperatorID, siehe lib/lucid-export.js) -
+    // kennt Pack2EU nicht von selbst, der Kunde muss es einmalig in den
+    // Einstellungen hinterlegen. Freitext statt FK auf eine feste Liste,
+    // falls die ZSVR die Systembetreiber-Liste künftig ändert (siehe
+    // SYSTEM_OPERATORS in lib/lucid-export.js - wird dort gepflegt, nicht
+    // hier erzwungen).
+    addColumnIfMissing('customers', 'lucid_system_operator_id', 'TEXT');
+
     // Kundenmeldung: Base/BaseLinker übermittelt zu einem Artikel ein
     // Gewicht - das bezieht sich aber i.d.R. auf das PRODUKT selbst, nicht
     // auf seine Verpackung. lib/marketplace-auto-sku.js hat dieses
