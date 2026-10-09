@@ -1101,6 +1101,19 @@ function init() {
     // ohne FK (Nischen-Liste ist reine Frontend-Konvention).
     addColumnIfMissing('product_packaging', 'product_niche', 'TEXT');
 
+    // Kundenwunsch (Brainstorming, nach Bella Rosa): der Cluster-Key aus
+    // dem Cluster-Batch-Import (siehe lib/cluster-import.js - Marke +
+    // normalisierte Kategorie + Größenklasse) wird hier mitgespeichert,
+    // auch wenn er aktuell noch nirgends gelesen wird. Grund: eine
+    // spätere kundenübergreifende "packaging_profiles"-Tabelle (dieselbe
+    // Marke/Kategorie/Größe taucht potenziell bei JEDEM Kosmetik-Kunden
+    // wieder auf, nicht nur bei dem, der sie zuerst anlegt) könnte dann
+    // direkt nach diesem Key gruppieren statt das Clustering rückwirkend
+    // neu rechnen zu müssen. Rein additiv, kostet nichts - nur eine
+    // offene Tür für später. NULL bei allen normal angelegten/bearbeiteten
+    // SKUs (der SKU-Editor kennt das Feld nicht).
+    addColumnIfMissing('product_packaging', 'cluster_key', 'TEXT');
+
     // Kundenmeldung: Base/BaseLinker übermittelt zu einem Artikel ein
     // Gewicht - das bezieht sich aber i.d.R. auf das PRODUKT selbst, nicht
     // auf seine Verpackung. lib/marketplace-auto-sku.js hat dieses

@@ -294,18 +294,21 @@ function createSkuRow(customerId, data = {}) {
   const estimatedAnnualUnits = readEstimatedAnnualUnits(data);
   const productNiche = readProductNiche(data);
   const dimensions = readDimensions(data);
+  // Nur vom Cluster-Batch-Import gesetzt (siehe lib/cluster-import.js) -
+  // der normale SKU-Editor kennt dieses Feld nicht, bleibt also NULL.
+  const clusterKey = data.cluster_key ? String(data.cluster_key).trim().slice(0, 200) : null;
 
   const result = db.prepare(`
     INSERT INTO product_packaging
     (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
      is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
-     length_cm, width_cm, height_cm)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     length_cm, width_cm, height_cm, cluster_key)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     customerId, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
     classification.is_electrical_equipment, classification.weee_category,
     classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
-    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm
+    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey
   );
 
   return db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
