@@ -2,6 +2,7 @@
 const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireActiveSubscription } = require('../middleware/auth');
+const { matchIconForProductName } = require('../lib/product-icon');
 const router = express.Router();
 
 router.use(requireAuth);
@@ -248,13 +249,14 @@ function saveProduct(userId, row, seenInThisImport) {
 
         db.prepare(`
             INSERT INTO product_packaging (
-                customer_id, sku_name, shopify_product_id,
+                customer_id, sku_name, icon, shopify_product_id,
                 destination, materials_json, total_weight_grams,
                 is_electrical_equipment, weee_category, contains_battery, battery_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             userId,
             row.produktname,
+            matchIconForProductName(row.produktname),
             row.shopify_id || null,
             destination,
             JSON.stringify(materials),
