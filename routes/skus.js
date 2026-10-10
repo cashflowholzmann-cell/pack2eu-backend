@@ -320,18 +320,21 @@ function createSkuRow(customerId, data = {}) {
   // Nicht-Ziffern-Zeichen. Werte unter 8 Ziffern sind keine echte EAN
   // (z.B. Platzhalter wie "-" oder "0" in schlechten ERP-Exporten).
   const ean = normalizeEan(data.ean);
+  // Nur vom Cluster-Batch-Import gesetzt (siehe lib/cluster-import.js) -
+  // der normale SKU-Editor kennt dieses Feld nicht, bleibt also NULL.
+  const confidenceNote = data.confidence_note ? String(data.confidence_note).trim().slice(0, 300) || null : null;
 
   const result = db.prepare(`
     INSERT INTO product_packaging
     (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
      is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
-     length_cm, width_cm, height_cm, cluster_key, ean)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     length_cm, width_cm, height_cm, cluster_key, ean, confidence_note)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     customerId, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
     classification.is_electrical_equipment, classification.weee_category,
     classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
-    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey, ean
+    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey, ean, confidenceNote
   );
 
   return db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
@@ -383,12 +386,15 @@ router.put('/:id', (req, res) => {
     // abweichenden eigenen Werten da. Das Frontend bietet die
     // Materialfelder für verknüpfte Artikel ohnehin nicht zum Bearbeiten
     // an (siehe dashboard.html) - dies ist nur das Sicherheitsnetz.
+    // Code-Review-Punkt 10/2026: manuelles Bearbeiten der Materialien gilt
+    // als Bestätigung - eine evtl. vorhandene "unbestätigte KI-Schätzung"
+    // (siehe confidence_note, vom Cluster-Import gesetzt) ist damit erledigt.
     db.prepare(`
       UPDATE product_packaging
       SET sku_name = ?, icon = ?, shopify_product_id = ?, baselinker_sku = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
           estimated_annual_units = ?, product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?,
-          linked_to_sku_id = NULL, updated_at = datetime('now')
+          linked_to_sku_id = NULL, confidence_note = NULL, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
       sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
@@ -488,7 +494,7 @@ function cascadeToLinkedVariants(customerId, sourceId, data) {
     UPDATE product_packaging
     SET materials_json = ?, total_weight_grams = ?,
         is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
+        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, confidence_note = NULL, updated_at = datetime('now')
     WHERE customer_id = ? AND linked_to_sku_id = ?
   `).run(
     data.materials_json, data.total_weight,
@@ -541,12 +547,12 @@ function linkSkuRow(customerId, sourceId, targetId) {
     UPDATE product_packaging
     SET linked_to_sku_id = ?, materials_json = ?, total_weight_grams = ?,
         is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
+        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, confidence_note = ?, updated_at = datetime('now')
     WHERE id = ? AND customer_id = ?
   `).run(
     target.id, target.materials_json, target.total_weight_grams,
     target.is_electrical_equipment, target.weee_category, target.contains_battery, target.battery_type,
-    target.product_niche, target.length_cm, target.width_cm, target.height_cm,
+    target.product_niche, target.length_cm, target.width_cm, target.height_cm, target.confidence_note,
     sourceId, customerId
   );
 
