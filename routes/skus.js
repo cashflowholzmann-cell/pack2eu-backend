@@ -514,6 +514,68 @@ const EXTERNAL_LINK_FIELDS = {
   temu: 'temu_product_id'
 };
 
+// ============================================================
+// PRODUKTART GESAMMELT ZUORDNEN (Kundenwunsch 10/2026: Altbestand-
+// Assistent im Dashboard - Bestandsartikel haben noch keine Produktart
+// und zählen sonst nie für die Wissensdatenbank). Nur Artikel des Kunden,
+// nur gültige Produktart-Schlüssel (readProductType); verknüpfte
+// Varianten bekommen die Produktart ihres Hauptartikels mit.
+// ============================================================
+const MAX_BULK_PRODUCT_TYPE = 2000;
+
+router.post('/bulk-product-type', (req, res) => {
+  try {
+    const customerId = req.customer.sub;
+    const assignments = Array.isArray(req.body?.assignments) ? req.body.assignments.slice(0, MAX_BULK_PRODUCT_TYPE) : [];
+    const setType = db.prepare(`UPDATE product_packaging SET product_type = ?, updated_at = datetime('now') WHERE id = ? AND customer_id = ?`);
+    const setVariants = db.prepare(`UPDATE product_packaging SET product_type = ?, updated_at = datetime('now') WHERE linked_to_sku_id = ? AND customer_id = ?`);
+    let updated = 0;
+    db.transaction(() => {
+      for (const a of assignments) {
+        const productType = readProductType(a);
+        const id = Number(a && a.id);
+        if (!productType || !Number.isInteger(id)) continue;
+        updated += setType.run(productType, id, customerId).changes;
+        setVariants.run(productType, id, customerId);
+      }
+    })();
+    res.json({ updated });
+  } catch (error) {
+    console.error('❌ Fehler beim Zuordnen der Produktarten:', error);
+    res.status(500).json({ error: 'Produktarten konnten nicht gespeichert werden.' });
+  }
+});
+
+// ============================================================
+// NUR MASSE SETZEN (Kundenwunsch 10/2026: fehlende Maße direkt im
+// Bestell-Dialog nachtragen, siehe renderOrderBoxRecommendation()).
+// Eigener Endpunkt statt PUT /:id, weil PUT den kompletten Artikel
+// erwartet und fehlende Felder sonst überschreiben würde. Verknüpfte
+// Varianten bekommen die Maße wie bei PUT mit.
+// ============================================================
+router.patch('/:id/dimensions', (req, res) => {
+  try {
+    const customerId = req.customer.sub;
+    const dims = readDimensions(req.body);
+    if (dims.length_cm === null || dims.width_cm === null || dims.height_cm === null) {
+      return res.status(400).json({ error: 'Bitte alle drei Maße (Länge, Breite, Höhe in cm) angeben.' });
+    }
+    const result = db.prepare(`
+      UPDATE product_packaging SET length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
+      WHERE id = ? AND customer_id = ?
+    `).run(dims.length_cm, dims.width_cm, dims.height_cm, req.params.id, customerId);
+    if (result.changes === 0) return res.status(404).json({ error: 'Produkt nicht gefunden.' });
+    db.prepare(`
+      UPDATE product_packaging SET length_cm = ?, width_cm = ?, height_cm = ?, updated_at = datetime('now')
+      WHERE customer_id = ? AND linked_to_sku_id = ?
+    `).run(dims.length_cm, dims.width_cm, dims.height_cm, customerId, req.params.id);
+    res.json(db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(req.params.id));
+  } catch (error) {
+    console.error('❌ Fehler beim Speichern der Maße:', error);
+    res.status(500).json({ error: 'Maße konnten nicht gespeichert werden.' });
+  }
+});
+
 router.post('/:id/external-link', (req, res) => {
   try {
     const { id } = req.params;
