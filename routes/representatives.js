@@ -427,7 +427,12 @@ router.get('/overview', requireAuth, requireRepRole, (req, res) => {
         let materials = [];
         try { materials = JSON.parse(s.materials_json || '[]'); } catch { materials = []; }
         materials.forEach((m) => {
-          const key = m.material || 'sonstige';
+          // Nach Material UND Sorte aufgeschlüsselt (Kundenwunsch 10/2026,
+          // dieselbe Konvention wie computeOrderAggregate() im Frontend) -
+          // der Bevollmächtigte sieht sonst nur "120kg Kunststoff" ohne zu
+          // wissen, ob das überwiegend PET oder teureres/schwerer
+          // recycelbares PVC/EPS ist.
+          const key = (m.material || 'sonstige') + '::' + (m.material_subtype || '');
           materialTotalsKg[key] = (materialTotalsKg[key] || 0) + Number(m.weight_kg || 0) * (Number(m.qty) || 1);
         });
       }
@@ -504,7 +509,9 @@ router.get('/customers/:customerId/overview', requireAuth, requireRepRole, (req,
       let materials = [];
       try { materials = JSON.parse(s.materials_json || '[]'); } catch { materials = []; }
       materials.forEach((m) => {
-        const key = m.material || 'sonstige';
+        // Siehe Kommentar bei der Gesamt-Übersicht oben - gleiche
+        // Material+Sorte-Aufschlüsselung auch in der Einzelkunden-Ansicht.
+        const key = (m.material || 'sonstige') + '::' + (m.material_subtype || '');
         materialTotalsKg[key] = (materialTotalsKg[key] || 0) + Number(m.weight_kg || 0) * (Number(m.qty) || 1);
       });
     });
