@@ -1125,6 +1125,18 @@ function init() {
     // Artikel).
     addColumnIfMissing('product_packaging', 'ean', 'TEXT');
 
+    // Code-Review-Punkt 10/2026: der Cluster-Batch-Import erzeugt bewusst
+    // unsichere KI-Schätzungen (siehe lib/packaging-estimate.js
+    // confidenceNote) - bisher ging dieser Hinweis nach der Anzeige im
+    // Job-Log verloren, der Artikel sah danach identisch aus wie einer,
+    // dessen Verpackung tatsächlich nachgemessen wurde. NULL = entweder
+    // manuell angelegt/bearbeitet, oder aus der Sammeldatenbank
+    // wiederverwendet (dort bereits von einem früheren Lauf bestätigt);
+    // gesetzt = unbestätigte KI-Schätzung seit dem Import. Wird bei jeder
+    // manuellen Bearbeitung (PUT /:id) wieder auf NULL gesetzt - das
+    // Anfassen der Materialien gilt als "geprüft".
+    addColumnIfMissing('product_packaging', 'confidence_note', 'TEXT');
+
     // Kundenwunsch ("ich dachte, das haben wir schon" - LUCID-XML-Export):
     // welches duale System (Systembetreiber) hat der Kunde einen
     // Systembeteiligungsvertrag? Pflichtangabe in der offiziellen LUCID-
