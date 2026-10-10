@@ -31,15 +31,19 @@ router.post('/', (req, res) => {
     try {
         const label = String(req.body?.label || '').trim();
         const weight_grams = parseInt(req.body?.weight_grams);
+        // Kundenwunsch: Umkartons sind so gut wie immer Vollpappe - Default,
+        // aber pro Paketgröße frei überschreibbar (z.B. Versandbeutel statt
+        // Karton).
+        const material_subtype = String(req.body?.material_subtype || '').trim() || 'vollpappe';
 
         if (!label || !Number.isInteger(weight_grams) || weight_grams <= 0) {
             return res.status(400).json({ error: 'Bezeichnung und Gewicht (g) sind erforderlich.' });
         }
 
         const result = db.prepare(`
-            INSERT INTO customer_package_sizes (customer_id, label, weight_grams)
-            VALUES (?, ?, ?)
-        `).run(req.customer.sub, label, weight_grams);
+            INSERT INTO customer_package_sizes (customer_id, label, weight_grams, material_subtype)
+            VALUES (?, ?, ?, ?)
+        `).run(req.customer.sub, label, weight_grams, material_subtype);
 
         const created = db.prepare('SELECT * FROM customer_package_sizes WHERE id = ?').get(result.lastInsertRowid);
         res.status(201).json(created);
