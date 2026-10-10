@@ -1166,6 +1166,18 @@ function init() {
     addColumnIfMissing('product_packaging', 'packaging_data_source', 'TEXT');
     addColumnIfMissing('product_packaging', 'packaging_data_source_ref', 'TEXT');
 
+    // Wissensdatenbank (Kundenwunsch 10/2026): feste Produktart aus der
+    // Vorlagen-Liste (Schlüssel aus PRODUCT_PRESETS in dashboard.html, z.B.
+    // 'shampoo', 'sneakers'). Bisher kannte ein Artikel nur sein Icon, das
+    // für die Gruppierung zu grob ist (🧴 = Shampoo UND Kosmetik). Über
+    // diese Spalte bildet lib/knowledge-base.js kundenübergreifende
+    // typische Gewichte/Maße je Produktart. NULL = nicht zugeordnet.
+    // packaging_data_source = 'preset' (siehe oben) markiert dabei Werte,
+    // die unverändert aus einer Vorlage/der Wissensdatenbank stammen - die
+    // zählen für die Wissensdatenbank nicht mit, sonst bestätigt sie sich
+    // nur selbst.
+    addColumnIfMissing('product_packaging', 'product_type', 'TEXT');
+
     // Kundenwunsch 10/2026: Versandkarton-Paketgrößen (S/M/L/eigene) hatten
     // bisher keine Materialsorte hinterlegt (computeOrderAggregate() im
     // Frontend setzte sie fest auf null) - obwohl ein Umkarton so gut wie
