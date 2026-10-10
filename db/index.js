@@ -2989,9 +2989,14 @@ function init() {
       // anteil nicht erfasst. Metall pauschal = Stahl (teurer als
       // Aluminium). "sonstige" bewusst ohne Satz, damit unklassifizierte
       // Mengen weiter mit dem teuersten Landessatz geschätzt werden.
+      // Alu-Laminattuben ('tube_abl') sind ebenfalls eindeutig rot: Kunststoff
+      // mit Aluminiumschicht ist ein Verbund ausserhalb der NPA-Kriterien
+      // (TMR-Differenzierungsleitfaden 2026 nennt "Plast med aluminiumskikt"
+      // ausdrücklich in der teuersten Kategorie C). PBL-/Mono-Tuben hängen
+      // wie PP/PE an Design-Details (EVOH-Anteil, Farbe) - kein eigener Satz.
       SE: {
         papier: 0.597, karton: 0.597,
-        kunststoff: 1.752, 'kunststoff|PVC': 1.752,
+        kunststoff: 1.752, 'kunststoff|PVC': 1.752, 'kunststoff|tube_abl': 1.752,
         glas: 0.251,
         metall: 1.924, 'metall|stahl': 1.924, 'metall|aluminium': 1.127,
         holz: 1.406
