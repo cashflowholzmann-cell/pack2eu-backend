@@ -1178,6 +1178,17 @@ function init() {
     // nur selbst.
     addColumnIfMissing('product_packaging', 'product_type', 'TEXT');
 
+    // Gefahrgut beim Versand (Kundenwunsch 10/2026, Anlass: IKW-Merkblätter
+    // "Hinweise zum Transportrecht"): 'aerosol' = Spraydose (immer Klasse 2,
+    // egal welches Treibmittel), 'flammable_liquid' = entzündbare
+    // Flüssigkeit (Flammpunkt bis 60 °C, z.B. Parfüm/Deo mit viel Ethanol,
+    // Nagellack). NULL = kein Gefahrgut/unbekannt. Reiner Hinweis für den
+    // Versand (begrenzte Mengen: max. 30 kg je Paket, Raute aufkleben) -
+    // keine Gefahrgut-Einstufung durch Pack2EU, die liefert der Hersteller
+    // (UN-Nummer). Fließt auch in die Wissensdatenbank ein (typisch für die
+    // Produktart?).
+    addColumnIfMissing('product_packaging', 'dangerous_goods', 'TEXT');
+
     // Kundenwunsch 10/2026: Versandkarton-Paketgrößen (S/M/L/eigene) hatten
     // bisher keine Materialsorte hinterlegt (computeOrderAggregate() im
     // Frontend setzte sie fest auf null) - obwohl ein Umkarton so gut wie

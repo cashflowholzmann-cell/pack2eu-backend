@@ -54,3 +54,11 @@ test('Maße unabhängig von der Ausrichtung, nur ab 3 Kunden mit Maßen', () => 
   rows[2] = row(3, m);
   assert.strictEqual(buildProfiles(rows).hairspray.dimensions_cm, null);
 });
+
+test('Gefahrgut gilt als typisch, wenn die Mehrheit der Artikel so markiert ist', () => {
+  const m = [{ material: 'metall', weight_grams: 30 }];
+  const rows = [row(1, m, { dangerous_goods: 'aerosol' }), row(2, m, { dangerous_goods: 'aerosol' }), row(3, m)];
+  assert.strictEqual(buildProfiles(rows).hairspray.dangerous_goods, 'aerosol');
+  rows[1] = row(2, m);
+  assert.strictEqual(buildProfiles(rows).hairspray.dangerous_goods, null);
+});
