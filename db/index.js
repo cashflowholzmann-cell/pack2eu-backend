@@ -1137,6 +1137,13 @@ function init() {
     // Anfassen der Materialien gilt als "geprüft".
     addColumnIfMissing('product_packaging', 'confidence_note', 'TEXT');
 
+    // Kundenwunsch 10/2026: Versandkarton-Paketgrößen (S/M/L/eigene) hatten
+    // bisher keine Materialsorte hinterlegt (computeOrderAggregate() im
+    // Frontend setzte sie fest auf null) - obwohl ein Umkarton so gut wie
+    // immer Vollpappe ist. Default "vollpappe", vom Kunden pro Größe frei
+    // änderbar (z.B. falls er stattdessen einen Versandbeutel nutzt).
+    addColumnIfMissing('customer_package_sizes', 'material_subtype', "TEXT NOT NULL DEFAULT 'vollpappe'");
+
     // Kundenwunsch ("ich dachte, das haben wir schon" - LUCID-XML-Export):
     // welches duale System (Systembetreiber) hat der Kunde einen
     // Systembeteiligungsvertrag? Pflichtangabe in der offiziellen LUCID-

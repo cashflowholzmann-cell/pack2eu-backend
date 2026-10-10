@@ -483,6 +483,8 @@ CREATE TABLE IF NOT EXISTS customer_package_sizes (
 
   weight_grams INTEGER NOT NULL,
 
+  material_subtype TEXT NOT NULL DEFAULT 'vollpappe',
+
   created_at TEXT NOT NULL
     DEFAULT (datetime('now'))
 );
