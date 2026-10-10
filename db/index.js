@@ -1173,6 +1173,15 @@ function init() {
     // änderbar (z.B. falls er stattdessen einen Versandbeutel nutzt).
     addColumnIfMissing('customer_package_sizes', 'material_subtype', "TEXT NOT NULL DEFAULT 'vollpappe'");
 
+    // Kundenwunsch 10/2026: Karton-Empfehlung bei Bestellungen (welcher
+    // Karton reicht für die gewählten Artikel, was spart der kleinere pro
+    // Jahr - siehe renderOrderBoxRecommendation() im Dashboard). Braucht
+    // die Innenmaße des Kartons; optional, Größen ohne Maße werden bei der
+    // Empfehlung einfach nicht berücksichtigt.
+    addColumnIfMissing('customer_package_sizes', 'length_cm', 'REAL');
+    addColumnIfMissing('customer_package_sizes', 'width_cm', 'REAL');
+    addColumnIfMissing('customer_package_sizes', 'height_cm', 'REAL');
+
     // Kundenwunsch ("ich dachte, das haben wir schon" - LUCID-XML-Export):
     // welches duale System (Systembetreiber) hat der Kunde einen
     // Systembeteiligungsvertrag? Pflichtangabe in der offiziellen LUCID-
