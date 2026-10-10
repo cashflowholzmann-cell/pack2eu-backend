@@ -380,6 +380,14 @@ router.post('/bulk-import', (req, res) => {
 
         const errors = [];
         const orderGroups = new Map();
+        // Code-Review 10/2026: anders als beim manuellen Bestellung-
+        // Bearbeiten-Dialog (der jetzt warnt, siehe dashboard.html
+        // saveOrderEdit()) übernahm dieser Import eine fehlende Sorte am
+        // Quellprodukt bisher ohne jeden Hinweis als null. Blockiert den
+        // Import nicht (die Bestellung landet trotzdem korrekt im "noch
+        // nicht erfasst"-Topf der Jahresberichts-Aggregation), macht den
+        // Kunden aber darauf aufmerksam, WELCHE Artikel betroffen sind.
+        const articlesWithMissingSubtype = new Set();
 
         rows.forEach((row, index) => {
             const rowNumber = index + 2; // Zeile 1 ist der CSV-Header
@@ -429,6 +437,9 @@ router.post('/bulk-import', (req, res) => {
 
             group.totalWeight += Number(sku.total_weight_grams || 0) * quantity;
             materials.forEach((material) => {
+                if (!material.material_subtype) {
+                    articlesWithMissingSubtype.add(sku.sku_name);
+                }
                 group.packaging_data.push({
                     material: material.material,
                     material_subtype: material.material_subtype || null,
@@ -464,6 +475,7 @@ router.post('/bulk-import', (req, res) => {
             success: true,
             imported,
             errors,
+            articlesWithMissingSubtype: Array.from(articlesWithMissingSubtype),
             total: rows.length,
             message: errors.length === 0
                 ? `✅ ${imported} Bestellung(en) erfolgreich importiert!`
