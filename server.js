@@ -435,6 +435,8 @@ app.listen(PORT, '0.0.0.0', () => {
 // ============================================================
 const { startSalesFollowupScheduler } = require('./lib/sales-followup');
 startSalesFollowupScheduler();
+const { startFilingReminderScheduler } = require('./lib/filing-reminders');
+startFilingReminderScheduler();
 
 // ============================================================
 // RECHTSÄNDERUNGS-RADAR: KEIN AUTOMATISCHER LAUF MEHR

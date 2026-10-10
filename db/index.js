@@ -1189,6 +1189,22 @@ function init() {
     // Produktart?).
     addColumnIfMissing('product_packaging', 'dangerous_goods', 'TEXT');
 
+    // Fristen-Erinnerung per E-Mail (Kundenwunsch 10/2026, siehe
+    // lib/filing-reminders.js): Opt-out je Kunde (Standard an) und ein
+    // Protokoll, damit dieselbe Frist nie doppelt erinnert wird - auch
+    // nicht nach einem Neustart.
+    addColumnIfMissing('customers', 'filing_reminders_enabled', 'INTEGER NOT NULL DEFAULT 1');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS filing_reminders_sent (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        country_code TEXT NOT NULL,
+        deadline TEXT NOT NULL,
+        sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (customer_id, country_code, deadline)
+      )
+    `);
+
     // Kundenwunsch 10/2026: Versandkarton-Paketgrößen (S/M/L/eigene) hatten
     // bisher keine Materialsorte hinterlegt (computeOrderAggregate() im
     // Frontend setzte sie fest auf null) - obwohl ein Umkarton so gut wie

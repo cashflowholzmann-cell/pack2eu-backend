@@ -599,7 +599,8 @@ router.get(
             (shein_open_key_id IS NOT NULL) AS shein_connected,
             (temu_access_token IS NOT NULL) AS temu_connected,
             amazon_addon_active,
-            lucid_system_operator_id
+            lucid_system_operator_id,
+            filing_reminders_enabled
           FROM customers
           WHERE id = ?
         `).get(
@@ -716,6 +717,23 @@ router.get(
         error:
           'Interner Serverfehler.'
       });
+    }
+  }
+);
+
+// Fristen-Erinnerung per E-Mail an/aus (Kundenwunsch 10/2026, siehe
+// lib/filing-reminders.js) - Standard an.
+router.put(
+  '/filing-reminders',
+  requireAuth,
+  (req, res) => {
+    try {
+      const enabled = req.body && req.body.enabled === false ? 0 : 1;
+      db.prepare('UPDATE customers SET filing_reminders_enabled = ? WHERE id = ?').run(enabled, req.auth.userId);
+      res.json({ ok: true, enabled: enabled === 1 });
+    } catch (error) {
+      console.error('❌ Fehler beim Speichern der Fristen-Erinnerung:', error);
+      res.status(500).json({ error: 'Einstellung konnte nicht gespeichert werden.' });
     }
   }
 );
