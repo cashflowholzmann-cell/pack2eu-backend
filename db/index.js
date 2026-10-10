@@ -1150,6 +1150,22 @@ function init() {
     // Anfassen der Materialien gilt als "geprüft".
     addColumnIfMissing('product_packaging', 'confidence_note', 'TEXT');
 
+    // Kundenwunsch 10/2026: Herkunft der Verpackungsdaten. 'supplier' =
+    // Materialien/Gewichte stammen aus einem Datenblatt/einer Angabe des
+    // Lieferanten bzw. Herstellers (statt eigener Messung oder KI-
+    // Schätzung). Es gibt keine offene Datenbank mit Verpackungsgewichten
+    // (GS1/GDSN liefert nur Brutto/Netto ohne Material-Aufteilung und ist
+    // für kleine Händler praktisch nicht zugänglich) - die Lieferanten-
+    // Angabe ist für die meisten Kunden die beste verfügbare Quelle.
+    // NULL = eigene Angabe/nicht angegeben (KI-Schätzungen sind weiterhin
+    // über confidence_note markiert). packaging_data_source_ref ist eine
+    // freie Belegangabe, z.B. "Datenblatt Lieferant X, 03/2026".
+    // Vorrang: die kundenübergreifende Sammeldatenbank
+    // (lookupSharedClusterMaterials in routes/skus.js) bevorzugt Zeilen
+    // mit Lieferanten-Angabe vor älteren KI-Schätzungen.
+    addColumnIfMissing('product_packaging', 'packaging_data_source', 'TEXT');
+    addColumnIfMissing('product_packaging', 'packaging_data_source_ref', 'TEXT');
+
     // Kundenwunsch 10/2026: Versandkarton-Paketgrößen (S/M/L/eigene) hatten
     // bisher keine Materialsorte hinterlegt (computeOrderAggregate() im
     // Frontend setzte sie fest auf null) - obwohl ein Umkarton so gut wie

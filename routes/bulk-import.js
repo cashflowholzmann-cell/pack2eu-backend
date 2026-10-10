@@ -111,6 +111,21 @@ function normalizeMaterial(value) {
     return MATERIAL_SYNONYMS[key] || null;
 }
 
+// Optionale Spalte "datenquelle" (Kundenwunsch 10/2026, siehe
+// packaging_data_source in db/index.js): Verpackungsdaten aus einem
+// Lieferanten-/Herstellerdatenblatt kennzeichnen. Leer oder "eigene" =
+// eigene Angabe, wie bisher.
+const DATA_SOURCE_SYNONYMS = {
+    lieferant: 'supplier', supplier: 'supplier', hersteller: 'supplier', manufacturer: 'supplier',
+    datenblatt: 'supplier', fournisseur: 'supplier', fornitore: 'supplier', proveedor: 'supplier',
+    eigene: null, eigen: null, own: null, '': null
+};
+
+function parseDataSource(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return key in DATA_SOURCE_SYNONYMS ? DATA_SOURCE_SYNONYMS[key] : undefined;
+}
+
 const YES_VALUES = ['ja', 'yes', 'true', '1'];
 const NO_VALUES = ['nein', 'no', 'false', '0', ''];
 
@@ -169,6 +184,10 @@ function validateRow(row, rowNumber) {
         errors.push(`Enthält Batterie '${row.contains_battery}' ist ungültig`);
     }
 
+    if (row.datenquelle !== undefined && parseDataSource(row.datenquelle) === undefined) {
+        errors.push(`Datenquelle '${row.datenquelle}' ist ungültig (erlaubt: lieferant oder leer)`);
+    }
+
     return errors;
 }
 
@@ -223,6 +242,18 @@ function saveProduct(userId, row, seenInThisImport) {
     const weeeCategory = containsElectronics && row.weee_category ? String(row.weee_category).trim() : null;
     const batteryType = containsBattery && row.battery_type ? String(row.battery_type).trim() : null;
 
+    // Mehrteilige Verpackungen stehen in mehreren Zeilen - die Datenquelle
+    // gilt für das ganze Produkt. Die erste Zeile eines Produkts in diesem
+    // Lauf setzt sie (auch zurück auf "eigene Angabe"), weitere Zeilen
+    // können eine Lieferanten-Angabe nur ergänzen, nicht wieder löschen.
+    const dataSource = row.datenquelle !== undefined ? parseDataSource(row.datenquelle) : null;
+    const dataSourceRef = dataSource && row.quelle_referenz
+        ? String(row.quelle_referenz).trim().slice(0, 200) || null
+        : null;
+    // Dateien ohne die Spalte (z.B. ältere Vorlage) lassen eine bereits
+    // gespeicherte Lieferanten-Angabe unangetastet.
+    const resetDataSource = isFirstRowForThisProduct && row.datenquelle !== undefined;
+
     if (existing) {
         const materials = isFirstRowForThisProduct ? [] : JSON.parse(existing.materials_json || '[]');
         materials.push(material);
@@ -235,12 +266,16 @@ function saveProduct(userId, row, seenInThisImport) {
                 weee_category = COALESCE(?, weee_category),
                 contains_battery = CASE WHEN ? THEN 1 ELSE contains_battery END,
                 battery_type = COALESCE(?, battery_type),
+                packaging_data_source = CASE WHEN ? THEN ? ELSE COALESCE(?, packaging_data_source) END,
+                packaging_data_source_ref = CASE WHEN ? THEN ? ELSE COALESCE(?, packaging_data_source_ref) END,
                 updated_at = datetime('now')
             WHERE id = ?
         `).run(
             JSON.stringify(materials), totalWeight,
             containsElectronics ? 1 : 0, weeeCategory,
             containsBattery ? 1 : 0, batteryType,
+            resetDataSource ? 1 : 0, dataSource, dataSource,
+            resetDataSource ? 1 : 0, dataSourceRef, dataSourceRef,
             existing.id
         );
     } else {
@@ -251,8 +286,9 @@ function saveProduct(userId, row, seenInThisImport) {
             INSERT INTO product_packaging (
                 customer_id, sku_name, icon, shopify_product_id,
                 destination, materials_json, total_weight_grams,
-                is_electrical_equipment, weee_category, contains_battery, battery_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                is_electrical_equipment, weee_category, contains_battery, battery_type,
+                packaging_data_source, packaging_data_source_ref
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             userId,
             row.produktname,
@@ -264,7 +300,9 @@ function saveProduct(userId, row, seenInThisImport) {
             containsElectronics ? 1 : 0,
             weeeCategory,
             containsBattery ? 1 : 0,
-            batteryType
+            batteryType,
+            dataSource,
+            dataSourceRef
         );
     }
 }
