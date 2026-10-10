@@ -382,7 +382,8 @@ router.get('/lucid-export/:year', (req, res) => {
             aluminium: metalBySubtype.aluminium || 0,
             unbekannt: (metalBySubtype.unbekannt || 0) + (metalBySubtype[''] || 0)
         } : null;
-        const { codeTotals, warnings } = mapMaterialsToLucidCodes(germanyData.materials, year, metalSubtypeKg);
+        const plasticSubtypeKg = germanyData.materialsBySubtype?.kunststoff || null;
+        const { codeTotals, warnings } = mapMaterialsToLucidCodes(germanyData.materials, year, metalSubtypeKg, plasticSubtypeKg);
 
         if (!Object.keys(codeTotals).length) {
             return res.status(400).json({ error: 'Keine der Materialien konnte einem LUCID-Materialcode zugeordnet werden.', warnings });

@@ -1,7 +1,7 @@
-sku;produktname;shopify_id;zielland;material;material_subtype;gewicht_g;recycelbar;contains_electronics;weee_category;contains_battery;battery_type
-PROD-001;Karton-Box Gross;123456789;DE;karton;wellpappe;180;Ja;;;;
-PROD-001;Karton-Box Gross;123456789;DE;kunststoff;;5;Nein;;;;
-PROD-002;Plastikbeutel Klein;;AT;kunststoff;;15;Nein;;;;
-PROD-003;Glasflasche Wein;987654321;FR;glas;weissglas;450;Ja;;;;
-PROD-004;Flyer Beilage;;DE;papier;;5;Ja;;;;
-PROD-005;Bluetooth-Lautsprecher;;;kunststoff;;40;Nein;Ja;Kleingeräte;Ja;Lithium-Ion
+sku;produktname;shopify_id;zielland;material;material_subtype;gewicht_g;recycelbar;contains_electronics;weee_category;contains_battery;battery_type;datenquelle;quelle_referenz
+PROD-001;Karton-Box Gross;123456789;DE;karton;wellpappe;180;Ja;;;;;;
+PROD-001;Karton-Box Gross;123456789;DE;kunststoff;;5;Nein;;;;;;
+PROD-002;Plastikbeutel Klein;;AT;kunststoff;;15;Nein;;;;;;
+PROD-003;Glasflasche Wein;987654321;FR;glas;weissglas;450;Ja;;;;;lieferant;Datenblatt Lieferant 03/2026
+PROD-004;Flyer Beilage;;DE;papier;;5;Ja;;;;;;
+PROD-005;Bluetooth-Lautsprecher;;;kunststoff;;40;Nein;Ja;Kleingeräte;Ja;Lithium-Ion;;

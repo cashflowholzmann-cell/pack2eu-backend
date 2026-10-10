@@ -6,6 +6,7 @@ const { findAnomalousSkus } = require('../lib/sku-anomalies');
 const { getRates, computeSkuCost, simulateAlternative } = require('../lib/material-savings');
 const { estimatePackaging } = require('../lib/packaging-estimate');
 const { buildClusters, clusterStats, runClusterImport } = require('../lib/cluster-import');
+const { computeKnowledgeBase } = require('../lib/knowledge-base');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -77,6 +78,35 @@ function readProductNiche(body = {}) {
 // schwereres Parfum-Flakon). Bewusst KEINE Pflichtangabe wie bei den
 // Verpackungsmaterialien - fehlt ein Wert oder ist er ungültig, bleibt
 // er einfach NULL, ohne Validierungsfehler.
+// Herkunft der Verpackungsdaten (siehe packaging_data_source in
+// db/index.js): 'supplier' = Lieferanten-Datenblatt, 'preset' = noch
+// unveränderter Startwert aus Vorlage/Wissensdatenbank, alles andere
+// bedeutet "eigene Angabe" (NULL). Die Belegangabe ist nur zusammen mit
+// einer Lieferanten-Angabe sinnvoll und wird sonst verworfen.
+const PACKAGING_DATA_SOURCES = ['supplier', 'preset'];
+
+// Produktart = Schlüssel aus der festen Vorlagen-Liste (PRODUCT_PRESETS im
+// Dashboard). Nur das Format wird geprüft, damit neue Vorlagen im
+// Frontend ohne Backend-Änderung funktionieren.
+function readProductType(body = {}) {
+  const value = String(body.product_type || '').trim();
+  return /^[a-z0-9_]{1,40}$/.test(value) && value !== 'custom' ? value : null;
+}
+
+const DANGEROUS_GOODS_TYPES = ['aerosol', 'flammable_liquid'];
+
+function readDangerousGoods(body = {}) {
+  return DANGEROUS_GOODS_TYPES.includes(body.dangerous_goods) ? body.dangerous_goods : null;
+}
+
+function readPackagingDataSource(body = {}) {
+  const source = PACKAGING_DATA_SOURCES.includes(body.packaging_data_source) ? body.packaging_data_source : null;
+  const ref = source === 'supplier' && body.packaging_data_source_ref
+    ? String(body.packaging_data_source_ref).trim().slice(0, 200) || null
+    : null;
+  return { packaging_data_source: source, packaging_data_source_ref: ref };
+}
+
 function readDimensions(body = {}) {
   function readOne(value) {
     const num = Number(value);
@@ -135,6 +165,22 @@ router.get('/anomalies', (req, res) => {
 // System nicht beurteilen), zeigt nur die €-Differenz einer vom
 // Nutzer selbst gewählten Alternative.
 // ============================================================
+// ============================================================
+// WISSENSDATENBANK (siehe lib/knowledge-base.js)
+//
+// Typische Verpackungsgewichte/-maße je Produktart über alle Kunden -
+// nur aggregiert (Median, ab 3 Kunden), nie Einzelwerte. Der SKU-Editor
+// schlägt daraus Werte vor, sobald eine Produktart gewählt ist.
+// ============================================================
+router.get('/knowledge-base', (req, res) => {
+  try {
+    res.json(computeKnowledgeBase());
+  } catch (error) {
+    console.error('❌ Fehler beim Laden der Wissensdatenbank:', error);
+    res.status(500).json({ error: 'Wissensdatenbank konnte nicht geladen werden.' });
+  }
+});
+
 router.get('/material-rates', (req, res) => {
   try {
     res.json(getRates());
@@ -323,18 +369,23 @@ function createSkuRow(customerId, data = {}) {
   // Nur vom Cluster-Batch-Import gesetzt (siehe lib/cluster-import.js) -
   // der normale SKU-Editor kennt dieses Feld nicht, bleibt also NULL.
   const confidenceNote = data.confidence_note ? String(data.confidence_note).trim().slice(0, 300) || null : null;
+  const dataSource = readPackagingDataSource(data);
+  const productType = readProductType(data);
+  const dangerousGoods = readDangerousGoods(data);
 
   const result = db.prepare(`
     INSERT INTO product_packaging
     (customer_id, sku_name, icon, shopify_product_id, baselinker_sku, destination, materials_json, total_weight_grams,
      is_electrical_equipment, weee_category, contains_battery, battery_type, estimated_annual_units, product_niche,
-     length_cm, width_cm, height_cm, cluster_key, ean, confidence_note)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     length_cm, width_cm, height_cm, cluster_key, ean, confidence_note,
+     packaging_data_source, packaging_data_source_ref, product_type, dangerous_goods)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     customerId, sku_name, icon || null, shopify_product_id || null, baselinker_sku || null, destination || null, materials_json, total_weight,
     classification.is_electrical_equipment, classification.weee_category,
     classification.contains_battery, classification.battery_type, estimatedAnnualUnits, productNiche,
-    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey, ean, confidenceNote
+    dimensions.length_cm, dimensions.width_cm, dimensions.height_cm, clusterKey, ean, confidenceNote,
+    dataSource.packaging_data_source, dataSource.packaging_data_source_ref, productType, dangerousGoods
   );
 
   return db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(result.lastInsertRowid);
@@ -366,7 +417,7 @@ router.put('/:id', (req, res) => {
     const customer_id = req.customer.sub;
 
     // Prüfen, ob SKU existiert und dem Kunden gehört
-    const existing = db.prepare('SELECT id FROM product_packaging WHERE id = ? AND customer_id = ?')
+    const existing = db.prepare('SELECT id, packaging_data_source, packaging_data_source_ref, product_type, dangerous_goods FROM product_packaging WHERE id = ? AND customer_id = ?')
       .get(id, customer_id);
     if (!existing) {
       return res.status(404).json({ error: 'Produkt nicht gefunden.' });
@@ -378,6 +429,14 @@ router.put('/:id', (req, res) => {
     const estimatedAnnualUnits = readEstimatedAnnualUnits(req.body);
     const productNiche = readProductNiche(req.body);
     const dimensions = readDimensions(req.body);
+    // Ältere Clients ohne das Feld sollen eine bestehende Lieferanten-
+    // Angabe nicht stillschweigend löschen - nur ein explizit
+    // mitgeschicktes Feld (auch null = "eigene Angabe") ändert sie.
+    const dataSource = 'packaging_data_source' in req.body
+      ? readPackagingDataSource(req.body)
+      : { packaging_data_source: existing.packaging_data_source, packaging_data_source_ref: existing.packaging_data_source_ref };
+    const productType = 'product_type' in req.body ? readProductType(req.body) : existing.product_type;
+    const dangerousGoods = 'dangerous_goods' in req.body ? readDangerousGoods(req.body) : existing.dangerous_goods;
 
     // Ein direktes Bearbeiten der Materialien bedeutet immer "dieser
     // Artikel bekommt jetzt seine eigenen, unabhängigen Materialien" -
@@ -394,6 +453,7 @@ router.put('/:id', (req, res) => {
       SET sku_name = ?, icon = ?, shopify_product_id = ?, baselinker_sku = ?, destination = ?, materials_json = ?, total_weight_grams = ?,
           is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
           estimated_annual_units = ?, product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?,
+          packaging_data_source = ?, packaging_data_source_ref = ?, product_type = ?, dangerous_goods = ?,
           linked_to_sku_id = NULL, confidence_note = NULL, updated_at = datetime('now')
       WHERE id = ? AND customer_id = ?
     `).run(
@@ -402,6 +462,7 @@ router.put('/:id', (req, res) => {
       classification.contains_battery, classification.battery_type,
       estimatedAnnualUnits, productNiche,
       dimensions.length_cm, dimensions.width_cm, dimensions.height_cm,
+      dataSource.packaging_data_source, dataSource.packaging_data_source_ref, productType, dangerousGoods,
       id, customer_id
     );
 
@@ -414,7 +475,11 @@ router.put('/:id', (req, res) => {
       product_niche: productNiche,
       length_cm: dimensions.length_cm,
       width_cm: dimensions.width_cm,
-      height_cm: dimensions.height_cm
+      height_cm: dimensions.height_cm,
+      packaging_data_source: dataSource.packaging_data_source,
+      packaging_data_source_ref: dataSource.packaging_data_source_ref,
+      product_type: productType,
+      dangerous_goods: dangerousGoods
     });
 
     const updated = db.prepare('SELECT * FROM product_packaging WHERE id = ?').get(id);
@@ -494,12 +559,14 @@ function cascadeToLinkedVariants(customerId, sourceId, data) {
     UPDATE product_packaging
     SET materials_json = ?, total_weight_grams = ?,
         is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, confidence_note = NULL, updated_at = datetime('now')
+        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, confidence_note = NULL,
+        packaging_data_source = ?, packaging_data_source_ref = ?, product_type = ?, dangerous_goods = ?, updated_at = datetime('now')
     WHERE customer_id = ? AND linked_to_sku_id = ?
   `).run(
     data.materials_json, data.total_weight,
     data.is_electrical_equipment, data.weee_category, data.contains_battery, data.battery_type,
     data.product_niche, data.length_cm, data.width_cm, data.height_cm,
+    data.packaging_data_source, data.packaging_data_source_ref, data.product_type, data.dangerous_goods,
     customerId, sourceId
   );
 }
@@ -547,12 +614,14 @@ function linkSkuRow(customerId, sourceId, targetId) {
     UPDATE product_packaging
     SET linked_to_sku_id = ?, materials_json = ?, total_weight_grams = ?,
         is_electrical_equipment = ?, weee_category = ?, contains_battery = ?, battery_type = ?,
-        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, confidence_note = ?, updated_at = datetime('now')
+        product_niche = ?, length_cm = ?, width_cm = ?, height_cm = ?, confidence_note = ?,
+        packaging_data_source = ?, packaging_data_source_ref = ?, product_type = ?, dangerous_goods = ?, updated_at = datetime('now')
     WHERE id = ? AND customer_id = ?
   `).run(
     target.id, target.materials_json, target.total_weight_grams,
     target.is_electrical_equipment, target.weee_category, target.contains_battery, target.battery_type,
     target.product_niche, target.length_cm, target.width_cm, target.height_cm, target.confidence_note,
+    target.packaging_data_source, target.packaging_data_source_ref, target.product_type, target.dangerous_goods,
     sourceId, customerId
   );
 
@@ -727,13 +796,17 @@ router.delete('/:id', (req, res) => {
 // kostenlos wiederverwendet wird, statt ein zweites Mal bezahlt zu
 // werden. Nimmt bewusst die ÄLTESTE Zeile (ORDER BY created_at ASC) -
 // die zuerst recherchierte gilt als die "Quelle", nicht eine beliebige
-// spätere.
+// spätere. Ausnahme (Kundenwunsch 10/2026): eine Zeile mit Lieferanten-
+// Angabe (packaging_data_source = 'supplier') hat Vorrang vor älteren
+// KI-Schätzungen desselben Clusters. Die Lieferanten-Markierung selbst
+// wird bewusst NICHT mitkopiert - der übernehmende Kunde hat das
+// Datenblatt nicht selbst vorliegen.
 function lookupSharedClusterMaterials(clusterKey) {
   if (!clusterKey) return null;
   const row = db.prepare(`
     SELECT materials_json FROM product_packaging
     WHERE cluster_key = ? AND materials_json IS NOT NULL AND materials_json != '[]'
-    ORDER BY created_at ASC LIMIT 1
+    ORDER BY (packaging_data_source = 'supplier') DESC, created_at ASC LIMIT 1
   `).get(clusterKey);
   if (!row) return null;
   try {

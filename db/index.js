@@ -1150,12 +1150,60 @@ function init() {
     // Anfassen der Materialien gilt als "geprüft".
     addColumnIfMissing('product_packaging', 'confidence_note', 'TEXT');
 
+    // Kundenwunsch 10/2026: Herkunft der Verpackungsdaten. 'supplier' =
+    // Materialien/Gewichte stammen aus einem Datenblatt/einer Angabe des
+    // Lieferanten bzw. Herstellers (statt eigener Messung oder KI-
+    // Schätzung). Es gibt keine offene Datenbank mit Verpackungsgewichten
+    // (GS1/GDSN liefert nur Brutto/Netto ohne Material-Aufteilung und ist
+    // für kleine Händler praktisch nicht zugänglich) - die Lieferanten-
+    // Angabe ist für die meisten Kunden die beste verfügbare Quelle.
+    // NULL = eigene Angabe/nicht angegeben (KI-Schätzungen sind weiterhin
+    // über confidence_note markiert). packaging_data_source_ref ist eine
+    // freie Belegangabe, z.B. "Datenblatt Lieferant X, 03/2026".
+    // Vorrang: die kundenübergreifende Sammeldatenbank
+    // (lookupSharedClusterMaterials in routes/skus.js) bevorzugt Zeilen
+    // mit Lieferanten-Angabe vor älteren KI-Schätzungen.
+    addColumnIfMissing('product_packaging', 'packaging_data_source', 'TEXT');
+    addColumnIfMissing('product_packaging', 'packaging_data_source_ref', 'TEXT');
+
+    // Wissensdatenbank (Kundenwunsch 10/2026): feste Produktart aus der
+    // Vorlagen-Liste (Schlüssel aus PRODUCT_PRESETS in dashboard.html, z.B.
+    // 'shampoo', 'sneakers'). Bisher kannte ein Artikel nur sein Icon, das
+    // für die Gruppierung zu grob ist (🧴 = Shampoo UND Kosmetik). Über
+    // diese Spalte bildet lib/knowledge-base.js kundenübergreifende
+    // typische Gewichte/Maße je Produktart. NULL = nicht zugeordnet.
+    // packaging_data_source = 'preset' (siehe oben) markiert dabei Werte,
+    // die unverändert aus einer Vorlage/der Wissensdatenbank stammen - die
+    // zählen für die Wissensdatenbank nicht mit, sonst bestätigt sie sich
+    // nur selbst.
+    addColumnIfMissing('product_packaging', 'product_type', 'TEXT');
+
+    // Gefahrgut beim Versand (Kundenwunsch 10/2026, Anlass: IKW-Merkblätter
+    // "Hinweise zum Transportrecht"): 'aerosol' = Spraydose (immer Klasse 2,
+    // egal welches Treibmittel), 'flammable_liquid' = entzündbare
+    // Flüssigkeit (Flammpunkt bis 60 °C, z.B. Parfüm/Deo mit viel Ethanol,
+    // Nagellack). NULL = kein Gefahrgut/unbekannt. Reiner Hinweis für den
+    // Versand (begrenzte Mengen: max. 30 kg je Paket, Raute aufkleben) -
+    // keine Gefahrgut-Einstufung durch Pack2EU, die liefert der Hersteller
+    // (UN-Nummer). Fließt auch in die Wissensdatenbank ein (typisch für die
+    // Produktart?).
+    addColumnIfMissing('product_packaging', 'dangerous_goods', 'TEXT');
+
     // Kundenwunsch 10/2026: Versandkarton-Paketgrößen (S/M/L/eigene) hatten
     // bisher keine Materialsorte hinterlegt (computeOrderAggregate() im
     // Frontend setzte sie fest auf null) - obwohl ein Umkarton so gut wie
     // immer Vollpappe ist. Default "vollpappe", vom Kunden pro Größe frei
     // änderbar (z.B. falls er stattdessen einen Versandbeutel nutzt).
     addColumnIfMissing('customer_package_sizes', 'material_subtype', "TEXT NOT NULL DEFAULT 'vollpappe'");
+
+    // Kundenwunsch 10/2026: Karton-Empfehlung bei Bestellungen (welcher
+    // Karton reicht für die gewählten Artikel, was spart der kleinere pro
+    // Jahr - siehe renderOrderBoxRecommendation() im Dashboard). Braucht
+    // die Innenmaße des Kartons; optional, Größen ohne Maße werden bei der
+    // Empfehlung einfach nicht berücksichtigt.
+    addColumnIfMissing('customer_package_sizes', 'length_cm', 'REAL');
+    addColumnIfMissing('customer_package_sizes', 'width_cm', 'REAL');
+    addColumnIfMissing('customer_package_sizes', 'height_cm', 'REAL');
 
     // Kundenwunsch ("ich dachte, das haben wir schon" - LUCID-XML-Export):
     // welches duale System (Systembetreiber) hat der Kunde einen
@@ -1780,7 +1828,7 @@ function init() {
         'KEINE MINDESTGRENZE: Im Gegensatz zu z. B. Litauen oder Italien gibt es in Schweden keine Freigrenze für Verpackungen – Registrierungs- und Meldepflicht gelten ab dem ersten Gramm.',
         'Verspätete Registrierung wird in Schweden als sanktionsbewehrter Verstoß behandelt: Naturvårdsverket kann seit 1.1.2024 eine Umweltsanktionsgebühr (miljösanktionsavgift) sowie Zwangsgeld (vite) zur Durchsetzung verhängen - verschuldensunabhängig (strict liability laut Kundenrecherche 10/2026).',
         'Detailliertere neue Meldepflichten gelten voraussichtlich erstmals 2028 für das Berichtsjahr 2027.',
-        'Materialmeldung vermutlich NICHT nach Kunststoff-Subtyp wie in Italien/CONAI: NPA-Tarife unterscheiden zwar "formstabiler Kunststoff" von anderem Kunststoff und gewähren Boni für unpigmentierte Monomaterialien (z. B. reines PP/PE), das wirkt aber eher wie eine Recycling-Bonus-Regelung innerhalb einer Kunststoff-Kategorie als eine echte Polymer-Aufschlüsselungspflicht (Quelle: naturvardsverket.se, Stand 09/2026 per KI-Recherche, mittlere Sicherheit, nicht anwaltlich geprüft).',
+        'VERIFIZIERT 10/2026 (Primärquellen): Die Gebühren werden NICHT nach Polymer gestaffelt, sondern nach Recyclingfähigkeit. Das ist gesetzlich vorgeschrieben durch Naturvårdsverkets Verordnung NFS 2022:11 (anzuwenden seit 1.1.2024). Höhere Gebühr für Kunststoff z. B. bei schwarzer Einfärbung, Verbund mit >5% Fremdmaterial, Mehrschicht aus verschiedenen Polymeren >5% oder >5% Füllstoff. Papier: höhere Gebühr für Verbundverpackungen mit >5% Fremdmaterial. NPA-Sätze 2026 für Privat bruk (SEK/kg): Kunststoff 13,40 (recycelbar) / 18,02 (teilweise) / 19,56 (nicht recycelbar), Papier 6,67 / 9,65, Aluminium 12,59, Stahl 21,49, Glas 2,80. Ab 1.1.2027: Kunststoff 15,86 / 22,03 / 26,15. Nach NPAs Kriterienkatalog erreichen nur PP, PE, PS und PET die günstigeren Stufen (abhängig von Farbe, Füllstoff, Etiketten), alle anderen Kunststoffe wie PVC landen automatisch in der teuersten Stufe. Quellen: https://admin.npa.se/wp-content/uploads/2026/06/Packaging-fees-2026-and-2027-version-20260608-01-ENG.pdf und https://admin.npa.se/wp-content/uploads/2025/10/Redovisningskategorier-och-kriterier-V.2.0.pdf',
         'KORREKTUR 10/2026: Seit 12.08.2026 (PPWR Art. 45 Abs. 3, EU-Verordnung, unmittelbar geltend) verlangt Naturvårdsverket laut eigener Webseite von JEDEM Hersteller, der nicht in Schweden niedergelassen ist (also auch EU-ansässigen, nicht nur Nicht-EU), einen in Schweden ansässigen Bevollmächtigten ("producentombud") per schriftlicher Vollmacht - unabhängig von der vorherigen schwedischen Eigenregel. Ein Vorschlag der EU-Kommission (Omnibus-Paket 10.12.2025), diese Pflicht für EU-ansässige Hersteller bis 2035 auszusetzen, wurde laut Rat im Juni 2026 NICHT angenommen (Verhandlungen wegen Widerstands der Mitgliedstaaten eingestellt) - die Pflicht gilt also aktuell uneingeschränkt. Konkreter Anbieter für Schweden: siehe EUROMANDAT-Bullet unten.',
         'WICHTIG: PPWR Art. 45 ist eine EU-VERORDNUNG mit unmittelbarer Geltung in allen 27 Mitgliedstaaten ab 12.08.2026 - diese Bevollmächtigtenpflicht gilt vermutlich nicht nur für Schweden, sondern grundsätzlich EU-weit für jedes Land, in dem ein Hersteller nicht niedergelassen ist. Die Länderdaten für ALLE anderen EU-Länder sollten auf dieselbe Frage hin geprüft werden (z. B. auch Finnland - dort wurde bislang nur das ältere nationale Abfallgesetz geprüft, nicht Art. 45 PPWR selbst) - noch nicht systematisch durchgeführt, dringend empfohlen über legal-watch.js nachzuholen.',
         'ERGÄNZUNG 10/2026: Die Registrierung selbst ("Producentansvarsregistret") kann man KOSTENLOS SELBST erledigen, auch ohne Sitz in Schweden - das E-Service-Portal akzeptiert neben schwedischer BankID auch "Foreign eID" (ausländische eIDAS-Identifizierung) als Login. Das ist aber getrennt von der Bevollmächtigten-Pflicht zu sehen: Selbst-Registrierung ersetzt NICHT die Pflicht, einen in Schweden ansässigen Bevollmächtigten zu bestellen (strukturell wie bei Deutschland/LUCID: beides läuft parallel, nicht wie bei Finnland/Rinki als Alternative). Wer also einen Anbieter findet, der sowohl "Registrierung" als auch "Bevollmächtigten-Gebühr" getrennt in Rechnung stellt, kann sich die Registrierungs-Position sparen und braucht nur noch die reine Bevollmächtigten-Rolle einzukaufen. Direkter Login/Registrierungs-Link: https://producentansvar.naturvardsverket.se/login',
@@ -2922,7 +2970,37 @@ function init() {
       ES: { papier: 0.115, karton: 0.115, kunststoff: 0.285, glas: 0.035 },
       AT: { papier: 0.190, karton: 0.190, kunststoff: 0.990, glas: 0.102, metall: 0.450, holz: 0.020, sonstige: 1.080 },
       NL: { kunststoff: 0.1972, glas: 0.0303, papier: 0.0154, karton: 0.0154, metall: 0.0663 },
-      SE: { papier: 0.61, kunststoff: 1.23, glas: 0.26, metall: 1.10 },
+      // SE 10/2026: per Primärquelle verifiziert - NPA "Packaging fees
+      // 2026 and 2027" (Version 2026-06-08, admin.npa.se), Tabelle
+      // "Private use", gültig ab 2026-01-01 (Holz ab 2026-04-01).
+      // Umrechnung SEK -> EUR mit EZB-Referenzkurs vom 2026-10-09
+      // (1 EUR = 11,1675 SEK). NPA staffelt NICHT nach Polymer, sondern
+      // nach Recyclingfähigkeit (NFS 2022:11): Kunststoff 4110 grün
+      // 13,40 / 4130 gelb 18,02 / 4150 rot 19,56 SEK/kg; Papier 3110
+      // 6,67 / 3150 (Verbund >5% Fremdmaterial) 9,65 SEK/kg. Laut NPA
+      // "Redovisningskategorier och kriterier" v2.0 (gültig ab
+      // 2026-01-01, Abschn. 4.2) erreichen nur PP/PE/PS/PET grün oder
+      // gelb, und das nur bei passender Gestaltung (ungefärbt, ohne
+      // Füllstoff, passende Etiketten). Das erfasst Pack2EU nicht, deshalb
+      // gilt für Kunststoff pauschal die rote Stufe 4150 als konservative
+      // Schätzung (wie bei IT/CONAI). Alle anderen Kunststoffarten landen
+      // dort "automatiskt" auf rot, daher ist PVC eindeutig. Papier/Karton
+      // pauschal grün 3110 (Monomaterial), da Pack2EU den Fremdmaterial-
+      // anteil nicht erfasst. Metall pauschal = Stahl (teurer als
+      // Aluminium). "sonstige" bewusst ohne Satz, damit unklassifizierte
+      // Mengen weiter mit dem teuersten Landessatz geschätzt werden.
+      // Alu-Laminattuben ('tube_abl') sind ebenfalls eindeutig rot: Kunststoff
+      // mit Aluminiumschicht ist ein Verbund ausserhalb der NPA-Kriterien
+      // (TMR-Differenzierungsleitfaden 2026 nennt "Plast med aluminiumskikt"
+      // ausdrücklich in der teuersten Kategorie C). PBL-/Mono-Tuben hängen
+      // wie PP/PE an Design-Details (EVOH-Anteil, Farbe) - kein eigener Satz.
+      SE: {
+        papier: 0.597, karton: 0.597,
+        kunststoff: 1.752, 'kunststoff|PVC': 1.752, 'kunststoff|tube_abl': 1.752,
+        glas: 0.251,
+        metall: 1.924, 'metall|stahl': 1.924, 'metall|aluminium': 1.127,
+        holz: 1.406
+      },
       IE: { papier: 0.046, karton: 0.046, kunststoff: 0.17, glas: 0.023, metall: 0.009 },
       PT: { papier: 0.260, karton: 0.260, kunststoff: 0.447, glas: 0.006 },
       HU: { kunststoff: 0.60, papier: 0.474, karton: 0.474, metall: 0.211, glas: 0.293 },

@@ -35,15 +35,24 @@ router.post('/', (req, res) => {
         // aber pro Paketgröße frei überschreibbar (z.B. Versandbeutel statt
         // Karton).
         const material_subtype = String(req.body?.material_subtype || '').trim() || 'vollpappe';
+        // Innenmaße optional (für die Karton-Empfehlung bei Bestellungen) -
+        // ungültige/fehlende Werte werden als "keine Angabe" gespeichert.
+        const readCm = (v) => {
+            const n = parseFloat(String(v ?? '').replace(',', '.'));
+            return Number.isFinite(n) && n > 0 && n <= 500 ? n : null;
+        };
+        const length_cm = readCm(req.body?.length_cm);
+        const width_cm = readCm(req.body?.width_cm);
+        const height_cm = readCm(req.body?.height_cm);
 
         if (!label || !Number.isInteger(weight_grams) || weight_grams <= 0) {
             return res.status(400).json({ error: 'Bezeichnung und Gewicht (g) sind erforderlich.' });
         }
 
         const result = db.prepare(`
-            INSERT INTO customer_package_sizes (customer_id, label, weight_grams, material_subtype)
-            VALUES (?, ?, ?, ?)
-        `).run(req.customer.sub, label, weight_grams, material_subtype);
+            INSERT INTO customer_package_sizes (customer_id, label, weight_grams, material_subtype, length_cm, width_cm, height_cm)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(req.customer.sub, label, weight_grams, material_subtype, length_cm, width_cm, height_cm);
 
         const created = db.prepare('SELECT * FROM customer_package_sizes WHERE id = ?').get(result.lastInsertRowid);
         res.status(201).json(created);
