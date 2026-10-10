@@ -1299,6 +1299,7 @@ router.post('/customers/:id/cluster-import/start', (req, res) => {
       linkSkuRowFn: linkSkuRow,
       lookupSharedClusterFn: lookupSharedClusterMaterials,
       findExistingByEanFn: findExistingSkuByEan,
+      withTransactionFn: (fn) => db.transaction(fn)(),
       concurrency: 5,
       onClusterDone: ({ createdCount, wasReused, duplicateCount }) => {
         db.prepare(`
