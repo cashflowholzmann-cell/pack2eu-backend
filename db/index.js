@@ -1055,6 +1055,19 @@ function init() {
     // als Referenz. Hieß ursprünglich eco_fee_plastic_bands_json, bevor
     // auch Papier-Fasce dazukamen - umbenannt, solange noch kein
     // Frontend-Code darauf zugreift.
+    //
+    // Sortengenaue Sätze (10/2026, Kundenwunsch): eco_fee_rates_json darf
+    // zusätzlich zu den bisherigen reinen Material-Schlüsseln ("kunststoff")
+    // auch optionale sortengenaue Schlüssel im Format "material|subtype"
+    // enthalten (z.B. "kunststoff|PET": 0.6, "kunststoff|PVC": 1.2) -
+    // computeCountryEcoFeeEstimate() bevorzugt bei der Berechnung die
+    // sortengenaue Zahl, fällt ohne sie auf den bisherigen Material-
+    // Pauschalsatz zurück (100% abwärtskompatibel zu allen bisher
+    // recherchierten Länder-Daten). WICHTIG: diese sortengenauen Sätze
+    // müssen wie die bisherigen Pauschalsätze ECHT recherchiert werden
+    // (z.B. über denselben Dienstleister/dieselbe Quelle wie die
+    // bestehenden Werte) - es gibt hier keine automatisch abgeleiteten
+    // oder geschätzten Werte.
     if (columnExists('countries', 'eco_fee_plastic_bands_json') && !columnExists('countries', 'eco_fee_material_bands_json')) {
       db.exec(`ALTER TABLE countries RENAME COLUMN eco_fee_plastic_bands_json TO eco_fee_material_bands_json`);
     }
